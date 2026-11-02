@@ -37,13 +37,18 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 
 **Alles, was der Windows-Editor kann**
 
+- **Übersicht** (die Startseite): alle verbundenen DSPs auf einen Blick, live: Pegel,
+  Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, Übersteuerung, Kompressor und Limiter,
+  wenn sie greifen.
 - **Konsole**: Lautstärke, Mute, Polarität und Pegelanzeigen aller Ein- und Ausgänge,
-  Frequenzgangkurven der Kanäle.
+  Frequenzgangkurven der Kanäle. Die Pegelanzeigen lesen sich wie im Windows-Editor: grüner, gelber
+  und roter Bereich, und an jedem Ausgang die orange LED, die leuchtet, solange sein Kompressor oder
+  Limiter greift.
 - **Kanäle**: parametrischer EQ (8 Bänder pro Eingang, 9 pro Ausgang, 9 Filtertypen) auf einer
   Touch-Kurve, Hoch- und Tiefpass (20 Flanken: Butterworth, Bessel, Linkwitz-Riley), Delay, Gate
   (Eingänge), Kompressor und Limiter (Ausgänge), Routing und Eingangsmischung, grafischer
   31-Band-EQ (Eingänge).
-- **Übersichten**: grafischer EQ, Dynamik, Delays und Routing-Matrix aller Kanäle.
+- **Alle Kanäle nebeneinander**: grafischer EQ, Dynamik, Delays und Routing-Matrix.
 - **Presets**: Abrufen und Speichern der 20 Benutzerspeicher und des Werks-Presets F00, `.prs`-Presets
   und vollständige `.unt`-Sicherungen, kompatibel mit dem Windows-Editor, Werkseinstellungen.
 - **Gerät**: Kanalverknüpfungen, Kanäle kopieren, Kanalnamen, Passwortsperre, Einschaltlimit (PTS),
@@ -65,10 +70,12 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 - Helles und dunkles Farbschema, als App auf Smartphone und Tablet installierbar (über HTTPS).
 - Läuft auf einem Raspberry Pi am Netzwerk des Veranstaltungsorts.
 
-![Ein Kanal im hellen Farbschema: parametrischer EQ und Frequenzweiche eines Ausgangs](docs/screenshots/de/channel.png)
+![Die Übersicht: Pegel, Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, mit Kompressor und Limiter, wenn sie greifen](docs/screenshots/de/overview.png)
+
+![Ein Kanal im hellen Farbschema: Signalkette, parametrischer EQ und Frequenzweiche eines Ausgangs](docs/screenshots/de/channel.png)
 
 <p align="center">
-  <img src="docs/screenshots/de/phone.png" width="760" alt="Auf einem Smartphone: die Konsole, der parametrische EQ eines Eingangs und die Presets" />
+  <img src="docs/screenshots/de/phone.png" width="760" alt="Auf einem Smartphone: die Konsole, die Übersicht und der parametrische EQ eines Eingangs" />
 </p>
 
 ## Schnellstart
@@ -174,7 +181,7 @@ npm test                      # Unit-Tests: Protokoll, Firmware-Konformität, Br
 npm run typecheck
 npm run dev:bridge            # eine Bridge mit eigenen Daten (.dev/), dann in einem anderen Terminal:
 npm run dev                   # die Oberfläche mit Hot Reload, auf http://localhost:5173
-node apps/web/e2e/flows.cjs   # 29 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
+node apps/web/e2e/flows.cjs   # 32 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
 ```
 
 | Ordner | |

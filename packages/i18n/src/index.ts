@@ -63,6 +63,8 @@ const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 export function tm(text: string): string {
   if (lang === 'fr' || !text) return text;
+  // a French screen may have put no-break spaces before the colons ("Scène : …")
+  text = text.replace(/[  ]/g, ' ');
   const d = DICTS[lang];
   const hit = d[text];
   if (hit !== undefined) return hit;

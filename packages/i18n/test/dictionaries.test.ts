@@ -58,6 +58,8 @@ describe('translation', () => {
     expect(tm('Démo DSP 206 · ID 2')).toBe('Demo DSP 206 · ID 2');
     expect(tm('Ce fichier .prs est destiné à un DSP 408, pas à un DSP 206.')).toBe('This .prs file is for a DSP 408, not a DSP 206.');
     expect(tm('limite invalide')).toBe('invalid limit');
+    // a label made on a French screen carries no-break spaces before its colons
+    expect(tm('Configuration invalide\u202f: modèle inconnu.')).toBe('Invalid configuration: unknown model.');
     inLang('de');
     expect(tm('Configuration invalide : modèle inconnu.')).toBe('Ungültige Konfiguration: unbekanntes Modell.');
     expect(tm('Salle des fêtes')).toBe('Salle des fêtes');

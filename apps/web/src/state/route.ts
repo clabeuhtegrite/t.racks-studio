@@ -4,16 +4,17 @@
 import { useSyncExternalStore } from 'react';
 
 export type ViewId =
-  | 'console' | 'canal' | 'geq' | 'dynamique' | 'delais' | 'matrice' | 'presets' | 'appareil' | 'outils'
+  | 'vue' | 'console' | 'canal' | 'geq' | 'dynamique' | 'delais' | 'matrice' | 'presets' | 'appareil' | 'outils'
   | 'connexion' | 'bibliotheque' | 'fiche';
 
 export interface Route { view: ViewId; arg: string; sub: string }
 
-const VIEWS: ViewId[] = ['console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'presets', 'appareil', 'outils', 'connexion', 'bibliotheque', 'fiche'];
+const VIEWS: ViewId[] = ['vue', 'console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'presets', 'appareil', 'outils', 'connexion', 'bibliotheque', 'fiche'];
 
 function parse(): Route {
   const parts = window.location.hash.replace(/^#\/?/, '').split('/');
-  const view = (VIEWS as string[]).includes(parts[0]) ? (parts[0] as ViewId) : 'console';
+  // no address (or an unknown one): the overview of every device
+  const view = (VIEWS as string[]).includes(parts[0]) ? (parts[0] as ViewId) : 'vue';
   return { view, arg: decodeURIComponent(parts[1] ?? ''), sub: decodeURIComponent(parts[2] ?? '') };
 }
 

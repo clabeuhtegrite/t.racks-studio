@@ -1,15 +1,14 @@
 // One channel with all its blocks (the editor's InA .. Out8 pages, plus its gate / compressor /
 // limiter / routing): block diagram on top, then every editor.
 
-import { MODELS, thrRawToDb, type DeviceConfig } from '@dsp-studio/protocol';
+import { MODELS, type DeviceConfig } from '@dsp-studio/protocol';
 import { confirmDialog, promptDialog, useApp, useCanEdit, useCanOperate, useDevice } from '../state/store.ts';
 import { go, useRoute } from '../state/route.ts';
 import { Button, Card, Select } from '../ui/kit.tsx';
 import { Icon } from '../ui/icons.tsx';
-import { ChannelChips, chan, colorOf, labelOf, linkMates, titleOf } from '../ui/channels.tsx';
+import { channelBlocks, ChannelChips, chan, colorOf, labelOf, linkMates, titleOf } from '../ui/channels.tsx';
 import { PeqEditor } from '../editors/PeqEditor.tsx';
 import { CompEditor, GateEditor, GeqEditor, LevelEditor, LimiterEditor, RoutingEditor, XoverEditor } from '../editors/editors.tsx';
-import { P } from '../ui/format.ts';
 import { t, tx } from '../i18n.tsx';
 
 export function ChannelView(): React.JSX.Element {
@@ -87,44 +86,20 @@ function CopyTo(p: { cfg: DeviceConfig; ch: number; disabled: boolean; onCopy: (
 
 /** Signal flow of the channel; lit blocks are active, a click jumps to the block. */
 function BlockDiagram({ cfg, ch }: { cfg: DeviceConfig; ch: number }): React.JSX.Element {
-  const m = MODELS[cfg.model];
-  const c = chan(cfg, ch);
-  const input = ch < m.inputs;
-  const peqOn = !c.peqBypass && c.peq.some((b) => !b.bypass && (b.gain !== 120 || b.type > 2));
-  const xOn = c.hpf.slope > 0 || c.lpf.slope > 0;
-  const blocks: { id: string; label: string; on: boolean; info?: string }[] = input
-    ? [
-      { id: 'blk-level', label: t('Gain'), on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
-      { id: 'blk-gate', label: t('Gate'), on: 'gate' in c && c.gate.threshold > 0, info: 'gate' in c && c.gate.threshold > 0 ? `${thrRawToDb(c.gate.threshold)} dB` : '' },
-      { id: 'blk-geq', label: 'GEQ', on: 'geq' in c && !c.geqBypass && c.geq.some((g) => g !== 120) },
-      { id: 'blk-peq', label: 'PEQ', on: peqOn },
-      { id: 'blk-xover', label: t('HP / LP'), on: xOn },
-      { id: 'blk-level', label: t('Délai'), on: c.delay > 0 },
-      { id: 'blk-level', label: c.phase ? t('Ø inversé') : t('Ø'), on: !!c.phase },
-      { id: 'blk-level', label: t('Mute'), on: c.mute },
-    ]
-    : [
-      { id: 'blk-route', label: t('Matrice'), on: true, info: 'route' in c ? cfg.inputs.map((_, i) => ((c.route >> i) & 1 ? m.inputLabels[i].slice(2) : '')).join('') : '' },
-      { id: 'blk-xover', label: t('HP / LP'), on: xOn },
-      { id: 'blk-peq', label: 'PEQ', on: peqOn },
-      { id: 'blk-comp', label: t('Comp'), on: 'comp' in c && c.comp.threshold < 220 && c.comp.ratio > 0 },
-      { id: 'blk-limit', label: t('Limiteur'), on: 'limiter' in c && c.limiter.threshold < 220 },
-      { id: 'blk-level', label: t('Délai'), on: c.delay > 0 },
-      { id: 'blk-level', label: c.phase ? t('Ø inversé') : t('Ø'), on: !!c.phase },
-      { id: 'blk-level', label: t('Gain'), on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
-      { id: 'blk-level', label: t('Mute'), on: c.mute },
-    ];
+  const input = ch < MODELS[cfg.model].inputs;
+  const blocks = channelBlocks(cfg, ch);
   return (
     <Card className="card-flow">
-      <div className="flow" aria-label={t('Schéma du canal')}>
+      <div className="flow" aria-label={t('Chaîne du signal de {0}', labelOf(cfg, ch))}>
         <span className="flow-end">{input ? t('Entrée') : t('Mélange')}</span>
-        {blocks.map((b, i) => (
-          <button key={i} type="button" className={`flow-blk ${b.on ? 'is-on' : ''} ${b.label === 'Mute' && b.on ? 'is-mute' : ''}`}
+        {blocks.map((b) => (
+          <button key={b.key} type="button" className={`flow-blk ${b.on ? 'is-on' : ''} ${b.mute && b.on ? 'is-mute' : ''}`} title={b.title}
             onClick={() => document.getElementById(b.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-            {b.label}{b.info ? <small>{b.info}</small> : null}
+            {b.label}{b.on && b.info ? <small>{b.info}</small> : null}
           </button>
         ))}
         <span className="flow-end">{input ? t('Matrice') : t('Sortie')}</span>
+        <span className="flow-legend"><i />{t('allumé = actif')}</span>
       </div>
     </Card>
   );

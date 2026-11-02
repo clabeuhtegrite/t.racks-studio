@@ -77,7 +77,8 @@ function InfoCard({ mirror, snap, config }: { mirror: DeviceMirror; snap: Sessio
   const used = snap.presets.filter((p) => p.user).length;
   const rows: [string, string][] = [
     [t('Modèle'), t('{0} · {1} entrées, {2} sorties', m.name, m.inputs, m.outputs)],
-    [t('Firmware'), [snap.version, snap.versionExt].filter(Boolean).join(' · ') || '—'],
+    // the extended version usually repeats the short one, then adds the build date
+    [t('Firmware'), (snap.version && snap.versionExt.startsWith(snap.version) ? snap.versionExt : [snap.version, snap.versionExt].filter(Boolean).join(' · ')) || '—'],
     [t('ID de l’appareil'), String(snap.system?.deviceId ?? snap.deviceId)],
     [t('Adresse IP'), snap.system ? snap.system.ip.join('.') : '—'],
     [t('Liaison'), info ? `${tm(describeSource(info.spec))} · ${stateLabel(info.state)}` : '—'],

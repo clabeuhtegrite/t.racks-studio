@@ -36,7 +36,8 @@ virtuel appliquent toujours les modifications de la même façon que le firmware
 | Fichier | Contenu |
 | --- | --- |
 | `frame.ts` | trame `10 02 … 10 03 xor`, analyse d’un flux (resynchronisation, rembourrage USB) |
-| `commands.ts` | les commandes du firmware et leur contenu, décodage des réponses (vumètres, verrouillage) |
+| `commands.ts` | les commandes du firmware et leur contenu, décodage des réponses (textes, verrouillage) |
+| `meters.ts` | vumètres lus comme le logiciel Windows : niveaux, zones de couleur, compresseur et limiteur en action |
 | `codecs.ts` | valeurs brutes ↔ unités (dB, Hz, Q, ms…), mêmes formats d’affichage que le logiciel Windows |
 | `models.ts` | DSP 206 et 408 : nombre de canaux, taille et plan de la mémoire de configuration |
 | `config.ts` | configuration complète ↔ image binaire de 928 / 1448 octets, aller-retour à l’octet près |
@@ -105,7 +106,7 @@ Sécurité :
 | --- | --- |
 | `client/` | les deux « backends » (pont par WebSocket, ou navigateur seul), les transports WebHID et Web Serial, et `mirror.ts`, la copie locale de chaque appareil |
 | `state/` | état global (appareil choisi, rôle, messages, dialogues) et navigation par adresse (`#/canal/3`, `#/appareil/liaisons`…) |
-| `views/` | les écrans : Console, Canaux, vues d’ensemble (EQ graphique, Dynamique, Délais, Matrice), Presets, Bibliothèque, Appareil, Outils, Connexion, fiche imprimable |
+| `views/` | les écrans : Vue globale, Console, Canaux, pages de tous les canaux (EQ graphique, Dynamique, Délais, Matrice), Presets, Bibliothèque, Appareil, Outils, Connexion, fiche imprimable |
 | `editors/` | éditeurs d’un canal : égaliseur paramétrique, filtres, dynamique, routage, EQ graphique |
 | `ui/` | composants : curseurs, champs de saisie, courbe de réponse tactile, vumètres, icônes |
 

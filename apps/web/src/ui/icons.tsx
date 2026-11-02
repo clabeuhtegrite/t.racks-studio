@@ -1,6 +1,7 @@
 // Inline icons (24 x 24, stroke = currentColor).
 
 const PATHS = {
+  overview: 'M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z',
   console: 'M6 4v16M12 4v16M18 4v16M4 14h4M10 8h4M16 16h4',
   eq: 'M3 17c3 0 4-10 7-10s3 7 5 7 3-4 6-4',
   geq: 'M4 20V10M8 20V6M12 20v-8M16 20V8M20 20v-5',
@@ -45,7 +46,7 @@ const PATHS = {
   usb: 'M12 3v14M12 3l-2 3h4zM8 9v3l4 3M16 8v2l-4 3M12 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
   ethernet: 'M5 4h14v10H5zM9 14v3h6v-3M8 7v3M11 7v3M13 7v3M16 7v3',
   serial: 'M4 8h16l-2 8H6zM8 11h.01M12 11h.01M16 11h.01M10 14h.01M14 14h.01',
-  demo: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z',
+  demo: 'M9 3h6M10 3v6l-5.5 9.5A1.6 1.6 0 0 0 5.9 21h12.2a1.6 1.6 0 0 0 1.4-2.5L14 9V3M7.2 15h9.6',
   print: 'M7 9V4h10v5M6 18H4v-7h16v7h-2M7 14h10v6H7z',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5',
   moon: 'M20 15A8 8 0 0 1 9 4a8 8 0 1 0 11 11z',

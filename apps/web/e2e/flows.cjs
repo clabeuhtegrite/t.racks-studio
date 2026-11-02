@@ -1,7 +1,7 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 29 vérifications
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 32 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
-// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil).
+// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
 //   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
@@ -78,6 +78,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   ok('se déconnecter : l’autre écran le voit', await B.getByText('Appareil non connecté').isVisible());
   await A.locator('.dev').first().getByRole('button', { name: 'Se connecter' }).click();
   await wait(2500 + 1000 * (FACTOR - 1));
+  ok('se connecter : l’appareil repasse en ligne', (await A.locator('.dev').first().innerText()).includes('en ligne'));
+  await A.evaluate(() => { location.hash = '#/console'; });
+  await wait(600);
   ok('se connecter depuis l’interface : la console revient', (await B.locator('.strip').count()) === 8 && (await A.locator('.strip').count()) === 8);
 
   // 1. gain sync between screens
@@ -102,16 +105,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await wait(500);
   ok('rétablir (Ctrl+Maj+Z)', (await field(B, 'Volume InA').inputValue()) === '−6,0 dB', await field(B, 'Volume InA').inputValue());
 
-  // 4. PEQ band gain from the band editor, seen in the other screen's table
+  // 4. PEQ band gain from the computer's band table, seen in the phone's band editor
   await A.evaluate(() => { location.hash = '#/canal/0'; });
   await B.evaluate(() => { location.hash = '#/canal/0'; });
   await wait(800);
-  await setField(A, 'Gain', '6');
+  const peqB = B.locator('.card-eq');
+  await setField(A, 'Gain bande 1', '6');
   await wait(600);
-  ok('PEQ : gain de bande synchronisé', (await field(B, 'Gain bande 1').inputValue()) === '+6,0 dB', await field(B, 'Gain bande 1').inputValue());
+  ok('PEQ : gain de bande synchronisé', (await field(peqB, 'Gain').inputValue()) === '+6,0 dB', await field(peqB, 'Gain').inputValue());
   await setField(A, 'Fréquence bande 2', '1k');
   await wait(600);
-  ok('PEQ : fréquence saisie « 1k »', (await field(B, 'Fréquence bande 2').inputValue()).includes('kHz'), await field(B, 'Fréquence bande 2').inputValue());
+  await peqB.getByRole('tab', { name: '2', exact: true }).click();
+  ok('PEQ : fréquence saisie « 1k »', (await field(peqB, 'Fréquence').inputValue()).includes('kHz'), await field(peqB, 'Fréquence').inputValue());
   if (SHOTS) await A.screenshot({ path: `${SHOTS}/flow-peq.png` });
 
   // 5. rename a channel from the channel page
@@ -141,9 +146,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   // 7. store a preset in U01, recall F00 then U01
   await A.evaluate(() => { location.hash = '#/presets'; });
   await wait(600);
-  await A.locator('.preset', { hasText: 'U01' }).getByRole('button', { name: 'Enregistrer ici' }).click();
+  await A.getByRole('button', { name: 'Enregistrer dans une mémoire…' }).click();
+  await A.locator('.modal').getByRole('combobox', { name: 'Mémoire' }).selectOption('1');
   await A.getByRole('textbox', { name: 'Nom du preset (14 caractères)' }).fill('Concert test');
-  await A.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await A.locator('.modal').getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await wait(1500);
   ok('preset enregistré dans U01', (await A.locator('.preset', { hasText: 'U01' }).innerText()).includes('Concert test'));
   await A.locator('.preset', { hasText: 'F00' }).getByRole('button', { name: 'Rappeler' }).click();
@@ -182,14 +188,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   // 10. A/B compare
   await A.evaluate(() => { location.hash = '#/console'; });
   await wait(400);
-  await A.locator('.ab .btn-group').getByRole('button', { name: 'A+' }).click();
+  const storeAB = async (n) => {
+    await A.locator('.ab-open').click();
+    await A.locator('.modal .ab-slot').nth(n).getByRole('button', { name: 'Mémoriser ici' }).click();
+    await A.keyboard.press('Escape');
+  };
+  await storeAB(0);
   await setField(A, 'Volume InB', '-10');
   await wait(400);
-  await A.locator('.ab .btn-group').getByRole('button', { name: 'B+' }).click();
-  await A.locator('.ab .btn-group').getByRole('button', { name: 'A', exact: true }).click();
+  await storeAB(1);
+  await A.locator('.ab-quick').getByRole('button', { name: 'A', exact: true }).click();
   await wait(1500);
   ok('A/B : retour à la version A', (await field(A, 'Volume InB').inputValue()) === '0,0 dB', await field(A, 'Volume InB').inputValue());
-  await A.locator('.ab .btn-group').getByRole('button', { name: 'B', exact: true }).click();
+  await A.locator('.ab-quick').getByRole('button', { name: 'B', exact: true }).click();
   await wait(1500);
   ok('A/B : version B', (await field(A, 'Volume InB').inputValue()) === '−10,0 dB', await field(A, 'Volume InB').inputValue());
 
@@ -243,6 +254,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await A.evaluate(() => { location.hash = '#/console'; });
   await wait(2500);
   ok('DSP 408 : 12 tranches', (await A.locator('.strip').count()) === 12, String(await A.locator('.strip').count()));
+
+  // 15. overview: every connected device, live, current one first
+  await A.evaluate(() => { location.hash = '#/vue'; });
+  await wait(1500);
+  const devs = await A.locator('.gv-dev').count(), tiles = await A.locator('.gv-ch').count();
+  ok('vue globale : les deux appareils et tous leurs canaux', devs === 2 && tiles === 20, `${devs} appareils, ${tiles} canaux`);
+  const tile = A.locator('.gv-dev').first().locator('.gv-ch').first();
+  await tile.getByRole('button', { name: 'Mute' }).click();
+  await wait(800);
+  ok('vue globale : mute d’un canal depuis sa tuile', (await tile.getAttribute('class')).includes('is-muted'));
+  await tile.getByRole('button', { name: 'Mute' }).click();
+  await wait(500);
 
   console.log(results.join('\n'));
   console.log(errors.length ? 'ERREURS :\n' + errors.join('\n') : 'aucune erreur JavaScript');

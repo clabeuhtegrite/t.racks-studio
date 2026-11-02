@@ -2,7 +2,8 @@
 // the Ethernet module, RS-232/RS-485, the virtual DSP or the firmware emulator). Isomorphic: runs
 // in Node (bridge) and in the browser (WebHID / Web Serial / demo mode).
 
-import { CMD, cmd, decodeAscii, decodeLockStatus, decodeMeters, FORBIDDEN, REPLY_PAGE, type Command, type LockStatus, type Meters } from './commands.ts';
+import { CMD, cmd, decodeAscii, decodeLockStatus, FORBIDDEN, REPLY_PAGE, type Command, type LockStatus } from './commands.ts';
+import { decodeMeters, type Meters } from './meters.ts';
 import { parseConfig, serializeConfig, type DeviceConfig } from './config.ts';
 import { decodeUnitSystem, UNIT_SYSTEM_BYTES, type UnitFile, type UnitPreset } from './files.ts';
 import { encodeFrame, FrameParser, toHex, type Frame } from './frame.ts';

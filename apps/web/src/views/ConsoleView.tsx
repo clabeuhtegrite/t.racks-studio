@@ -2,8 +2,8 @@
 // meters with clip / limiter LEDs, plus the response curves of the channels you pick.
 
 import { memo, useMemo, useState } from 'react';
-import { MODELS, logFreqs, type AnyChannel, type DeviceConfig } from '@dsp-studio/protocol';
-import { promptDialog, useCanEdit, useCanOperate, useDevice, useMeters } from '../state/store.ts';
+import { dynamicsActive, logFreqs, meterZones, MODELS, type AnyChannel, type DeviceConfig } from '@dsp-studio/protocol';
+import { promptDialog, useCanEdit, useCanOperate, useConfig, useDevice, useMeters } from '../state/store.ts';
 import { go } from '../state/route.ts';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { Slider } from '../ui/Slider.tsx';
@@ -111,7 +111,7 @@ const Strip = memo(function Strip(p: {
       </button>
       {p.canEdit ? <button type="button" className="strip-rename" onClick={rename} title={t('Renommer')}><Icon name="edit" size={14} /></button> : null}
       <div className="strip-body">
-        <StripMeter ch={ch} output={!input} nin={p.nin} />
+        <StripMeter ch={ch} output={!input} label={p.label} />
         <Slider
           vertical value={c.gain} min={P.gain.min} max={P.gain.max} def={P.gain.def} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })}
           disabled={!p.canOperate} label={t('Volume {0}', label)} valueText={P.gain.fmt} color={color} ticks={GAIN_TICKS} className="fader"
@@ -127,9 +127,10 @@ const Strip = memo(function Strip(p: {
   );
 });
 
-function StripMeter({ ch, output, nin }: { ch: number; output: boolean; nin: number }): React.JSX.Element {
+function StripMeter({ ch, output, label }: { ch: number; output: boolean; label: string }): React.JSX.Element {
   const meters = useMeters();
-  const db = meters?.db[ch];
-  const limit = output ? !!(meters && (meters.status >> (ch - nin)) & 1) : undefined;
-  return <Meter db={db} limit={limit} label={t('Niveau {0}', ch)} />;
+  const config = useConfig();
+  if (!config) return <></>;
+  const dyn = meters ? dynamicsActive(meters.status, config, ch) : null;
+  return <Meter db={meters?.db[ch]} zones={meterZones(config.model, ch)} dyn={output ? !!dyn && (dyn.comp || dyn.limit) : undefined} label={t('Niveau {0}', label)} />;
 }

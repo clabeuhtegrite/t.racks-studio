@@ -4,12 +4,12 @@
 
 import { useMemo, useRef, useState } from 'react';
 import {
-  eqGainRawToDb, GEQ_FREQS, logFreqs, MODELS, ratioValue, SLOPES, thrRawToDb,
+  dynamicsActive, eqGainRawToDb, GEQ_FREQS, logFreqs, meterZones, MODELS, ratioValue, SLOPES, thrRawToDb,
   type DelayUnit, type DeviceConfig, type InputChannel, type OutputChannel, type Xover,
 } from '@dsp-studio/protocol';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { confirmDialog, useMeters } from '../state/store.ts';
-import { Button, Card, ParamRow, Segmented, Select, Stepper, Toggle, ValueField } from '../ui/kit.tsx';
+import { Badge, Button, Card, ParamRow, Segmented, Select, Stepper, Toggle, ValueField } from '../ui/kit.tsx';
 import { Slider } from '../ui/Slider.tsx';
 import { Meter } from '../ui/Meter.tsx';
 import { delayParam, DELAY_UNIT_LABELS, fmtIso, fmtIsoHz, fmtSigned, P } from '../ui/format.ts';
@@ -42,10 +42,10 @@ export function XoverEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.E
       mirror.apply({ t: kind, ch, x: next });
     };
     return (
-      <div className="xover">
+      <div className={`xover ${x.slope === 0 ? 'is-byp' : ''}`}>
         <div className="xover-head">
           <h3>{title}</h3>
-          <Toggle small tone="amber" on={x.slope === 0} disabled={disabled} title={t('Filtre contourné')}
+          <Toggle small tone="amber" on={x.slope === 0} disabled={disabled} title={x.slope === 0 ? t('Filtre contourné : touchez pour le remettre en service') : t('Contourner ce filtre')}
             onChange={(byp) => set({ slope: byp ? 0 : slope })}>{t('Bypass')}</Toggle>
         </div>
         <ParamRow label={t('Fréquence')} param={P.freq} value={x.freq} onChange={(freq) => set({ freq })} disabled={disabled} color={color} />
@@ -58,7 +58,7 @@ export function XoverEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.E
   };
   return (
     <Card title={t('Filtres (crossover)')} subtitle={t('Passe-haut (coupe-bas) et passe-bas (coupe-haut), 20 pentes Butterworth, Bessel et Linkwitz-Riley.')}>
-      <div className="grid2">
+      <div className="xovers">
         {row('hpf', c.hpf, t('Passe-haut (coupe-bas)'))}
         {row('lpf', c.lpf, t('Passe-bas (coupe-haut)'))}
       </div>
@@ -73,11 +73,12 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
   const unit = cfg.delayUnit as DelayUnit;
   const dp = delayParam(unit);
   const meters = useMeters();
+  const dyn = useDynamics(cfg, ch);
   const m = MODELS[cfg.model];
   return (
     <Card title={t('Niveau, polarité et délai')}>
       <div className="level">
-        <Meter db={meters?.db[ch]} vertical={false} limit={ch >= m.inputs ? !!((meters?.status ?? 0) >> (ch - m.inputs) & 1) : undefined} label={t('Niveau {0}', labelOf(cfg, ch))} />
+        <Meter db={meters?.db[ch]} zones={meterZones(cfg.model, ch)} vertical={false} dyn={ch >= m.inputs ? dyn.comp || dyn.limit : undefined} label={t('Niveau {0}', labelOf(cfg, ch))} />
         <ParamRow label={t('Volume')} param={P.gain} value={c.gain} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })} disabled={!canOperate} color={color} origin={280} />
         <div className="row">
           <Toggle on={c.mute} tone="red" onChange={(on) => mirror.apply({ t: 'mute', ch, on })} disabled={!canOperate} icon="mute">{t('Mute')}</Toggle>
@@ -95,11 +96,25 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
 }
 
 // ------------------------------------------------------------------------------ dynamics
+/** What the compressor and the limiter of an output are doing now (status word of the meters). */
+export function useDynamics(cfg: DeviceConfig, ch: number): { comp: boolean; limit: boolean } {
+  const meters = useMeters();
+  return meters ? dynamicsActive(meters.status, cfg, ch) : { comp: false, limit: false };
+}
 function useLevel(ch: number): number | null {
   const meters = useMeters();
   const v = meters?.db[ch];
   return v === undefined ? null : v;
 }
+
+/** "active" / "off" next to the title of a block that has no bypass of its own (neutral settings = off). */
+export function BlockState({ on, title }: { on: boolean; title?: string }): React.JSX.Element {
+  return <Badge tone={on ? 'accent' : 'muted'} title={title}>{on ? t('actif') : t('inactif')}</Badge>;
+}
+/** Neutral settings of the dynamics blocks (the device processes nothing with them). */
+export const gateOn = (g: InputChannel['gate']): boolean => g.threshold > 0;
+export const compOn = (k: OutputChannel['comp']): boolean => k.threshold < 220 && k.ratio > 0;
+export const limiterOn = (l: OutputChannel['limiter']): boolean => l.threshold < 220;
 
 export function GateEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { compact?: boolean }): React.JSX.Element {
   const c = cfg.inputs[ch] as InputChannel;
@@ -122,7 +137,10 @@ export function GateEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
     </div>
   );
   if (compact) return body;
-  return <Card title={t('Noise gate')} subtitle={t('Ferme l’entrée quand le signal passe sous le seuil (−90 dB = gate ouvert en permanence).')}>{body}</Card>;
+  return (
+    <Card title={<>{t('Noise gate')}<BlockState on={gateOn(g)} title={gateOn(g) ? undefined : t('Seuil à −90 dB : le gate reste ouvert')} /></>}
+      subtitle={t('Ferme l’entrée quand le signal passe sous le seuil (−90 dB = gate ouvert en permanence).')}>{body}</Card>
+  );
 }
 
 export function CompEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { compact?: boolean }): React.JSX.Element {
@@ -130,6 +148,7 @@ export function CompEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
   const k = c.comp;
   const color = colorOf(cfg, ch);
   const level = useLevel(ch);
+  const acting = useDynamics(mirror.config ?? cfg, ch).comp;
   const set = (patch: Partial<OutputChannel['comp']>): void => {
     const cur = (mirror.config ?? cfg).outputs[ch - MODELS[cfg.model].inputs].comp;
     mirror.apply({ t: 'comp', ch, c: { ...cur, ...patch } });
@@ -147,7 +166,9 @@ export function CompEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
     </div>
   );
   if (compact) return body;
-  return <Card title={t('Compresseur')} subtitle={t('Seuil +20 dB = compresseur inactif.')}>{body}</Card>;
+  return (
+    <Card title={<>{t('Compresseur')}<BlockState on={compOn(k)} />{acting && <Badge tone="warn">{t('compresse en ce moment')}</Badge>}</>} subtitle={t('Seuil +20 dB ou taux 1:1 = compresseur inactif.')}>{body}</Card>
+  );
 }
 
 export function LimiterEditor({ cfg, ch, mirror, disabled, compact, expert }: EdProps & { compact?: boolean; expert?: boolean }): React.JSX.Element {
@@ -155,6 +176,7 @@ export function LimiterEditor({ cfg, ch, mirror, disabled, compact, expert }: Ed
   const l = c.limiter;
   const color = colorOf(cfg, ch);
   const level = useLevel(ch);
+  const limiting = useDynamics(mirror.config ?? cfg, ch).limit;
   const set = (patch: Partial<OutputChannel['limiter']>): void => {
     const cur = (mirror.config ?? cfg).outputs[ch - MODELS[cfg.model].inputs].limiter;
     mirror.apply({ t: 'limiter', ch, l: { ...cur, ...patch } });
@@ -171,7 +193,10 @@ export function LimiterEditor({ cfg, ch, mirror, disabled, compact, expert }: Ed
     </div>
   );
   if (compact) return body;
-  return <Card title={t('Limiteur')} subtitle={t('Protège les amplis et haut-parleurs : le niveau ne dépasse jamais le seuil.')}>{body}</Card>;
+  return (
+    <Card title={<>{t('Limiteur')}<BlockState on={limiterOn(l)} />{limiting && <Badge tone="warn">{t('limite en ce moment')}</Badge>}</>}
+      subtitle={t('Protège les amplis et haut-parleurs : le niveau ne dépasse jamais le seuil (+20 dB = inactif).')}>{body}</Card>
+  );
 }
 
 // ------------------------------------------------------------------------------ routing
