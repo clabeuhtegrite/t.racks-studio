@@ -73,9 +73,12 @@
 .lv-status .badge { white-space: normal; line-height: 1.35; }
 .lv-badge { border: 0; cursor: pointer; }
 .lv-badge:hover { filter: brightness(1.15); }
+.lv-now-main, .lv-now-notes { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lv-now-notes:empty { display: none; }
 .lv-advice { display: flex; gap: 8px; align-items: flex-start; }
 .lv-advice svg { flex: none; color: var(--blue); margin-top: 1px; }
 .lv-inputs { display: flex; gap: 6px; flex-wrap: wrap; }
+.lv-target { display: flex; flex-direction: column; gap: 8px; }
 .lv-inputs .chip-id svg { color: var(--ch, var(--accent)); }
 
 /* ------------------------------------------------------------------ DJ screen */

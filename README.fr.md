@@ -61,12 +61,14 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 - Plusieurs DSP à la fois, et autant d’écrans que l’on veut, synchronisés en direct.
 - Codes d’accès : administrateur (tous les réglages) et opérateur (volumes, mutes et rappel de
   presets seulement).
-- Annuler et rétablir, comparaison A/B de deux versions des réglages.
+- Annuler et rétablir.
 - Une bibliothèque partagée par tous les écrans : presets, sauvegardes et scènes rappelées d’un geste
   sans occuper de mémoire de l’appareil, avec des notes.
 - « Couper les sorties » d’un geste, alignement des délais par les distances, assistant de filtrage 2
   ou 3 voies, calculs de délai et de longueur d’onde.
 - Fiche des réglages imprimable (ou en PDF).
+- Sur un ordinateur, chaque page tient sur l’écran, sans défiler (de 1280 × 600 à l’écran large) ;
+  sur un téléphone ou une tablette, elle se lit de haut en bas.
 - Thèmes clair et sombre, application installable sur téléphone et tablette (en HTTPS).
 - Gain automatique pour les sets vinyles : le pont égalise doucement le niveau d’un disque à l’autre
   (cible, tolérance, limites), juge chaque disque sur ses passages forts, attend la fin des breaks
@@ -184,7 +186,7 @@ npm test                      # tests : protocole, conformité au firmware, pont
 npm run typecheck
 npm run dev:bridge            # un pont avec ses propres données (.dev/), puis dans un autre terminal :
 npm run dev                   # l’interface avec rechargement à chaud, sur http://localhost:5173
-node apps/web/e2e/flows.cjs   # 37 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
+node apps/web/e2e/flows.cjs   # 39 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
 ```
 
 | Dossier | |

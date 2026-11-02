@@ -62,12 +62,14 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 - Mehrere DSPs gleichzeitig und beliebig viele Bildschirme, live synchronisiert.
 - Zugangscodes: Administrator (alle Einstellungen) und Bediener (nur Lautstärken, Mutes und
   Preset-Abruf).
-- Rückgängig und Wiederherstellen, A/B-Vergleich zweier Versionen der Einstellungen.
+- Rückgängig und Wiederherstellen.
 - Eine Bibliothek für alle Bildschirme: Presets, Sicherungen und Szenen, die mit einem Tipp
   abgerufen werden, ohne einen Gerätespeicher zu belegen, mit Notizen.
 - „Ausgänge stummschalten“ mit einem Tipp, Delay-Ausrichtung nach Entfernungen,
   Frequenzweichen-Assistent für 2 oder 3 Wege, Delay- und Wellenlängenrechner.
 - Druckbares Einstellungsblatt (oder PDF).
+- Am Computer passt jede Seite auf den Bildschirm, ohne Scrollen (von 1280 × 600 bis zum
+  Breitbild); auf Smartphone und Tablet liest sie sich von oben nach unten.
 - Helles und dunkles Farbschema, als App auf Smartphone und Tablet installierbar (über HTTPS).
 - Automatischer Pegelausgleich für Vinyl-Sets: die Bridge gleicht den Pegel von Platte zu Platte
   behutsam an (Ziel, Toleranz, Grenzen), beurteilt jede Platte nach ihren lauten Passagen, wartet
@@ -188,7 +190,7 @@ npm test                      # Unit-Tests: Protokoll, Firmware-Konformität, Br
 npm run typecheck
 npm run dev:bridge            # eine Bridge mit eigenen Daten (.dev/), dann in einem anderen Terminal:
 npm run dev                   # die Oberfläche mit Hot Reload, auf http://localhost:5173
-node apps/web/e2e/flows.cjs   # 37 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
+node apps/web/e2e/flows.cjs   # 39 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
 ```
 
 | Ordner | |

@@ -21,6 +21,8 @@ export interface ResponseGraphProps {
   onMarker?: (id: string, f: number) => void;
   onSelect?: (id: number) => void;
   height?: number;
+  /** take the height the layout gives the graph (PC pages laid out to fit the screen), `height` otherwise */
+  fill?: boolean;
   showLabels?: boolean;
   label: string;
   onKeyDown?: (e: React.KeyboardEvent) => void;
@@ -34,16 +36,21 @@ const LABEL_F = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 export function ResponseGraph(p: ResponseGraphProps): React.JSX.Element {
   const box = useRef<HTMLDivElement>(null);
   const clip = `clip${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const [w, setW] = useState(600);
-  const h = p.height ?? 280;
+  const h0 = p.height ?? 280;
+  const [[w, h], setSize] = useState<[number, number]>([600, h0]);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setW(Math.max(240, el.clientWidth)));
+    const measure = (): void => {
+      const nw = Math.max(240, el.clientWidth);
+      const nh = p.fill ? Math.max(90, el.clientHeight || h0) : h0;
+      setSize((s) => (s[0] === nw && s[1] === nh ? s : [nw, nh]));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setW(Math.max(240, el.clientWidth));
+    measure();
     return () => ro.disconnect();
-  }, []);
+  }, [p.fill, h0]);
 
   const L = 34, R = 10, T = 10, B = 22;
   const W = w - L - R, H = h - T - B;
@@ -123,7 +130,8 @@ export function ResponseGraph(p: ResponseGraphProps): React.JSX.Element {
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) hLines.push(v);
 
   return (
-    <div className="graph" ref={box} style={{ height: h }}>
+    // in fill mode the layout sets the height through --graph-h (the svg is laid over the box)
+    <div className={p.fill ? 'graph graph-fill' : 'graph'} ref={box} style={{ height: p.fill ? `var(--graph-h, ${h0}px)` : h0 }}>
       <svg
         ref={svg} width={w} height={h} role="img" aria-label={p.label} tabIndex={p.onKeyDown ? 0 : -1} onKeyDown={p.onKeyDown}
         onPointerDown={(e) => { if (!p.disabled && e.pointerType === 'touch') { svg.current?.setPointerCapture(e.pointerId); track(e); } }}

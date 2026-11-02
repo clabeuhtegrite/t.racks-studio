@@ -99,6 +99,7 @@ function DeviceOverview({ mirror, isCurrent }: { mirror: DeviceMirror; isCurrent
   return (
     <Card className="gv-dev">
       <DeviceHead info={info} mirror={mirror} isCurrent={isCurrent}>
+        {config && <DeviceFacts cfg={config} mirror={mirror} isCurrent={isCurrent} />}
         {config && (
           <div className="gv-actions">
             <Button small icon="console" onClick={() => open(mirror.key, isCurrent, 'console')}>{t('Console')}</Button>
@@ -111,17 +112,21 @@ function DeviceOverview({ mirror, isCurrent }: { mirror: DeviceMirror; isCurrent
         )}
       </DeviceHead>
       {config && m ? (
-        <>
-          <DeviceFacts cfg={config} mirror={mirror} isCurrent={isCurrent} />
-          <h3 className="gv-group">{t('Entrées')}</h3>
-          <div className="gv-grid">
-            {config.inputs.map((c, i) => <ChannelTile key={i} mirror={mirror} cfg={config} ch={i} c={c} linked={linkMates(config, i).length > 0} canOperate={canOperate} isCurrent={isCurrent} />)}
-          </div>
-          <h3 className="gv-group">{t('Sorties')}</h3>
-          <div className="gv-grid">
-            {config.outputs.map((c, j) => <ChannelTile key={j} mirror={mirror} cfg={config} ch={m.inputs + j} c={c} linked={linkMates(config, m.inputs + j).length > 0} canOperate={canOperate} isCurrent={isCurrent} />)}
-          </div>
-        </>
+        // on a computer the inputs and the outputs share a line when they fit (DSP 206), eight tiles a line
+        <div className="gv-tiles">
+          <section className="gv-set" aria-label={t('Entrées')} style={{ ['--n' as string]: config.inputs.length }}>
+            <h3 className="gv-group">{t('Entrées')}</h3>
+            <div className="gv-grid">
+              {config.inputs.map((c, i) => <ChannelTile key={i} mirror={mirror} cfg={config} ch={i} c={c} linked={linkMates(config, i).length > 0} canOperate={canOperate} isCurrent={isCurrent} />)}
+            </div>
+          </section>
+          <section className="gv-set" aria-label={t('Sorties')} style={{ ['--n' as string]: config.outputs.length }}>
+            <h3 className="gv-group">{t('Sorties')}</h3>
+            <div className="gv-grid">
+              {config.outputs.map((c, j) => <ChannelTile key={j} mirror={mirror} cfg={config} ch={m.inputs + j} c={c} linked={linkMates(config, m.inputs + j).length > 0} canOperate={canOperate} isCurrent={isCurrent} />)}
+            </div>
+          </section>
+        </div>
       ) : (
         <div className="row wrap">
           <p className="muted">{locked ? t('Appareil verrouillé par mot de passe.') : t('Lecture de la configuration…')}</p>
@@ -227,12 +232,12 @@ const ChannelTile = memo(function ChannelTile(p: TileProps): React.JSX.Element {
           <span className="gv-ch-id">{label}{linked && <Icon name="link" size={12} />}</span>
           <span className="gv-ch-sub">{c.name && c.name !== label ? c.name : ' '}</span>
         </button>
-        <Toggle small tone="red" on={c.mute} disabled={!p.canOperate} onChange={(on) => mirror.apply({ t: 'mute', ch, on })} title={c.mute ? t('Canal coupé : touchez pour le rétablir') : t('Couper ce canal')}>{t('Mute')}</Toggle>
+        <Toggle small tone="red" icon="mute" on={c.mute} disabled={!p.canOperate} onChange={(on) => mirror.apply({ t: 'mute', ch, on })} title={c.mute ? t('Canal coupé : touchez pour le rétablir') : t('Couper ce canal')}>{t('Mute')}</Toggle>
       </div>
       <LiveLevel mirror={mirror} ch={ch} output={ch >= MODELS[cfg.model].inputs} label={label} />
-      <div className="gv-vol"><span className="muted">{t('Volume')}</span><strong>{P.gain.fmt(c.gain)}</strong></div>
+      <div className="gv-vol"><span className="muted" title={t('Volume')}>{t('Volume')}</span><strong>{P.gain.fmt(c.gain)}</strong></div>
       <MiniCurve cfg={cfg} ch={ch} c={c} color={color} />
-      <div className="gv-pills" aria-label={t('Traitements actifs de {0}', label)}>
+      <div className="gv-pills" aria-label={t('Traitements actifs de {0}', label)} title={blocks.map((b) => b.short).join(' · ') || undefined}>
         {blocks.length ? blocks.map((b) => <span key={b.key} className="pill is-on" title={b.title}>{b.short}</span>)
           : <span className="small muted">{t('Aucun traitement actif')}</span>}
       </div>
@@ -258,7 +263,7 @@ function LiveLevel({ mirror, ch, output, label }: { mirror: DeviceMirror; ch: nu
       </div>
       {o && room && (room.comp || room.limit) && (
         <div className="gv-dyn" aria-label={t('Marge avant le compresseur et le limiteur de {0}', label)}>
-          <span className="muted">{t('Marge')}</span>
+          <span className="muted gv-dyn-label">{t('Marge')}</span>
           {room.comp && <Margin kind="comp" h={room.comp} name={t('Comp.')} setting={fmtDb(thrRawToDb(o.comp.threshold), 0)} />}
           {room.limit && <Margin kind="limit" h={room.limit} name={t('Lim.')} setting={fmtDb(thrRawToDb(o.limiter.threshold), 0)} />}
         </div>

@@ -1,8 +1,9 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 40 vérifications
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 39 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
-// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale,
-// gain automatique, sa pause et l'écran DJ, marge avant le limiteur).
+// presets, fichiers .prs, bibliothèque, générateur, verrouillage, second appareil, vue globale,
+// gain automatique, sa pause et l'écran DJ, marge avant le limiteur, pages d'ordinateur sans
+// défilement).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
 //   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
@@ -30,7 +31,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
 
 (async () => {
   const browser = await chromium.launch();
-  const ctxA = await browser.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true, locale: 'fr-FR' });
+  const ctxA = await browser.newContext({ viewport: { width: 1536, height: 864 }, acceptDownloads: true, locale: 'fr-FR' });
   const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR' });
   const A = await ctxA.newPage();
   const B = await ctxB.newPage();
@@ -186,25 +187,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await A.getByRole('button', { name: /Écouter maintenant/ }).click();
   await wait(2000);
 
-  // 10. A/B compare
-  await A.evaluate(() => { location.hash = '#/console'; });
-  await wait(400);
-  const storeAB = async (n) => {
-    await A.locator('.ab-open').click();
-    await A.locator('.modal .ab-slot').nth(n).getByRole('button', { name: 'Mémoriser ici' }).click();
-    await A.keyboard.press('Escape');
-  };
-  await storeAB(0);
-  await setField(A, 'Volume InB', '-10');
-  await wait(400);
-  await storeAB(1);
-  await A.locator('.ab-quick').getByRole('button', { name: 'A', exact: true }).click();
-  await wait(1500);
-  ok('A/B : retour à la version A', (await field(A, 'Volume InB').inputValue()) === '0,0 dB', await field(A, 'Volume InB').inputValue());
-  await A.locator('.ab-quick').getByRole('button', { name: 'B', exact: true }).click();
-  await wait(1500);
-  ok('A/B : version B', (await field(A, 'Volume InB').inputValue()) === '−10,0 dB', await field(A, 'Volume InB').inputValue());
-
   // 11. scene in the library
   await A.evaluate(() => { location.hash = '#/bibliotheque'; });
   await wait(600);
@@ -316,6 +298,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await wait(1200);
   await thr.click(); await thr.fill('20'); await thr.press('Enter');
   await wait(600);
+
+  // 14. on the computer each page fits the screen: nothing to scroll, down or sideways
+  const scrolls = [];
+  for (const r of ['vue', 'console', 'canal/0', 'canal/4', 'niveau', 'dynamique', 'delais', 'matrice', 'presets', 'appareil/general', 'outils/filtrage', 'connexion']) {
+    await A.evaluate((h) => { location.hash = h; }, '#/' + r);
+    await wait(700);
+    const over = await A.evaluate(() => {
+      const d = document.documentElement, m = document.querySelector('.main');
+      return Math.max(d.scrollHeight - d.clientHeight, m ? m.scrollHeight - m.clientHeight : 0, d.scrollWidth - d.clientWidth);
+    });
+    if (over > 1) scrolls.push(`${r} +${over}px`);
+  }
+  ok('ordinateur : chaque page tient sur l’écran, sans défiler', scrolls.length === 0, scrolls.join(', '));
 
   console.log(results.join('\n'));
   console.log(errors.length ? 'ERREURS :\n' + errors.join('\n') : 'aucune erreur JavaScript');

@@ -90,7 +90,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 
 - Plusieurs appareils pilotés en même temps, et plusieurs écrans synchronisés en direct.
 - Codes d’accès : administrateur (tout) et opérateur (volumes, mutes, rappel de presets).
-- Annuler / rétablir, comparaison A/B de deux versions des réglages.
+- Annuler / rétablir.
 - Bibliothèque partagée par tous les écrans : presets, sauvegardes, scènes rappelées d’un geste sans
   occuper de mémoire de l’appareil, avec notes.
 - « Couper les sorties » d’un geste, alignement des délais par distances, assistant de filtrage 2 ou

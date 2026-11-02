@@ -32,22 +32,30 @@ function nearest(points: LevelerPoint[], tm: number): number {
   return Math.abs(points[lo].t - tm) <= Math.abs(points[hi].t - tm) ? lo : hi;
 }
 
-export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSettings; label: string }): React.JSX.Element {
+/** `fill`: take the height the layout gives the chart (PC pages laid out to fit the screen). */
+export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSettings; label: string; fill?: boolean }): React.JSX.Element {
   const box = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(640);
+  const [[w, boxH], setSize] = useState<[number, number]>([640, 0]);
   const [sel, setSel] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setW(Math.max(260, el.clientWidth)));
+    const measure = (): void => {
+      const nw = Math.max(260, el.clientWidth), nh = p.fill ? el.clientHeight : 0;
+      setSize((s) => (s[0] === nw && s[1] === nh ? s : [nw, nh]));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setW(Math.max(260, el.clientWidth));
+    measure();
     return () => ro.disconnect();
-  }, []);
+  }, [p.fill]);
 
   const pts = p.points;
   const { target, tolerance } = p.settings;
-  const L = 46, R = 12, T = 18, HA = 168, GAP = 34, HB = 84, B = 24;
+  const L = 46, R = 12, T = 18, GAP = 34, B = 24;
+  // the level panel gets two thirds of the height, the correction panel the rest
+  const panels = p.fill && boxH >= 140 ? boxH - T - GAP - B : 252;
+  const HA = Math.round((panels * 2) / 3), HB = panels - HA;
   const W = w - L - R;
   const h = T + HA + GAP + HB + B;
   const topB = T + HA + GAP;
@@ -72,9 +80,12 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
     prev = q;
   }
 
+  // a low panel keeps a line every 12 dB, so the labels do not touch
+  const levelStep = HA < 110 ? 12 : 6;
   const levelTicks: number[] = [];
-  for (let v = Math.ceil(lo / 6) * 6; v <= hi; v += 6) levelTicks.push(v);
-  const cStep = cMax <= 6 ? 3 : 6;
+  for (let v = Math.ceil(lo / levelStep) * levelStep; v <= hi; v += levelStep) levelTicks.push(v);
+  // a low panel: only the limits and zero
+  const cStep = HB < 50 ? cMax : cMax <= 6 ? 3 : 6;
   const corrTicks: number[] = [];
   for (let v = -cMax; v <= cMax; v += cStep) corrTicks.push(v);
   const span = (t1 - t0) / 60_000;
@@ -109,7 +120,7 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
   const tipFlip = q !== null && qx + 12 + 170 > w;
 
   return (
-    <div className="graph lvh" ref={box}>
+    <div className={p.fill ? 'graph graph-fill lvh' : 'graph lvh'} ref={box} style={p.fill ? { height: 'var(--graph-h, 328px)' } : undefined}>
       <svg
         ref={svg} width={w} height={h} role="img" tabIndex={0} aria-label={p.label}
         onPointerMove={pick} onPointerDown={pick} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setSel(null); }}

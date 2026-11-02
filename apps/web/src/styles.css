@@ -89,6 +89,7 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .pre { white-space: pre-wrap; }
 .block { display: block; }
 .text-error { color: var(--red); }
+.text-warn { color: var(--amber); }
 .grow { flex: 1 1 auto; min-width: 0; }
 .row { display: flex; align-items: center; gap: 8px; }
 .row.center { justify-content: center; flex-wrap: wrap; }
@@ -104,6 +105,7 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .list li { margin: 3px 0; }
 .linklike { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; }
 .linklike:hover { text-decoration: underline; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ------------------------------------------------------------------ shell */
 .app {
@@ -255,12 +257,20 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .card-head h2 { display: flex; align-items: center; gap: 4px 7px; flex-wrap: wrap; }
 .card-head > div:first-child { min-width: 0; }
 .card-head p { margin-top: 3px; }
+/* the card's explanation as a tooltip, used where a page is laid out to fit the screen */
+.card-hint { display: none; align-items: center; color: var(--muted); cursor: help; }
+.field-label > .card-hint { margin-left: 5px; vertical-align: -2px; }
+.card-hint:hover { color: var(--text); }
 .card-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .card-flow { padding: 10px 12px; }
 .card > .seg, .card > .btn, .card > .tg, .card > .tabs + .seg { align-self: flex-start; }
 @media (max-width: 760px) { .card { padding: 13px; border-radius: 12px; } .cards { gap: 12px; } }
 
 .ch-title { display: flex; align-items: center; gap: 9px; }
+/* columns of the channel page: they only group the cards on a computer */
+.ch-col { display: contents; }
+/* a block of the signal chain was clicked: its editor blinks once */
+.is-flash > .card { animation: flash 1s ease-out; }
 .ch-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ch, var(--accent)); flex: none; }
 
 /* ------------------------------------------------------------------ controls */
@@ -289,9 +299,6 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .btn-group > .btn + .btn { margin-left: -1px; }
 .btn-group > .btn:first-child { border-radius: 8px 0 0 8px; }
 .btn-group > .btn:last-child { border-radius: 0 8px 8px 0; }
-.ab { position: relative; display: flex; }
-.ab-mobile { display: none; }
-@media (max-width: 760px) { .ab .btn-group { display: none; } .ab-mobile { display: inline-flex; } }
 
 .tg {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -345,6 +352,8 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field-label { font-size: 12.5px; color: var(--muted); font-weight: 550; }
 .field-hint { font-size: 12px; color: var(--muted); }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.field > .seg { align-self: flex-start; }
 .form { display: grid; gap: 12px; }
 .form-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
@@ -470,7 +479,10 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .g-pill text { fill: #fff; font-size: 10px; font-weight: 700; pointer-events: none; }
 .g-dot { fill: var(--text); stroke: var(--graph-bg); stroke-width: 2; }
 svg.is-disabled .g-handle, svg.is-disabled .g-pill { cursor: default; }
-.transfer { display: block; margin: 0 auto; width: 100%; height: auto; }
+.graph-fill > svg { position: absolute; top: 0; left: 0; }
+/* the transfer curve is drawn as the largest square its box can hold */
+.transfer { position: relative; width: 100%; max-width: 220px; aspect-ratio: 1; margin: 0 auto; }
+.transfer > svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
 .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .legend i.legend-dash { height: 0; border-top: 2px dashed var(--text); border-radius: 0; }
@@ -618,8 +630,6 @@ svg.is-disabled .g-handle, svg.is-disabled .g-pill { cursor: default; }
 .choice { display: flex; flex-direction: column; gap: 8px; }
 .choice-item { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); text-align: left; color: var(--text); }
 button.choice-item:hover { border-color: var(--accent); }
-.ab-slot { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); }
-.ab-slot h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
 
 /* ------------------------------------------------------------------ device, connection, library */
 .kv { display: grid; margin: 0; }
@@ -697,6 +707,7 @@ button.choice-item:hover { border-color: var(--accent); }
 .way { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
 .way-head { display: flex; align-items: center; gap: 8px; }
 .way-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.rs-desc { display: block; }
 .frame-out { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 11px; border: 1px solid var(--border); background: var(--input); }
 .frame-out .frame-hex { flex: 1; font-size: 17px; letter-spacing: 0.04em; background: none; border: 0; padding: 0; }
 .frames { font-family: var(--mono); font-size: 12px; max-height: 62vh; overflow: auto; padding: 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--input); }
@@ -732,7 +743,9 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-facts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .gv-facts .badge { gap: 5px; white-space: normal; }
 .gv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.gv-group { margin: 2px 0 -4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 650; }
+.gv-tiles { display: flex; flex-direction: column; gap: 12px; }
+.gv-set { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gv-group { margin: 2px 0 0; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 650; }
 .gv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; }
 .gv-ch {
   display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 9px 11px 11px; border-radius: 12px;
@@ -749,7 +762,8 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-db { flex: none; width: 46px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* margin left before the compressor and the limiter act */
 .gv-dyn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin-top: -4px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); }
+.gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); max-width: 100%; min-width: 0; }
+.gv-margin strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gv-margin strong { font-weight: 700; }
 .gv-margin.is-ok strong { color: var(--green); }
 .gv-margin.is-low strong { color: var(--amber); }
@@ -761,9 +775,12 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-margin-key::after { content: ""; position: absolute; left: 4.5px; top: 0; bottom: 0; width: 2px; background: var(--text); }
 .gv-margin-comp::after { opacity: 0.5; }
 .gv-vol { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.gv-vol > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-vol > strong { white-space: nowrap; }
 .gv-curve { display: block; width: 100%; height: 34px; border-radius: 6px; background: var(--graph-bg); }
 .gv-zero { stroke: var(--grid-zero); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 .gv-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.gv-pills > .small { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gv-pills .pill em { margin-left: 4px; font-style: normal; font-weight: 600; letter-spacing: 0; opacity: 0.9; }
 
 /* ------------------------------------------------------------------ narrow cards
@@ -842,6 +859,447 @@ button.choice-item:hover { border-color: var(--accent); }
   background: var(--surface-3); border: 1px solid var(--border-strong); box-shadow: var(--shadow); white-space: nowrap;
 }
 
+/* ------------------------------------------------------------------ PC: one screen, no scrolling
+   On a computer the app takes exactly the height of the window: the top bar and the menu never
+   move, and each page is laid out to fit the rest (only a page that cannot fit, like the printable
+   sheet, scrolls inside the content area). Controls are a little denser, made for a mouse. */
+@media (min-width: 1101px) {
+  :root { --top-h: 52px; --rail-w: 196px; }
+  .app { height: 100dvh; min-height: 0; overflow: hidden; }
+  .main { overflow: auto; padding-bottom: 0; display: flex; flex-direction: column; scrollbar-gutter: stable; }
+  .main > .page { flex: 1 0 auto; width: 100%; }
+  .rail { position: static; height: auto; min-height: 0; padding: 10px 8px; gap: 1px; }
+  .rail .nav-link { padding-top: 7px; padding-bottom: 7px; }
+  .nav-group { margin: 10px 12px 2px; }
+  .top { position: static; }
+  .banner { position: static; }
+
+  .page { max-width: 1720px; padding: 14px 18px 16px; gap: 12px; }
+  .page-head h1 { font-size: 19px; }
+  .card { padding: 12px 14px; gap: 10px; }
+  .cards { gap: 12px; }
+  .btn, .tg { height: 32px; }
+  .btn-sm, .tg-sm { height: 28px; }
+  .btn-icon { width: 32px; }
+  .btn-sm.btn-icon { width: 28px; }
+  .input, .select, .vf { height: 32px; }
+  .select-sm { height: 28px; }
+  .stepper > button { height: 32px; }
+  .sl-h { height: 26px; }
+  .prow { grid-template-columns: 92px minmax(0, 1fr) auto; gap: 8px; }
+  .vf { width: 88px; }
+
+  /* ---- channel page: chips and actions, then name and signal chain, then every block */
+  .ch-page { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px 16px; }
+  .ch-page > .chips { grid-column: 1 / 3; grid-row: 1; align-self: center; }
+  .ch-page > .page-head { display: contents; }
+  .ch-page > .page-head > div:first-child { grid-column: 1; grid-row: 2; align-self: center; max-width: 380px; }
+  .ch-page > .page-head > .row { grid-column: 3; grid-row: 1; align-self: center; flex-wrap: nowrap; }
+  .ch-page > .card.card-flow { grid-column: 2 / 4; grid-row: 2; align-self: center; padding: 0; border: 0; background: none; }
+  .ch-page > .ch-grid { grid-column: 1 / -1; grid-row: 3; }
+  .ch-page .chips { padding: 0; }
+  .ch-page .chip { padding: 3px 10px 3px 12px; line-height: 1.2; }
+  .ch-page .flow { justify-content: flex-end; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .ch-page .flow-blk { padding: 3px 9px; line-height: 1.25; }
+
+  .ch-grid {
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1.45fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "peq level level" "peq a b";
+    align-items: stretch; gap: 10px;
+  }
+  .ch-grid.ch-in { grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "peq level level" "peq a b" "peq geq geq"; }
+  .ch-peq { grid-area: peq; }
+  .ch-level { grid-area: level; }
+  .ch-a { grid-area: a; }
+  .ch-b { grid-area: b; }
+  .ch-geq { grid-area: geq; }
+  .ch-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+  .ch-col > :last-child { flex: 1 1 auto; }
+  .ch-grid > div > .card, .ch-col > div > .card { height: 100%; }
+
+  /* denser controls, made for a mouse; the explanations go into the (i) tooltips */
+  .dense .card { padding: 10px 12px; gap: 8px; }
+  .dense .card-head h2 { font-size: 14px; }
+  .dense .card-sub { display: none; }
+  .dense .card-hint { display: inline-flex; }
+
+  /* titles and their explanation on one line */
+  .page-head { flex-wrap: nowrap; }
+  .page-head > div:first-child { flex: 1 1 auto; }
+  .page-head > .row { flex: none; flex-wrap: nowrap; }
+  .page-head > div:first-child:has(> h1 + p) { display: flex; align-items: center; gap: 2px 14px; }
+  .page-head > div:first-child:has(> h1 + p) > h1 { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* a long explanation takes two lines beside the title rather than a line of its own */
+  .page-head > div:first-child:has(> h1 + p) > p { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+  .dense .btn-sm, .dense .tg-sm { height: 26px; }
+  .dense .btn-sm.btn-icon { width: 26px; }
+  .dense .select-sm { height: 26px; }
+  .dense .vf, .dense .select, .dense .stepper > button { height: 28px; }
+  .dense .vf { width: 80px; }
+  .dense .stepper .vf { width: 84px; }
+  .dense .sl-h { height: 24px; min-width: 40px; }
+  .dense .prow { grid-template-columns: 82px minmax(0, 1fr) auto; gap: 8px; }
+  .ch-page .route-row { grid-template-columns: minmax(64px, 110px) minmax(0, 1fr) auto; gap: 8px; }
+  .dense .prow > .sl, .dense .route-row > .sl { grid-column: auto; grid-row: auto; }
+  .ch-page .level, .ch-page .xover, .ch-page .dyn-params, .ch-page .routing { gap: 6px; }
+  .ch-page .xovers { gap: 10px; }
+  .ch-page .xover-head h3 { font-size: 13px; }
+  .ch-page .xover .select { font-size: 12.5px; padding-left: 7px; padding-right: 2px; }
+
+  /* parametric EQ: the curve takes the height left by the table of the bands */
+  .ch-page .card-eq .graph-fill { --graph-h: auto; flex: 1 1 0; min-height: 140px; }
+  /* the table of every band while the card is wide enough, the band editor otherwise */
+  @container (min-width: 470px) {
+    .ch-page .card-eq .bands { display: none; }
+    .ch-page .card-eq .band-table { display: block; }
+  }
+  .ch-page .band-table .table th { padding: 2px 3px; }
+  .ch-page .band-table .table td { padding: 1px 3px; }
+  .ch-page .band-table .select-sm, .ch-page .band-table .vf, .ch-page .band-table .tg-sm { height: 24px; font-size: 12px; }
+  .ch-page .band-table .vf { width: 72px; padding-left: 4px; padding-right: 4px; }
+  /* the Q column: "3,00" needs less room than a frequency or a gain */
+  .ch-page .band-table td:nth-child(4) .vf { width: 56px; }
+  .ch-page .band-table .tg-sm { padding: 0 8px; }
+  .ch-page .bands { gap: 8px; }
+  .ch-page .band-tab { height: 28px; border-radius: 7px; }
+  .ch-page .band-edit { gap: 6px; }
+
+  /* level, polarity and delay: one band across the top */
+  .ch-page .level { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px 18px; align-items: center; }
+  .ch-page .level > .meter { grid-column: 1 / -1; }
+  .ch-page .lv-unit { grid-template-columns: auto auto; }
+
+  /* gate, compressor, limiter: the curve beside the settings, as tall as them */
+  .ch-page .dyn { flex: 1 1 auto; grid-template-columns: minmax(96px, 1fr) minmax(250px, 1.6fr); align-items: stretch; gap: 12px; }
+  .ch-page .dyn .transfer { max-width: none !important; width: 100%; aspect-ratio: auto; min-height: 120px; }
+  .ch-page .dyn-params { align-self: start; }
+  .ch-page .dyn .transfer > svg { top: 0; transform: translateX(-50%); }
+
+  /* graphic EQ of an input: the 31 faders take the room left */
+  .ch-geq .card-geq .graph { display: none; }
+  .ch-geq .geq { flex: 1 1 0; min-height: 96px; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: 1px; overflow: hidden; padding-bottom: 0; }
+  .ch-geq .geq-slider { width: 100%; height: auto; flex: 1 1 0; min-height: 60px; }
+  .ch-geq .geq-slider .sl-thumb { width: 14px; margin-left: -7px; }
+
+  /* ---- console: the strips share the width, the faders take the height of the screen */
+  .cs-page .console { flex: 1 1 auto; min-height: 0; align-items: stretch; padding-bottom: 0; }
+  .cs-page .strip-group { flex: var(--n, 1) 1 0; }
+  .cs-page .strips { flex: 1 1 auto; min-height: 0; }
+  .cs-page .strip { flex: 1 1 0; width: auto; min-width: 76px; padding: 8px 5px 10px; }
+  .cs-page .strip-name { max-width: 100%; }
+  .cs-page .strip-body { flex: 1 1 0; height: auto; min-height: 110px; }
+  .cs-page .strip .vf { width: 100%; max-width: 84px; }
+  .cs-page .strip-btns .tg { padding: 0 7px; }
+  /* the curves above the strips: a part of the height, the faders keep the rest */
+  .cs-page .graph-fill { --graph-h: clamp(110px, 24vh, 300px); }
+
+  /* ---- graphic EQ page: the curve and the 31 faders share the height of the screen */
+  .geq-page > .card-geq { flex: 1 1 auto; }
+  .geq-page .card-geq .graph-fill { --graph-h: auto; flex: 2 1 0; min-height: 100px; }
+  .geq-page .geq { flex: 3 1 0; min-height: 150px; overflow: hidden; padding-bottom: 0; }
+  .geq-page .geq-slider { height: auto; flex: 1 1 0; min-height: 80px; }
+
+  /* ---- device, general tab: the information on the left, network and maintenance on the right */
+  .dv-gen { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "info net" "info maint"; grid-template-rows: auto 1fr; }
+  .dv-info { grid-area: info; }
+  .dv-net { grid-area: net; }
+  .dv-maint { grid-area: maint; }
+  .dv-page .kv > div { padding: 6px 0; }
+  .dv-page .names { row-gap: 0; }
+  .dv-page .name-row { margin-bottom: 6px; }
+
+  /* ---- automatic gain: now and the advanced settings, then the settings, then the history */
+  .lv-cards { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "now now now" "auto adv hist"; align-items: stretch; }
+  .lv-now-main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px 22px; align-items: center; }
+  .lv-now-notes { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .lv-now-notes > * { flex: 1 1 300px; }
+  .lv-now-notes > .lv-pause { flex: 0 0 auto; margin-left: auto; }
+  .lv-now .lvm { --lvm-h: 14px; gap: 4px; }
+  /* the warnings of the moment are one line each, like the advice beside them */
+  .lv-now-notes { gap: 4px 20px; }
+  .lv-now-notes > .note { flex: 0 1 auto; padding: 2px 0; border: 0; background: none; font-size: 13px; }
+  .lv-now-notes > .lv-advice { flex: 0 1 auto; }
+  .lv-now { grid-area: now; }
+  .lv-auto { grid-area: auto; }
+  .lv-hist { grid-area: hist; }
+  .lv-adv { grid-area: adv; }
+  .lv-page .prow { grid-template-columns: 136px minmax(0, 1fr) auto; }
+  /* a field with its label on the left, like the rows of settings */
+  .dense .field-inline { display: grid; grid-template-columns: 136px minmax(0, 1fr); align-items: center; gap: 4px 8px; }
+  .dense .field-inline > .seg { justify-self: start; }
+  .dense .field-inline > .field-hint { grid-column: 1 / -1; }
+  /* the speed keeps its three choices whatever the language: its label, the choices against the right edge */
+  .lv-page .field-inline { grid-template-columns: auto minmax(0, 1fr); }
+  .lv-page .field-inline > .seg { justify-self: end; }
+  .lv-page .seg button { padding: 4px 11px; }
+  .lv-page .vf { width: 100px; }
+  .lv-page .note { padding: 6px 10px; gap: 8px; font-size: 12.5px; line-height: 1.4; }
+  /* the explanations of the settings go into the (i) tooltips, results stay */
+  .dense .field-hint:not(.is-result) { display: none; }
+  .lv-writes { gap: 2px; }
+  /* the inputs of a DSP 408 on one line */
+  .lv-page .lv-inputs { flex-wrap: nowrap; }
+  .lv-page .lv-inputs .chip { flex: 0 1 92px; min-width: 0; }
+  .lv-hist .graph-fill { --graph-h: auto; flex: 1 1 0; min-height: 220px; }
+  .lv-hist .lvh-table { flex: 1 1 0; min-height: 0; max-height: none; }
+  .lv-figures dd { font-size: 15px; }
+  .lv-figures > div { padding: 6px 10px; }
+  /* the night summary: six figures on two lines above its curve */
+  .lv-hist .lv-figures.lv-six { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .lv-hist .lv-six > div { padding: 4px 6px; gap: 0; }
+  .lv-hist .lv-six dt { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lv-hist .lv-six dd { font-size: 13.5px; }
+
+  /* ---- delays: every channel beside the alignment from distances */
+  .dl-page { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
+  .dl-page > .page-head { grid-column: 1 / -1; }
+  .dl-page .delays { gap: 6px; }
+  .dl-page .delay-row { grid-template-columns: minmax(96px, 150px) minmax(0, 1fr) auto; column-gap: 10px; }
+  .dl-page .delay-row .vf { width: 96px; }
+  .dl-page .delay-row .sl { grid-column: auto; grid-row: auto; }
+  .dl-page .align { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .dl-page .align > .field { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 120px) minmax(0, 1fr); align-items: center; gap: 4px 10px; }
+  .dl-page .align > .field > .field-hint { grid-column: 1 / -1; }
+  .dl-page .align .input { height: 28px; padding-top: 0; padding-bottom: 0; }
+  .dl-page .dl-align .row.end { margin-top: auto; }
+  .dl-now { display: none; }
+
+  /* ---- dynamics: the block of the chosen channel beside the table of every channel */
+  .dy-page { display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(0, 2fr); grid-template-rows: auto auto minmax(0, 1fr); align-items: stretch; }
+  .dy-page > .page-head { grid-column: 1; grid-row: 1; }
+  .dy-page > .tabs { grid-column: 2; grid-row: 1; justify-self: end; align-self: end; border-bottom: 0; }
+  .dy-page > .tabs button { padding: 6px 12px; }
+  .dy-page > .chips { grid-column: 1 / -1; grid-row: 2; padding: 0; }
+  .dy-page .chip { padding: 3px 10px 3px 12px; line-height: 1.2; }
+  .dy-edit { grid-column: 1; grid-row: 3; }
+  .dy-all { grid-column: 2; grid-row: 3; }
+  /* the curve takes the room above the settings */
+  .dy-edit .dyn { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; gap: 12px; }
+  .dy-edit .dyn .transfer { max-width: none !important; width: 100%; aspect-ratio: auto; min-height: 140px; }
+  .dy-all .table th, .dy-all .table td { padding: 3px 8px; }
+  .dy-all .table td:first-child { white-space: nowrap; }
+  .dy-all .table .vf { width: 84px; }
+  /* the editor beside it has the − and + buttons; the table keeps the fields (arrow keys step) */
+  .dy-all .stepper > button { display: none; }
+
+  /* ---- connection: the devices and the bridge, the form to add a device beside them */
+  .cx-cards { flex: 1 1 auto; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "dev add" "mode add"; align-items: stretch; align-content: start; }
+  .cx-cards:not(:has(> .cx-add)) { grid-template-areas: "dev mode"; grid-template-rows: auto; }
+  .cx-dev { grid-area: dev; }
+  .cx-mode { grid-area: mode; align-self: start; }
+  .cx-cards > .cx-add { grid-area: add; }
+  .cx-page .devs { gap: 6px; max-height: 46vh; overflow-y: auto; }
+  .cx-page .dev { flex-wrap: nowrap; padding: 7px 10px; gap: 10px; }
+  .cx-page .dev-icon { width: 32px; height: 32px; border-radius: 8px; }
+  .cx-page .dev-main { min-width: 120px; }
+  .cx-page .dev-title { row-gap: 2px; min-width: 0; }
+  .cx-page .dev-title > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cx-page .dev-actions { flex-wrap: nowrap; }
+  .cx-page .kv > div { padding: 5px 0; }
+  .cx-page .tabs button { padding: 7px 12px; }
+  .cx-page .add-form { gap: 10px; }
+
+  /* ---- tools: the tabs beside the title, then the chosen tool fills the page */
+  .tl-page { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
+  .tl-page > .page-head { grid-column: 1; grid-row: 1; }
+  .tl-page > .tabs { grid-column: 2; grid-row: 1; justify-self: end; align-self: end; border-bottom: 0; }
+  .tl-page > .tabs button { padding: 6px 12px; }
+  .tl-page > :nth-child(n + 3) { grid-column: 1 / -1; grid-row: 2; min-height: 0; }
+  .tl-page .journal, .tl-page .frames { flex: 1 1 0; min-height: 120px; max-height: none; }
+  /* crossover assistant: the curve and the cut-offs, the outputs beside them */
+  .xo-cards { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "graph outs" "cut outs"; align-items: stretch; }
+  .xo-graph { grid-area: graph; }
+  .xo-cut { grid-area: cut; }
+  .xo-outs { grid-area: outs; }
+  .xo-graph .graph-fill { --graph-h: auto; flex: 1 1 0; min-height: 140px; }
+  .xo-outs .way { padding: 4px 0 8px; gap: 6px; }
+  .xo-outs .pick { height: 28px; padding: 0 10px; }
+  .xo-outs .row.end { margin-top: auto; }
+  /* RS-232: the commands beside the frame generator */
+  .rs-cards { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: stretch; }
+  /* each description is in its row's tooltip, and under the frame of the chosen command */
+  .rs-ref .rs-desc { display: none; }
+  .rs-ref .note { padding: 7px 10px; font-size: 12.5px; }
+  .rs-gen .form-inline .input { width: 84px; }
+  .rs-cards > .span2 { grid-column: auto; }
+  .rs-ref .table-wrap { flex: 1 1 0; min-height: 0; overflow: auto; }
+  .rs-ref .table { font-size: 12.5px; }
+  .rs-ref .table th, .rs-ref .table td { padding: 4px 6px; }
+  .rs-ref .table td:nth-child(2) { white-space: nowrap; }
+  .rs-gen .form-inline { gap: 8px 12px; }
+  .rs-gen .frame-out { padding: 10px 12px; }
+  .rs-gen .frame-out .frame-hex { font-size: 14px; white-space: nowrap; letter-spacing: 0.02em; }
+
+  /* ---- matrix: each switch beside its level, so the eight outputs fit */
+  .mx-page .matrix { width: 100%; }
+  .mx-page .matrix thead th { padding: 4px 6px; }
+  .mx-page .matrix tbody th { padding: 3px 14px 3px 8px; }
+  .mx-page .mx-cell { padding: 3px 6px; white-space: nowrap; }
+  .mx-page .mx-btn { width: clamp(34px, 5.2vh, 46px); height: clamp(30px, 4.6vh, 40px); border-radius: 9px; font-size: 15px; vertical-align: middle; }
+  .mx-page .mx-cell .vf { display: inline-block; vertical-align: middle; width: 76px; margin: 0 0 0 6px; }
+
+  /* ---- presets: the current preset beside the whole device, then the 21 memories in columns */
+  .pr-page { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "head head" "cur unit" "mem mem"; align-items: stretch; }
+  .pr-page > .page-head { grid-area: head; }
+  .pr-cur { grid-area: cur; }
+  .pr-unit { grid-area: unit; }
+  .pr-mem { grid-area: mem; }
+  .pr-page .presets { grid-template-columns: none; grid-auto-flow: column; grid-template-rows: repeat(7, auto); grid-auto-columns: minmax(0, 1fr); gap: 6px 10px; }
+  .pr-page .preset { flex-wrap: nowrap; gap: 8px; padding: 4px 6px 4px 12px; border-radius: 9px; }
+  /* the number, then the name and its buttons above the reminder */
+  .pr-page .current-preset { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "big name acts" "big note note"; gap: 2px 14px; align-items: center; }
+  .pr-page .current-preset > .preset-big { grid-area: big; font-size: 28px; line-height: 1; }
+  .pr-page .current-preset > .grow { display: contents; }
+  .pr-page .current-preset > .grow > strong { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-page .current-preset > .grow > p { grid-area: note; margin: 0; }
+  .pr-page .current-preset > .row { grid-area: acts; flex-wrap: nowrap; }
+  .pr-unit .row { gap: 6px; }
+  .pr-unit .btn { height: 28px; padding: 0 10px; font-size: 13px; }
+
+  /* ---- overview: eight tiles a line, so the inputs and outputs of a DSP 206 share one */
+  .gv-dev { gap: 10px; padding: 10px 12px 12px; }
+  .gv-head { gap: 6px 10px; }
+  .gv-name { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 0 10px; }
+  .gv-name h2 { font-size: 16px; }
+  .gv-preset { height: 30px; }
+  .gv-tiles { flex-direction: row; flex-wrap: wrap; gap: 10px 22px; --tile: calc((100cqw - 86px) / 8); }
+  /* a set alone on its line (the inputs of a DSP 408) widens its tiles to the full line */
+  .gv-set { flex: 1 1 calc(var(--n) * var(--tile) + (var(--n) - 1) * 10px); min-width: 0; max-width: 100%; }
+  .gv-set .gv-group { display: none; }
+  .gv-set .gv-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(var(--tile), 1fr); gap: 10px; }
+  .gv-ch { gap: 5px; padding: 7px 9px 8px; }
+  .gv-ch-name { flex-direction: row; align-items: baseline; gap: 6px; }
+  .gv-ch-sub { flex: 1 1 auto; min-width: 0; }
+  /* the mute keeps its icon (and its tooltip), the margin its tooltips */
+  /* (the text stays for screen readers and keeps the button its name) */
+  .gv-ch-head .tg > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gv-ch-head .tg { width: 28px; padding: 0; }
+  .gv-dyn-label { display: none; }
+  .gv-vol { gap: 4px; font-size: 12px; }
+  .gv-curve { height: 22px; }
+  /* at most three lines of active blocks (fewer on short screens); the tooltip lists them all */
+  .gv-pills { max-height: 62px; overflow: hidden; }
+  /* narrow EQ cards: every other frequency label, the reset button keeps its icon */
+  @container (max-width: 900px) { .ch-geq .geq-band:nth-child(even) .geq-f { visibility: hidden; } }
+  @container (max-width: 440px) {
+    .ch-page .card-eq .btn-reset > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .ch-page .card-eq .btn-reset { width: 26px; padding: 0; }
+  }
+}
+/* narrower computers: tighter chips, the rename button keeps only its icon */
+@media (min-width: 1101px) and (max-width: 1599px) {
+  .ch-page .chip { min-width: 58px; padding: 3px 8px 3px 10px; }
+  .ch-page .chips { gap: 5px; }
+  .ch-page .btn-rename > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ch-page .btn-rename { width: 26px; padding: 0; }
+  /* automatic gain: the choices keep their three buttons on one line in every language */
+  .lv-page .seg button { padding: 4px 8px; font-size: 12.5px; }
+  .lv-adv .seg button { padding-left: 7px; padding-right: 7px; font-size: 12px; }
+}
+@media (min-width: 1101px) and (max-width: 1439px) {
+  .ch-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.45fr); }
+  .ch-page .route-row { grid-template-columns: minmax(56px, 88px) minmax(0, 1fr) auto; }
+  /* automatic gain: the settings get the width the history can spare */
+  .lv-cards { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1.1fr); }
+  .lv-page .prow { grid-template-columns: 124px minmax(0, 1fr) auto; }
+  .lv-page .prow-label, .lv-page .field-inline > .field-label { font-size: 12px; }
+  .lv-page .vf { width: 78px; }
+  .lv-auto .prow { grid-template-columns: 88px minmax(0, 1fr) auto; }
+  .lv-auto .vf { width: 96px; }
+  .lv-now-main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .lv-figures > div { padding: 6px 8px; }
+  .lv-figures dt { font-size: 11.5px; }
+  .lv-hist .lv-six dt { font-size: 10.5px; }
+  .lv-hist .lv-figures.lv-six { gap: 4px; }
+  .lv-hist .lv-six > div { padding-left: 5px; padding-right: 5px; }
+  /* console: the twelve strips of a DSP 408 still side by side */
+  .cs-page .console { gap: 14px; }
+  .cs-page .strips { gap: 6px; }
+  .cs-page .strip { padding-left: 3px; padding-right: 3px; }
+  .cs-page .strip-btns { gap: 3px; }
+  .cs-page .strip-btns .tg { padding: 0 5px; font-size: 12px; }
+  .cx-page .tabs button { padding-left: 9px; padding-right: 9px; }
+}
+/* the narrowest computer screens: mute and polarity one above the other in each strip */
+@media (min-width: 1101px) and (max-width: 1279px) {
+  .cs-page .strip { min-width: 0; padding-left: 2px; padding-right: 2px; }
+  .cs-page .strip-body { gap: 4px; }
+  .cs-page .strip-btns { flex-direction: column; align-items: stretch; width: 100%; max-width: 84px; }
+  .cs-page .strip .vf { font-size: 12px; padding: 0 2px; }
+  /* channel page: the chips keep the channel ids, the names stay in their tooltips */
+  .ch-page .chip { min-width: 0; padding: 3px 7px 3px 9px; }
+  .ch-page .chip-name { display: none; }
+  .ch-page .chips { gap: 4px; }
+  .cx-page .tabs button { padding-left: 5px; padding-right: 5px; }
+  .cx-page .dev-icon { display: none; }
+  /* overview: the tiles are too narrow for the small response curve */
+  .gv-curve { display: none; }
+  /* automatic gain: the speed choices under their label, every choice a little tighter */
+  .lv-adv .field-inline { grid-template-columns: minmax(0, 1fr); }
+  .lv-adv .field-inline > .seg { justify-self: start; }
+  .lv-adv .seg button { padding-left: 5px; padding-right: 5px; font-size: 11.5px; }
+  .lv-hist .lv-six dt { white-space: normal; line-height: 1.15; hyphens: auto; overflow-wrap: anywhere; }
+}
+/* below the width of a landscape tablet */
+@media (min-width: 1101px) and (max-width: 1179px) {
+  .cx-page .tabs button > svg { display: none; }
+  .lv-adv .seg button { padding-left: 3px; padding-right: 3px; font-size: 11px; }
+}
+/* short computer screens: the signal chain goes (every block is on screen anyway) and level,
+   polarity and delay become one line across the page */
+@media (min-width: 1101px) and (max-height: 724px) {
+  .ch-page > .card.card-flow { display: none; }
+  .ch-page:not(.is-linked) > .page-head > div:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ch-page.is-linked > .page-head > div:first-child { grid-column: 1 / -1; max-width: none; }
+  .ch-page.is-linked > .page-head > div:first-child > h1 { display: none; }
+  .ch-grid { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "level level level" "peq a b"; }
+  .ch-grid.ch-in { grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "level level level" "peq a b" "peq geq geq"; }
+  .ch-page .card-level { flex-direction: row; align-items: center; gap: 14px; padding-top: 8px; padding-bottom: 8px; }
+  .ch-page .card-level > .card-head { display: contents; }
+  .ch-page .card-level > .card-head > div:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ch-page .card-level > .card-head > .card-actions { order: 2; flex: none; flex-wrap: nowrap; }
+  .ch-page .card-level > .level { order: 1; flex: 1 1 auto; min-width: 0; grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr) auto; column-gap: 14px; }
+  .ch-page .card-level > .level > .meter { grid-column: auto; }
+  .ch-page .card-eq .graph-fill { min-height: 108px; }
+  /* automatic gain: the fixed explanations go (each control keeps its tooltip), results stay */
+  .lv-hist .graph-fill { min-height: 140px; }
+  .lv-page .lv-adv { gap: 6px; }
+  .lv-adv .seg button { padding-top: 3px; padding-bottom: 3px; }
+  .lv-adv .vf { height: 26px; }
+  /* the target and its "take the current level" button on one line */
+  .lv-target { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+  .lv-target .btn-take > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .lv-target .btn-take { width: 26px; padding: 0; }
+}
+/* very short screens: every gap a little tighter */
+@media (min-width: 1101px) and (max-height: 620px) {
+  .page { padding-top: 10px; padding-bottom: 10px; gap: 8px; }
+  .ch-page { row-gap: 6px; }
+  .ch-grid, .ch-col { gap: 8px; }
+  .ch-page .card { padding-top: 8px; padding-bottom: 8px; gap: 6px; }
+  .ch-page .geq-f { font-size: 9.5px; }
+}
+/* short PC screens: the menu gets tighter before anything else */
+@media (min-width: 1101px) and (max-height: 760px) {
+  .rail .nav-link { padding-top: 5px; padding-bottom: 5px; }
+  .nav-group { margin: 7px 12px 1px; }
+  .gv-curve { display: none; }
+}
+@media (min-width: 1101px) and (max-height: 800px) {
+  .gv-pills { max-height: 40px; }
+}
+@media (min-width: 1101px) and (max-height: 660px) {
+  .gv-pills { max-height: 18px; }
+}
+@media (min-width: 1101px) and (max-height: 620px) {
+  .gv-pills { display: none; }
+}
+@media (min-width: 1101px) and (max-height: 640px) {
+  .rail .nav-group { height: 1px; margin: 4px 10px; overflow: hidden; color: transparent; background: var(--border); }
+  .rail > .nav-group:first-child { display: none; }
+}
+
 /* ------------------------------------------------------------------ settings sheet (print) */
 .fiche-head { display: flex; flex-direction: column; gap: 4px; }
 .fiche-head h1 { font-size: 20px; }
@@ -873,6 +1331,7 @@ button.choice-item:hover { border-color: var(--accent); }
 @keyframes pop { from { opacity: 0; transform: scale(0.97); } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes flash { 25% { border-color: var(--ch, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch, var(--accent)) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

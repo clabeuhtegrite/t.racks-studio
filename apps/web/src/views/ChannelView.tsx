@@ -1,5 +1,7 @@
 // One channel with all its blocks (the editor's InA .. Out8 pages, plus its gate / compressor /
-// limiter / routing): block diagram on top, then every editor.
+// limiter / routing): block diagram on top, then every editor. On a computer the whole channel fits
+// the screen: the parametric EQ on the left, level and delay across the top of the rest, then the
+// filters with the routing (or the gate) and the dynamics (or the graphic EQ).
 
 import { MODELS, type DeviceConfig } from '@dsp-studio/protocol';
 import { confirmDialog, promptDialog, useApp, useCanEdit, useCanOperate, useDevice } from '../state/store.ts';
@@ -31,7 +33,7 @@ export function ChannelView(): React.JSX.Element {
     if (v !== null) mirror.apply({ t: 'name', ch, name: v });
   };
   return (
-    <div className="page" style={{ ['--ch' as string]: colorOf(config, ch) }}>
+    <div className={`page dense ch-page ${mates.length > 0 ? 'is-linked' : ''}`} style={{ ['--ch' as string]: colorOf(config, ch) }}>
       <ChannelChips cfg={config} value={ch} onChange={(x) => go('canal', x)} />
       <div className="page-head">
         <div>
@@ -43,20 +45,25 @@ export function ChannelView(): React.JSX.Element {
         <div className="row">
           <Button small icon="chevronLeft" title={t('Canal précédent')} disabled={ch === 0} onClick={() => go('canal', ch - 1)} />
           <Button small icon="chevronRight" title={t('Canal suivant')} disabled={ch === n - 1} onClick={() => go('canal', ch + 1)} />
-          <Button small icon="edit" disabled={disabled} onClick={rename}>{t('Renommer')}</Button>
+          <Button small icon="edit" className="btn-rename" title={t('Renommer')} disabled={disabled} onClick={rename}>{t('Renommer')}</Button>
           <CopyTo cfg={config} ch={ch} disabled={disabled} onCopy={(dst) => mirror.apply({ t: 'copy', src: ch, dst })} />
         </div>
       </div>
       <BlockDiagram cfg={config} ch={ch} />
-      <div className="cards">
-        <div id="blk-peq" className="span2"><PeqEditor {...p} /></div>
-        <div id="blk-xover"><XoverEditor {...p} /></div>
-        <div id="blk-level"><LevelEditor {...p} canOperate={canOperate} /></div>
-        {input && <div id="blk-gate"><GateEditor {...p} /></div>}
-        {input && <div id="blk-geq" className="span2"><GeqEditor {...p} /></div>}
-        {!input && <div id="blk-route"><RoutingEditor {...p} /></div>}
-        {!input && <div id="blk-comp"><CompEditor {...p} /></div>}
-        {!input && <div id="blk-limit"><LimiterEditor {...p} expert={expert} /></div>}
+      {/* the columns (ch-col) only group the cards on a computer; elsewhere the cards flow in one grid */}
+      <div className={`cards ch-grid ${input ? 'ch-in' : 'ch-out'}`}>
+        <div id="blk-peq" className="span2 ch-peq"><PeqEditor {...p} /></div>
+        <div id="blk-level" className="ch-level"><LevelEditor {...p} canOperate={canOperate} /></div>
+        <div className="ch-col ch-a">
+          <div id="blk-xover"><XoverEditor {...p} /></div>
+          {!input && <div id="blk-route"><RoutingEditor {...p} /></div>}
+        </div>
+        <div className="ch-col ch-b">
+          {input && <div id="blk-gate"><GateEditor {...p} /></div>}
+          {!input && <div id="blk-comp"><CompEditor {...p} /></div>}
+          {!input && <div id="blk-limit"><LimiterEditor {...p} expert={expert} /></div>}
+        </div>
+        {input && <div id="blk-geq" className="span2 ch-geq"><GeqEditor {...p} /></div>}
       </div>
     </div>
   );
@@ -94,7 +101,7 @@ function BlockDiagram({ cfg, ch }: { cfg: DeviceConfig; ch: number }): React.JSX
         <span className="flow-end">{input ? t('Entrée') : t('Mélange')}</span>
         {blocks.map((b) => (
           <button key={b.key} type="button" className={`flow-blk ${b.on ? 'is-on' : ''} ${b.mute && b.on ? 'is-mute' : ''}`} title={b.title}
-            onClick={() => document.getElementById(b.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+            onClick={() => showBlock(b.id)}>
             {b.label}{b.on && b.info ? <small>{b.info}</small> : null}
           </button>
         ))}
@@ -103,4 +110,15 @@ function BlockDiagram({ cfg, ch }: { cfg: DeviceConfig; ch: number }): React.JSX
       </div>
     </Card>
   );
+}
+
+/** Brings a block's editor into view and makes it blink once (on a computer it is already on screen). */
+function showBlock(id: string): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  el.classList.remove('is-flash');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('is-flash');
+  window.setTimeout(() => el.classList.remove('is-flash'), 1000);
 }
