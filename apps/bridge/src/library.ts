@@ -1,7 +1,7 @@
 // Shared library on the bridge: presets, whole-unit backups and scenes, stored as JSON files so
 // every phone / tablet / computer on the network sees the same library.
 
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { ModelId } from '@dsp-studio/protocol';
@@ -58,7 +58,10 @@ export class Library {
     };
     const text = JSON.stringify(entry);
     if (text.length > 2_000_000) throw new Error('entrée trop grande');
-    await writeFile(join(this.dir, entry.id + '.json'), text);
+    // written aside then renamed: a power cut never leaves a half-written entry
+    const file = join(this.dir, entry.id + '.json');
+    await writeFile(file + '.tmp', text);
+    await rename(file + '.tmp', file);
     const { data: _data, ...meta } = entry;
     return meta;
   }

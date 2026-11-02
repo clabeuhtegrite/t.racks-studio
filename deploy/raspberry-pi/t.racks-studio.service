@@ -1,0 +1,39 @@
+# systemd service of t.racks Studio, installed by install.sh (which fills in @APP_DIR@ and @NODE@).
+# Settings: /etc/t.racks-studio.env. Data (devices, library): /var/lib/t.racks-studio.
+
+[Unit]
+Description=t.racks Studio, web editor for the t.racks DSP 206 and DSP 408
+Documentation=https://github.com/clabeuhtegrite/t.racks-studio/blob/main/docs/raspberry-pi.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=tracks-studio
+Group=tracks-studio
+WorkingDirectory=@APP_DIR@
+Environment=PORT=80
+Environment=DSP_STUDIO_DATA=/var/lib/t.racks-studio
+EnvironmentFile=-/etc/t.racks-studio.env
+ExecStart=@NODE@ apps/bridge/src/main.ts
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+
+StateDirectory=t.racks-studio
+StateDirectoryMode=0750
+# port 80 without running as root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# /dev stays visible: the DSPs on USB (hidraw) and on serial adapters (ttyUSB, ttyACM)
+
+[Install]
+WantedBy=multi-user.target
