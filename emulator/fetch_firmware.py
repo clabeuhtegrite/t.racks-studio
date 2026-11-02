@@ -113,8 +113,9 @@ def extract(exe_path, want=None):
             continue
         os.makedirs(OUT, exist_ok=True)
         path = os.path.join(OUT, name)
-        with open(path, 'wb') as f:
+        with open(path + '.part', 'wb') as f:  # never half a file under the final name
             f.write(img)
+        os.replace(path + '.part', path)
         digest = hashlib.sha256(img).hexdigest()
         note = 'identique à la version testée' if KNOWN.get(name) == digest else 'VERSION NON TESTÉE avec t.racks Studio'
         print(f'  {name} ({len(img)} octets) : {note}')
