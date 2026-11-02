@@ -11,7 +11,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 
 ## Fenêtre principale
 
-| Logiciel Windows | DSP Studio | Firmware |
+| Logiciel Windows | t.racks Studio | Firmware |
 | --- | --- | --- |
 | Boutons InA … InD, Out1 … Out8 (page d’un canal) | **Canaux** (flèches ou liste pour changer de canal) ; toucher une tranche de la **Console** ouvre son canal | ✓ |
 | Volume du canal (curseur et saisie) | Console et Canaux > Niveau, polarité et délai | ✓ |
@@ -43,7 +43,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 
 ## Menu Fichier
 
-| Logiciel Windows | DSP Studio | Firmware |
+| Logiciel Windows | t.racks Studio | Firmware |
 | --- | --- | --- |
 | Ouvrir un preset du PC (.prs) | Presets > Ouvrir un fichier : écouter, écrire dans une mémoire, ajouter à la bibliothèque | ✓ format, octet pour octet |
 | Enregistrer le preset sur le PC (.prs) | Presets > Enregistrer sur l’ordinateur (.prs ou .json) | ✓ |
@@ -54,7 +54,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 
 ## Autres menus
 
-| Logiciel Windows | DSP Studio | Firmware |
+| Logiciel Windows | t.racks Studio | Firmware |
 | --- | --- | --- |
 | Link (liaisons des entrées et des sorties) | Appareil > Liaisons et copie : choisir les canaux, Lier, Délier la sélection, Tout délier | ✓ |
 | Copy (copie d’une entrée vers une entrée, d’une sortie vers une sortie) | Appareil > Liaisons et copie > Copier (une source vers une ou plusieurs destinations) | ✓ |

@@ -1,6 +1,6 @@
 # Émulateur du firmware DSP 206 / 408
 
-Pour tester DSP Studio sur du « vrai » sans boîtier : le firmware officiel Thomann v1.04 tourne
+Pour tester t.racks Studio sur du « vrai » sans boîtier : le firmware officiel Thomann v1.04 tourne
 instruction par instruction sur une carte Nuvoton NUC1xx (ARM Cortex-M0) virtuelle. Ce n’est pas une
 imitation : c’est le code du DSP lui-même qui répond aux trames, gère ses presets, son verrouillage et
 sa mémoire.
@@ -42,16 +42,12 @@ le rallume et vérifie que tout est retrouvé (réglages, preset actif, nom, adr
 
 ```sh
 python3 emulator/server.py 206                # répond sur le port TCP 9761, comme le boîtier
-node apps/bridge/src/main.ts --tcp localhost:9761
+npm start                                     # dans un autre terminal
 ```
 
-puis ouvrez http://localhost:8080. Deux appareils à la fois :
-
-```sh
-python3 emulator/server.py 206
-python3 emulator/server.py 408 --port 9762
-node apps/bridge/src/main.ts --tcp localhost:9761 --tcp localhost:9762
-```
+puis ouvrez http://localhost:8080 et ajoutez l’appareil dans Connexion > Ethernet : adresse
+`localhost`, port 9761. Deux appareils à la fois : lancez aussi `python3 emulator/server.py 408 --port 9762`
+et ajoutez `localhost`, port 9762.
 
 | Option | Rôle |
 | --- | --- |

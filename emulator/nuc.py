@@ -1,6 +1,6 @@
 """Virtual Nuvoton NUC1xx board (ARM Cortex-M0) that runs the official t.racks DSP 206 / 408 firmware.
 
-Written from scratch for DSP Studio (MIT). Only what the firmware touches is modelled: system and
+Written from scratch for t.racks Studio (MIT). Only what the firmware touches is modelled: system and
 clock control, GPIO (the DSP chip is bit-banged on PB6-PB8), timers, the three UARTs (UART1 = the
 Ethernet module and RS-232 connector, UART0 = RS-485), I2C0 with the preset EEPROM (0x57), SPI,
 the flash controller (FMC) and the Cortex-M0 system block (NVIC, SysTick).

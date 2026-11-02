@@ -2,6 +2,7 @@
 // Chromium-based browsers (Chrome, Edge, Opera) on a secure page (https or localhost).
 
 import { toHidReports, USB_PRODUCT_ID, USB_VENDOR_ID, type Transport } from '@dsp-studio/protocol';
+import { t } from '../i18n.tsx';
 
 type DataCb = (chunk: Uint8Array) => void;
 type CloseCb = (err?: Error) => void;
@@ -34,7 +35,7 @@ export async function webHidTransport(dev: HIDDevice): Promise<Transport> {
   const onReport = (e: HIDInputReportEvent): void => {
     cb.emitData(new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength));
   };
-  const onDisconnect = (e: HIDConnectionEvent): void => { if (e.device === dev) cb.emitClose(new Error('DSP débranché')); };
+  const onDisconnect = (e: HIDConnectionEvent): void => { if (e.device === dev) cb.emitClose(new Error(t('DSP débranché'))); };
   dev.addEventListener('inputreport', onReport);
   navigator.hid.addEventListener('disconnect', onDisconnect);
   let chain: Promise<void> = Promise.resolve();
@@ -60,7 +61,7 @@ export async function webHidTransport(dev: HIDDevice): Promise<Transport> {
 
 export async function webSerialTransport(port: SerialPort, baudRate = 115200): Promise<Transport> {
   await port.open({ baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none' });
-  if (!port.readable || !port.writable) throw new Error('port série inutilisable');
+  if (!port.readable || !port.writable) throw new Error(t('port série inutilisable'));
   const cb = new Callbacks();
   const writer = port.writable.getWriter();
   const reader = port.readable.getReader();
@@ -93,7 +94,10 @@ export async function webSerialTransport(port: SerialPort, baudRate = 115200): P
   };
 }
 
-export function serialPortName(port: SerialPort): string {
+/** Name stored with the device to find its port again, so it never depends on the language: the
+ *  USB vendor and product ids when the port has them. */
+export function serialPortName(port: SerialPort): string | undefined {
   const i = port.getInfo();
-  return i.usbVendorId ? `USB ${i.usbVendorId.toString(16).padStart(4, '0')}:${(i.usbProductId ?? 0).toString(16).padStart(4, '0')}` : 'port série';
+  const hex = (n: number): string => n.toString(16).padStart(4, '0');
+  return i.usbVendorId ? `USB ${hex(i.usbVendorId)}:${hex(i.usbProductId ?? 0)}` : undefined;
 }

@@ -1,6 +1,6 @@
 # Architecture
 
-DSP Studio est écrit en TypeScript (sauf l’émulateur, en Python). Le même code de protocole tourne
+t.racks Studio est écrit en TypeScript (sauf l’émulateur, en Python). Le même code de protocole tourne
 dans le pont (Node.js) et dans le navigateur, si bien qu’un téléphone, l’ordinateur et le DSP
 virtuel appliquent toujours les modifications de la même façon que le firmware.
 
@@ -44,7 +44,7 @@ virtuel appliquent toujours les modifications de la même façon que le firmware
 | `links.ts` | groupes de canaux liés, calculés comme le firmware |
 | `session.ts` | `DeviceSession` : connexion, file d’attente des commandes, lecture complète, presets, sauvegarde et restauration, verrouillage, PTS, réseau, vumètres |
 | `rpc.ts` | appels qu’un écran peut demander, avec vérification de chaque argument et des droits (administrateur, opérateur) |
-| `files.ts` | fichiers du logiciel Windows (`.prs`, `.unt`) et format JSON de DSP Studio |
+| `files.ts` | fichiers du logiciel Windows (`.prs`, `.unt`) et format JSON de t.racks Studio |
 | `filters.ts` | réponse en amplitude et en phase des égaliseurs et des filtres (courbes) |
 | `sim.ts` | DSP virtuel : répond comme le firmware (mode démo et tests) |
 | `devices.ts`, `probe.ts` | façons de joindre un DSP, recherche des ID qui répondent |

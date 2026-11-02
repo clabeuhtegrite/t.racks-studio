@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "types": ["node", "w3c-web-hid", "w3c-web-serial"]
   },
-  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "apps/*/test"]
+  "include": ["packages/*/src", "packages/*/test", "packages/*/scripts", "apps/*/src", "apps/*/test"]
 }

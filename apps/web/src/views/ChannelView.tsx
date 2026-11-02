@@ -10,6 +10,7 @@ import { ChannelChips, chan, colorOf, labelOf, linkMates, titleOf } from '../ui/
 import { PeqEditor } from '../editors/PeqEditor.tsx';
 import { CompEditor, GateEditor, GeqEditor, LevelEditor, LimiterEditor, RoutingEditor, XoverEditor } from '../editors/editors.tsx';
 import { P } from '../ui/format.ts';
+import { t, tx } from '../i18n.tsx';
 
 export function ChannelView(): React.JSX.Element {
   const { mirror, config } = useDevice();
@@ -27,7 +28,7 @@ export function ChannelView(): React.JSX.Element {
   const disabled = !canEdit;
   const p = { cfg: config, ch, mirror, disabled };
   const rename = async (): Promise<void> => {
-    const v = await promptDialog({ title: `Nom de ${labelOf(config, ch)}`, label: 'Nom (8 caractères)', value: c.name, maxLength: 8, ok: 'Renommer' });
+    const v = await promptDialog({ title: t('Nom de {0}', labelOf(config, ch)), label: t('Nom (8 caractères)'), value: c.name, maxLength: 8, ok: t('Renommer') });
     if (v !== null) mirror.apply({ t: 'name', ch, name: v });
   };
   return (
@@ -37,13 +38,13 @@ export function ChannelView(): React.JSX.Element {
         <div>
           <h1 className="ch-title"><span className="ch-dot" />{titleOf(config, ch)}</h1>
           {mates.length > 0 && (
-            <p className="muted small"><Icon name="link" size={14} /> Lié à {mates.map((x) => labelOf(config, x)).join(', ')} : chaque réglage s’applique à tout le groupe.</p>
+            <p className="muted small"><Icon name="link" size={14} />{' '}{tx('Lié à {0} : chaque réglage s’applique à tout le groupe.', mates.map((x) => labelOf(config, x)).join(', '))}</p>
           )}
         </div>
         <div className="row">
-          <Button small icon="chevronLeft" title="Canal précédent" disabled={ch === 0} onClick={() => go('canal', ch - 1)} />
-          <Button small icon="chevronRight" title="Canal suivant" disabled={ch === n - 1} onClick={() => go('canal', ch + 1)} />
-          <Button small icon="edit" disabled={disabled} onClick={rename}>Renommer</Button>
+          <Button small icon="chevronLeft" title={t('Canal précédent')} disabled={ch === 0} onClick={() => go('canal', ch - 1)} />
+          <Button small icon="chevronRight" title={t('Canal suivant')} disabled={ch === n - 1} onClick={() => go('canal', ch + 1)} />
+          <Button small icon="edit" disabled={disabled} onClick={rename}>{t('Renommer')}</Button>
           <CopyTo cfg={config} ch={ch} disabled={disabled} onCopy={(dst) => mirror.apply({ t: 'copy', src: ch, dst })} />
         </div>
       </div>
@@ -68,14 +69,16 @@ function CopyTo(p: { cfg: DeviceConfig; ch: number; disabled: boolean; onCopy: (
   const targets = Array.from({ length: input ? m.inputs : m.outputs }, (_, k) => (input ? k : m.inputs + k)).filter((x) => x !== p.ch);
   return (
     <Select
-      label="Copier ce canal vers" value={-1} disabled={p.disabled} className="select-sm"
-      options={[{ value: -1, label: 'Copier vers…' }, ...targets.map((t) => ({ value: t, label: labelOf(p.cfg, t) }))]}
+      label={t('Copier ce canal vers')} value={-1} disabled={p.disabled} className="select-sm"
+      options={[{ value: -1, label: t('Copier vers…') }, ...targets.map((t) => ({ value: t, label: labelOf(p.cfg, t) }))]}
       onChange={async (dst) => {
         if (dst < 0) return;
         if (await confirmDialog({
-          title: 'Copier un canal',
-          message: `Copier tous les réglages de ${labelOf(p.cfg, p.ch)} vers ${labelOf(p.cfg, dst)} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom${input ? '' : ', le routage'} et les liaisons de ${labelOf(p.cfg, dst)} sont conservés, comme sur l’appareil)`,
-          ok: 'Copier',
+          title: t('Copier un canal'),
+          message: input
+            ? t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom et les liaisons de {1} sont conservés, comme sur l’appareil)', labelOf(p.cfg, p.ch), labelOf(p.cfg, dst))
+            : t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom, le routage et les liaisons de {1} sont conservés, comme sur l’appareil)', labelOf(p.cfg, p.ch), labelOf(p.cfg, dst)),
+          ok: t('Copier'),
         })) p.onCopy(dst);
       }}
     />
@@ -91,37 +94,37 @@ function BlockDiagram({ cfg, ch }: { cfg: DeviceConfig; ch: number }): React.JSX
   const xOn = c.hpf.slope > 0 || c.lpf.slope > 0;
   const blocks: { id: string; label: string; on: boolean; info?: string }[] = input
     ? [
-      { id: 'blk-level', label: 'Gain', on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
-      { id: 'blk-gate', label: 'Gate', on: 'gate' in c && c.gate.threshold > 0, info: 'gate' in c && c.gate.threshold > 0 ? `${thrRawToDb(c.gate.threshold)} dB` : '' },
+      { id: 'blk-level', label: t('Gain'), on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
+      { id: 'blk-gate', label: t('Gate'), on: 'gate' in c && c.gate.threshold > 0, info: 'gate' in c && c.gate.threshold > 0 ? `${thrRawToDb(c.gate.threshold)} dB` : '' },
       { id: 'blk-geq', label: 'GEQ', on: 'geq' in c && !c.geqBypass && c.geq.some((g) => g !== 120) },
       { id: 'blk-peq', label: 'PEQ', on: peqOn },
-      { id: 'blk-xover', label: 'HP / LP', on: xOn },
-      { id: 'blk-level', label: 'Délai', on: c.delay > 0 },
-      { id: 'blk-level', label: c.phase ? 'Ø inversé' : 'Ø', on: !!c.phase },
-      { id: 'blk-level', label: 'Mute', on: c.mute },
+      { id: 'blk-xover', label: t('HP / LP'), on: xOn },
+      { id: 'blk-level', label: t('Délai'), on: c.delay > 0 },
+      { id: 'blk-level', label: c.phase ? t('Ø inversé') : t('Ø'), on: !!c.phase },
+      { id: 'blk-level', label: t('Mute'), on: c.mute },
     ]
     : [
-      { id: 'blk-route', label: 'Matrice', on: true, info: 'route' in c ? cfg.inputs.map((_, i) => ((c.route >> i) & 1 ? m.inputLabels[i].slice(2) : '')).join('') : '' },
-      { id: 'blk-xover', label: 'HP / LP', on: xOn },
+      { id: 'blk-route', label: t('Matrice'), on: true, info: 'route' in c ? cfg.inputs.map((_, i) => ((c.route >> i) & 1 ? m.inputLabels[i].slice(2) : '')).join('') : '' },
+      { id: 'blk-xover', label: t('HP / LP'), on: xOn },
       { id: 'blk-peq', label: 'PEQ', on: peqOn },
-      { id: 'blk-comp', label: 'Comp', on: 'comp' in c && c.comp.threshold < 220 && c.comp.ratio > 0 },
-      { id: 'blk-limit', label: 'Limiteur', on: 'limiter' in c && c.limiter.threshold < 220 },
-      { id: 'blk-level', label: 'Délai', on: c.delay > 0 },
-      { id: 'blk-level', label: c.phase ? 'Ø inversé' : 'Ø', on: !!c.phase },
-      { id: 'blk-level', label: 'Gain', on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
-      { id: 'blk-level', label: 'Mute', on: c.mute },
+      { id: 'blk-comp', label: t('Comp'), on: 'comp' in c && c.comp.threshold < 220 && c.comp.ratio > 0 },
+      { id: 'blk-limit', label: t('Limiteur'), on: 'limiter' in c && c.limiter.threshold < 220 },
+      { id: 'blk-level', label: t('Délai'), on: c.delay > 0 },
+      { id: 'blk-level', label: c.phase ? t('Ø inversé') : t('Ø'), on: !!c.phase },
+      { id: 'blk-level', label: t('Gain'), on: c.gain !== 280, info: c.gain !== 280 ? P.gain.fmt(c.gain) : '' },
+      { id: 'blk-level', label: t('Mute'), on: c.mute },
     ];
   return (
     <Card className="card-flow">
-      <div className="flow" aria-label="Schéma du canal">
-        <span className="flow-end">{input ? 'Entrée' : 'Mélange'}</span>
+      <div className="flow" aria-label={t('Schéma du canal')}>
+        <span className="flow-end">{input ? t('Entrée') : t('Mélange')}</span>
         {blocks.map((b, i) => (
           <button key={i} type="button" className={`flow-blk ${b.on ? 'is-on' : ''} ${b.label === 'Mute' && b.on ? 'is-mute' : ''}`}
             onClick={() => document.getElementById(b.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
             {b.label}{b.info ? <small>{b.info}</small> : null}
           </button>
         ))}
-        <span className="flow-end">{input ? 'Matrice' : 'Sortie'}</span>
+        <span className="flow-end">{input ? t('Matrice') : t('Sortie')}</span>
       </div>
     </Card>
   );

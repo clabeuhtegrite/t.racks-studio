@@ -1,6 +1,6 @@
 # Protocole des DSP 206 et 408
 
-Ce que DSP Studio sait du dialogue avec les t.racks DSP 206 et DSP 408 (firmware v1.04). Tout ce qui
+Ce que t.racks Studio sait du dialogue avec les t.racks DSP 206 et DSP 408 (firmware v1.04). Tout ce qui
 suit a été vérifié sur le vrai firmware, exécuté dans [l’émulateur](../emulator/README.md) ; les
 plans de mémoire viennent de mesures (une commande, puis relecture de toute la configuration). Le
 code de référence est dans `packages/protocol/src/`.
@@ -102,7 +102,7 @@ Les canaux sont numérotés entrées d’abord, puis sorties : sur le 206, 0 = I
 7 = Out6 ; sur le 408, 0 … 3 = InA … InD, 4 … 11 = Out1 … Out8.
 
 **À ne jamais envoyer** : `04`, `08`, `A2`, `A8`, réservées à la mise à jour du firmware et aux
-outils de production. `08` efface la configuration puis redémarre l’appareil. DSP Studio refuse de
+outils de production. `08` efface la configuration puis redémarre l’appareil. t.racks Studio refuse de
 les envoyer.
 
 ## Valeurs
@@ -205,7 +205,7 @@ Lue avec `19`, écrite avec `1A` :
 | 0x13 … 0x16 | adresse IP |
 
 L’ID et l’adresse IP sont pris en compte au prochain allumage : c’est au démarrage que le firmware
-transmet l’adresse à son module Ethernet (trames `B8` et `BE`, adressées au module et que DSP Studio
+transmet l’adresse à son module Ethernet (trames `B8` et `BE`, adressées au module et que t.racks Studio
 ignore).
 
 ## Fichiers du logiciel Windows
@@ -223,7 +223,7 @@ ignore).
 ## Protocole « Extend » (RS-232)
 
 Protocole simple pour les automates (Crestron, AMX, domotique), décrit dans la page Aide > RS-232
-Code du logiciel Windows et dans DSP Studio (Outils > Code RS-232) :
+Code du logiciel Windows et dans t.racks Studio (Outils > Code RS-232) :
 
 ```
 7B 7D | id | cmd | d1 | d2 | d3 | 7D 7B        toujours 9 octets, sans somme de contrôle

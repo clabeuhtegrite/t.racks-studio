@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interface web de DSP Studio (React) : mobile, tablette et ordinateur",
+  "description": "The t.racks Studio web interface (React), for phones, tablets and computers",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dsp-studio/i18n": "0.1.0",
     "@dsp-studio/protocol": "0.1.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

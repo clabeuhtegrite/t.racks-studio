@@ -1,0 +1,4 @@
+# t.racks DSP 206 / DSP 408 on USB (0168:0821): usable by the plugdev group, of which the
+# t.racks Studio service is a member (installed by deploy/raspberry-pi/install.sh).
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0168", ATTRS{idProduct}=="0821", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0168", ATTR{idProduct}=="0821", MODE="0660", GROUP="plugdev", TAG+="uaccess"

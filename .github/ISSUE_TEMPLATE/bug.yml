@@ -1,0 +1,59 @@
+name: Bug report
+description: Something does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. You can write in English, French or German.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Device
+      options:
+        - DSP 206
+        - DSP 408
+        - Demo (virtual DSP)
+        - Firmware emulator
+  - type: dropdown
+    id: link
+    attributes:
+      label: Connection
+      options:
+        - Ethernet
+        - USB, through the bridge
+        - USB, browser mode (Chrome or Edge)
+        - RS-232 / RS-485, through the bridge
+        - RS-232 / RS-485, browser mode (Chrome or Edge)
+        - Demo
+  - type: input
+    id: bridge
+    attributes:
+      label: Computer that runs the bridge
+      placeholder: Windows 11, Node.js 22.20 / Raspberry Pi 4, Raspberry Pi OS
+  - type: input
+    id: browser
+    attributes:
+      label: Screen and browser
+      placeholder: Safari on an iPhone / Chrome on Windows
+  - type: input
+    id: version
+    attributes:
+      label: t.racks Studio version
+      description: Connection > t.racks Studio bridge > Version, or the output of `git rev-parse --short HEAD`.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Messages
+      description: |
+        What the bridge printed in its terminal (or `journalctl -u t.racks-studio` on a Raspberry Pi), and Tools > Log.
+        For a problem with a DSP, attach the frames file too: Tools > Frames, do it again, then Pause and Download.
+        Lock and PTS passwords appear in clear in frames 2D, 2E and 2F: change or hide them first.
+      render: text

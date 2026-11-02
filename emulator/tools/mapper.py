@@ -103,7 +103,7 @@ def main():
     probe('pname', 0x26, [0] + list(b'PRESETNAME1234'))
     probe('pname_noz', 0x26, list(b'PRESETNAME1234'))
     probe('copy_in', 0x2a, [0, 1])
-    # lock, EEPROM and production opcodes (never sent by DSP Studio: see FORBIDDEN), preset slots
+    # lock, EEPROM and production opcodes (never sent by t.racks Studio: see FORBIDDEN), preset slots
     probe('lock', 0x2f, list(b'1234'))
     probe('c08', 0x08, [1, 2, 3, 4])
     probe('c09', 0x09, [1, 2, 3, 4])

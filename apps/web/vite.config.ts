@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // `npm run dev` proxies the bridge API, so the app can be developed against a bridge started with
-// `npm run dev:bridge` (demo devices) or real hardware.
+// `npm run dev:bridge` (its own device list in .dev/; add demo DSPs from the Connection screen).
 const bridge = process.env.DSP_BRIDGE ?? 'http://localhost:8080';
 
 export default defineConfig({

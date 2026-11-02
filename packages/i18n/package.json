@@ -1,0 +1,9 @@
+{
+  "name": "@dsp-studio/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Translations shared by the web app and the bridge: French source text, English and German",
+  "exports": { ".": "./src/index.ts" },
+  "license": "MIT"
+}

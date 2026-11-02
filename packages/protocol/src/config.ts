@@ -52,7 +52,7 @@ const bit = (mask: number, i: number): boolean => ((mask >> i) & 1) === 1;
 
 export function parseConfig(model: ModelId | ModelSpec, bytes: ArrayLike<number>): DeviceConfig {
   const m = typeof model === 'string' ? MODELS[model] : model;
-  if (bytes.length < m.configSize) throw new RangeError(`config too short: ${bytes.length} < ${m.configSize}`);
+  if (bytes.length < m.configSize) throw new RangeError(`configuration trop courte : ${bytes.length} octets au lieu de ${m.configSize}`);
   const L = layoutOf(m);
   const b = bytes;
   const g = L.g;

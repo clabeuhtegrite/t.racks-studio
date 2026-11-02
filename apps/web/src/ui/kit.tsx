@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import type { Param } from './format.ts';
 import { Slider } from './Slider.tsx';
+import { t } from '../i18n.tsx';
 
 export function Button(p: {
   children?: ReactNode; onClick?: () => void; icon?: IconName; kind?: 'primary' | 'ghost' | 'danger' | 'plain';
@@ -124,7 +125,7 @@ export function ValueField(p: { value: number; param: Param; onChange: (raw: num
 
 /** Label + slider + value field on one row (stacked on narrow screens). */
 export function ParamRow(p: { label: ReactNode; param: Param; value: number; onChange: (raw: number) => void; disabled?: boolean; color?: string; origin?: number; hint?: string }): React.JSX.Element {
-  const label = typeof p.label === 'string' ? p.label : 'valeur';
+  const label = typeof p.label === 'string' ? p.label : t('valeur');
   return (
     <div className="prow" title={p.hint}>
       <span className="prow-label">{p.label}</span>
@@ -142,9 +143,9 @@ export function Stepper(p: { value: number; param: Param; onChange: (v: number) 
   const set = (v: number): void => p.onChange(Math.min(p.param.max, Math.max(p.param.min, v)));
   return (
     <div className="stepper">
-      <button type="button" aria-label={`${p.label} moins`} disabled={p.disabled || p.value <= p.param.min} onClick={() => set(p.value - 1)}>−</button>
+      <button type="button" aria-label={t('{0} moins', p.label)} disabled={p.disabled || p.value <= p.param.min} onClick={() => set(p.value - 1)}>−</button>
       <ValueField value={p.value} param={p.param} onChange={set} disabled={p.disabled} label={p.label} />
-      <button type="button" aria-label={`${p.label} plus`} disabled={p.disabled || p.value >= p.param.max} onClick={() => set(p.value + 1)}>+</button>
+      <button type="button" aria-label={t('{0} plus', p.label)} disabled={p.disabled || p.value >= p.param.max} onClick={() => set(p.value + 1)}>+</button>
     </div>
   );
 }
@@ -187,7 +188,7 @@ export function Modal(p: { title: string; children: ReactNode; onClose: () => vo
       <div className={`modal ${p.wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref}>
         <header className="modal-head">
           <h2 id={id}>{p.title}</h2>
-          <button type="button" className="modal-x" aria-label="Fermer" onClick={p.onClose}><Icon name="close" /></button>
+          <button type="button" className="modal-x" aria-label={t('Fermer')} onClick={p.onClose}><Icon name="close" /></button>
         </header>
         <div className="modal-body">{p.children}</div>
         {p.footer && <footer className="modal-foot">{p.footer}</footer>}

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Hardware test guide (French)
+    url: https://github.com/clabeuhtegrite/t.racks-studio/blob/main/docs/essais-materiel.md
+    about: What to check on a real DSP 206 or DSP 408, and how to record the frames when something differs.

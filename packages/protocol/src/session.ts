@@ -106,7 +106,7 @@ export class DeviceSession extends Emitter<SessionEvents> {
     transport.onData((chunk) => { for (const f of this.parser.push(chunk)) this.onFrame(f); });
     transport.onClose((err) => {
       this.stopMeters();
-      this.failAll(new Error(err?.message ?? 'transport closed'));
+      this.failAll(new Error(err?.message ?? 'liaison fermée'));
       this.setStatus('closed');
     });
   }
@@ -133,7 +133,7 @@ export class DeviceSession extends Emitter<SessionEvents> {
     if (p.expect.includes(f.cmd) || f.cmd === CMD.NAK) {
       this.clearTimer();
       this.inflight = null;
-      if (f.cmd === CMD.NAK && !p.expect.includes(CMD.NAK)) p.reject(new Error(`command 0x${p.c.cmd.toString(16)} refused (NAK)`));
+      if (f.cmd === CMD.NAK && !p.expect.includes(CMD.NAK)) p.reject(new Error(`commande 0x${p.c.cmd.toString(16)} refusée par l’appareil (NAK)`));
       else p.resolve(f);
       this.pump();
     }
@@ -477,7 +477,7 @@ export class DeviceSession extends Emitter<SessionEvents> {
   async close(): Promise<void> {
     this.stopMeters();
     try { if (this.snap.status !== 'closed') await Promise.race([this.request(cmd.logout(), [CMD.ACK]), new Promise((r) => setTimeout(r, 150))]); } catch { /* no reply to logout */ }
-    this.failAll(new Error('closed'));
+    this.failAll(new Error('liaison fermée'));
     await this.transport.close();
     this.setStatus('closed');
   }

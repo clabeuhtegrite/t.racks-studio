@@ -7,6 +7,9 @@ import { BridgeBackend, defaultBridgeUrl } from '../client/bridge.ts';
 import { LocalBackend } from '../client/local.ts';
 import { DeviceMirror } from '../client/mirror.ts';
 import type { Backend, BackendStatus } from '../client/types.ts';
+import { pickLang, setLang, type Lang } from '@dsp-studio/i18n';
+import { t, tm } from '../i18n.tsx';
+import { stateLabel } from '../ui/format.ts';
 
 export interface Prefs {
   theme: 'auto' | 'dark' | 'light';
@@ -21,6 +24,8 @@ export interface Prefs {
   expert: boolean;
   /** dismissed warnings */
   seen: string[];
+  /** language of the interface ('' = the browser's) */
+  lang: Lang | '';
 }
 
 export interface Toast { id: number; kind: 'info' | 'ok' | 'warn' | 'error'; text: string }
@@ -34,7 +39,7 @@ export type Dialog =
 export interface AppState {
   backend: Backend | null;
   mode: 'bridge' | 'local' | null;
-  /** the page itself comes from a DSP Studio bridge */
+  /** the page itself comes from a t.racks Studio bridge */
   served: boolean;
   status: BackendStatus | 'starting';
   role: Role;
@@ -47,17 +52,31 @@ export interface AppState {
   dialog: Dialog | null;
   busy: string | null;
   prefs: Prefs;
+  /** language in use (the app is drawn again when it changes) */
+  lang: Lang;
 }
 
 const PREFS_KEY = 'dsp-studio.prefs';
-const defaults: Prefs = { theme: 'auto', bridgeUrl: '', pin: '', clientName: '', lastDevice: '', hints: true, expert: false, seen: [] };
+const defaults: Prefs = { theme: 'auto', bridgeUrl: '', pin: '', clientName: '', lastDevice: '', hints: true, expert: false, seen: [], lang: '' };
 function loadPrefs(): Prefs {
   try { return { ...defaults, ...(JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<Prefs>) }; } catch { return { ...defaults }; }
 }
+function savePrefs(p: Prefs): void {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* private mode */ }
+}
 
+/** The chosen language, or the first one of the browser's list that the app speaks (English otherwise). */
+function applyLang(l: Lang | ''): Lang {
+  const v = l || pickLang(typeof navigator === 'undefined' ? [] : [...(navigator.languages ?? []), navigator.language]);
+  setLang(v);
+  if (typeof document !== 'undefined') document.documentElement.lang = v;
+  return v;
+}
+
+const initialPrefs = loadPrefs();
 let state: AppState = {
   backend: null, mode: null, served: false, status: 'starting', role: 'viewer', pinRequired: false, devices: [], current: null, mirror: null,
-  toasts: [], journal: [], dialog: null, busy: null, prefs: loadPrefs(),
+  toasts: [], journal: [], dialog: null, busy: null, prefs: initialPrefs, lang: applyLang(initialPrefs.lang),
 };
 const listeners = new Set<() => void>();
 
@@ -75,8 +94,15 @@ export function useApp<T>(sel: (s: AppState) => T): T {
 
 export function setPrefs(p: Partial<Prefs>): void {
   const prefs = { ...state.prefs, ...p };
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
+  savePrefs(prefs);
   setState({ prefs });
+}
+
+/** Changes the language of the interface ('' = the browser's); the screens are drawn again. */
+export function setLanguage(l: Lang | ''): void {
+  const prefs = { ...state.prefs, lang: l };
+  savePrefs(prefs);
+  setState({ prefs, lang: applyLang(l) });
 }
 
 // ------------------------------------------------------------------------- messages & dialogs
@@ -90,19 +116,20 @@ export function toast(text: string, kind: Toast['kind'] = 'info', ms = kind === 
   setState((s) => ({ toasts: [...s.toasts.slice(-3), { id, kind, text }] }));
   setTimeout(() => setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), ms);
 }
+/** Message of an error, in the language of the interface (the bridge and the protocol write French). */
 export const errorText = (e: unknown): string => {
-  const m = e instanceof Error ? e.message : String(e);
+  const m = tm(e instanceof Error ? e.message : String(e));
   return m.charAt(0).toUpperCase() + m.slice(1);
 };
 
 export function confirmDialog(o: { title: string; message: string; ok?: string; danger?: boolean }): Promise<boolean> {
   return new Promise((resolve) => {
-    setState({ dialog: { kind: 'confirm', title: o.title, message: o.message, ok: o.ok ?? 'Confirmer', danger: !!o.danger, resolve } });
+    setState({ dialog: { kind: 'confirm', title: o.title, message: o.message, ok: o.ok ?? t('Confirmer'), danger: !!o.danger, resolve } });
   });
 }
 export function promptDialog(o: { title: string; message?: string; label: string; value?: string; maxLength?: number; inputMode?: 'text' | 'numeric'; ok?: string }): Promise<string | null> {
   return new Promise((resolve) => {
-    setState({ dialog: { kind: 'prompt', title: o.title, message: o.message, label: o.label, value: o.value ?? '', maxLength: o.maxLength, inputMode: o.inputMode, ok: o.ok ?? 'Valider', resolve } });
+    setState({ dialog: { kind: 'prompt', title: o.title, message: o.message, label: o.label, value: o.value ?? '', maxLength: o.maxLength, inputMode: o.inputMode, ok: o.ok ?? t('Valider'), resolve } });
   });
 }
 export function closeDialog(): void { setState({ dialog: null }); }
@@ -135,28 +162,30 @@ async function bridgeAvailable(): Promise<boolean> {
   } catch { return false; }
 }
 
-const stateText: Record<string, string> = { online: 'en ligne', connecting: 'connexion…', offline: 'hors ligne', locked: 'verrouillé' };
+
+/** Device names made by the bridge ("Démo DSP 206", "Série COM3"...) in the language of the interface. */
+const localized = (list: DeviceInfo[]): DeviceInfo[] => list.map((d) => ({ ...d, label: tm(d.label) }));
 
 function attach(b: Backend, mode: 'bridge' | 'local'): void {
   const seen = new Map<string, string>();
   b.on('status', (st) => {
     setState({ status: st, role: b.role, pinRequired: b.pinRequired });
-    logLine(mode === 'bridge' ? `Pont : ${stateText[st] ?? st}` : `Navigateur : ${stateText[st] ?? st}`, st === 'offline' ? 'warn' : 'info');
+    logLine(mode === 'bridge' ? t('Pont : {0}', stateLabel(st)) : t('Navigateur : {0}', stateLabel(st)), st === 'offline' ? 'warn' : 'info');
   });
   b.on('devices', (list) => {
     for (const d of list) {
       const was = seen.get(d.key);
-      if (was !== d.state) logLine(`${d.label} : ${stateText[d.state] ?? d.state}${d.state === 'offline' && d.error ? ` (${d.error})` : ''}`, d.state === 'offline' && was ? 'warn' : 'info');
+      if (was !== d.state) logLine(`${tm(d.label)} : ${stateLabel(d.state)}${d.state === 'offline' && d.error ? ` (${tm(d.error)})` : ''}`, d.state === 'offline' && was ? 'warn' : 'info');
       seen.set(d.key, d.state);
     }
-    setState({ devices: list });
+    setState({ devices: localized(list) });
     const s = getState();
     if (!s.current && list.length) {
       const pick = list.find((d) => d.key === s.prefs.lastDevice) ?? list.find((d) => d.state === 'online') ?? list[0];
       selectDevice(pick.key);
     }
   });
-  setState({ backend: b, mode, status: b.status, role: b.role, devices: b.devices, pinRequired: b.pinRequired });
+  setState({ backend: b, mode, status: b.status, role: b.role, devices: localized(b.devices), pinRequired: b.pinRequired });
 }
 
 export async function startApp(): Promise<void> {
@@ -165,11 +194,11 @@ export async function startApp(): Promise<void> {
   setState({ served });
   const url = served ? defaultBridgeUrl() : p.bridgeUrl;
   if (url) {
-    const b = new BridgeBackend(url, { pin: p.pin, name: p.clientName || navigator.platform || 'navigateur' });
+    const b = new BridgeBackend(url, { pin: p.pin, name: p.clientName || navigator.platform || t('navigateur') });
     attach(b, 'bridge');
     try {
       await b.start();
-      setState({ role: b.role, pinRequired: b.pinRequired, status: b.status, devices: b.devices });
+      setState({ role: b.role, pinRequired: b.pinRequired, status: b.status, devices: localized(b.devices) });
       const list = b.devices;
       if (list.length && !getState().current) {
         const pick = list.find((d) => d.key === p.lastDevice) ?? list.find((d) => d.state === 'online') ?? list[0];
@@ -178,14 +207,14 @@ export async function startApp(): Promise<void> {
       return;
     } catch (e) {
       if (served) { toast(errorText(e), 'error'); return; } // the bridge will come back by itself
-      toast(`Pont ${url} injoignable : mode navigateur`, 'warn');
+      toast(t('Pont {0} injoignable : mode navigateur', url), 'warn');
       b.close();
     }
   }
   const local = new LocalBackend();
   attach(local, 'local');
   await local.start();
-  setState({ status: 'online', devices: local.devices });
+  setState({ status: 'online', devices: localized(local.devices) });
 }
 
 /** Switches between the browser mode and a bridge given by its address. */
@@ -207,6 +236,14 @@ export function toWsUrl(a: string): string {
   return `${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}/ws`;
 }
 
+/** Opens the connection to a remembered device (errors become messages). */
+export function connectDevice(key: string): void {
+  getState().backend?.connectDevice(key).catch((e: unknown) => toast(errorText(e), 'error'));
+}
+export function disconnectDevice(key: string): void {
+  getState().backend?.disconnectDevice(key).catch((e: unknown) => toast(errorText(e), 'error'));
+}
+
 export function selectDevice(key: string | null): void {
   const s = getState();
   if (s.current === key) return;
@@ -225,7 +262,7 @@ export async function login(pin: string): Promise<boolean> {
     const role = await b.login(pin);
     setPrefs({ pin });
     setState({ role });
-    toast(role === 'admin' ? 'Accès administrateur' : role === 'operator' ? 'Accès opérateur' : 'Accès en lecture', 'ok');
+    toast(role === 'admin' ? t('Accès administrateur') : role === 'operator' ? t('Accès opérateur') : t('Accès en lecture'), 'ok');
     return true;
   } catch (e) {
     toast(errorText(e), 'error');
