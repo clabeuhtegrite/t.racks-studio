@@ -76,8 +76,14 @@ export function Card(p: { title?: ReactNode; actions?: ReactNode; children: Reac
       {(p.title || p.actions) && (
         <header className="card-head">
           <div>
-            {p.title && <h2>{p.title}</h2>}
-            {p.subtitle && <p className="muted small">{p.subtitle}</p>}
+            {p.title && (
+              <h2>
+                {p.title}
+                {/* where a page is laid out to fit the screen, the explanation moves into a tooltip */}
+                {typeof p.subtitle === 'string' && <span className="card-hint" title={p.subtitle}><Icon name="info" size={14} /><span className="sr-only">{p.subtitle}</span></span>}
+              </h2>
+            )}
+            {p.subtitle && <p className="muted small card-sub">{p.subtitle}</p>}
           </div>
           {p.actions && <div className="card-actions">{p.actions}</div>}
         </header>

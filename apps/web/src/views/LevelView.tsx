@@ -50,6 +50,10 @@ const toRaw = ([lo]: readonly [number, number], v: number): number => Math.round
 const fromRaw = ([lo]: readonly [number, number], r: number): number => lo + r / 2;
 
 const secs = (ms: number): string => fmtNumber(ms / 1000, ms % 1000 ? 1 : 0);
+const speedText = (v: LevelerSpeed): string => {
+  const sp = LEVELER_SPEEDS[v];
+  return t('Écoute {0} s avant d’agir, puis un pas toutes les {1} s pour monter, toutes les {2} s pour baisser.', secs(sp.loud), secs(sp.up), secs(sp.down));
+};
 
 // ------------------------------------------------------------------------------------- texts
 export function adviceText(a: Advice): string | null {
@@ -113,7 +117,7 @@ export function LevelView(): React.JSX.Element {
   const st = useLeveler();
   if (!mirror || !config) return <Empty icon="plug" title={t('Appareil non connecté')} />;
   return (
-    <div className="page">
+    <div className="page dense lv-page">
       <div className="page-head">
         <div>
           <h1>{t('Gain automatique')}</h1>
@@ -138,7 +142,8 @@ function LevelCards({ mirror, config, st }: { mirror: DeviceMirror; config: Devi
   const admin = role === 'admin';
   const operate = role !== 'viewer';
   return (
-    <div className="cards">
+    // on a computer: what happens now across the top, then the settings, the advanced ones and the night
+    <div className="cards lv-cards">
       <NowCard mirror={mirror} st={st} config={config} operate={operate} />
       <AutoCard mirror={mirror} config={config} st={st} settings={settings} change={change} admin={admin} operate={operate} />
       <NightCard mirror={mirror} st={st} />
@@ -152,18 +157,22 @@ function NowCard({ mirror, st, config, operate }: { mirror: DeviceMirror; st: Le
   const advice = adviceText(adviceOf(st));
   const budget = st.settings.budget;
   return (
-    <Card title={t('En ce moment')} actions={<span className="lv-status"><Badge tone={statusTone(st.status)}>{statusText(st.status)}</Badge></span>}>
-      <LevelMeter st={st} level={live} label={t('Niveau des entrées suivies')} showState />
-      <dl className="lv-figures">
-        <div><dt>{t('Moyenne')}</dt><dd>{levelOrDash(st.average)}</dd></div>
-        <div><dt>{t('Passages forts')}</dt><dd>{levelOrDash(st.loud)}</dd></div>
-        <div><dt>{t('Correction')}</dt><dd>{`${fmtSigned(st.correction)} dB`}</dd></div>
-        <div><dt>{t('Corrections (1 h)')}</dt><dd>{`${st.writes} / ${budget}`}</dd></div>
-      </dl>
-      {advice && <p className="lv-advice"><Icon name="info" size={18} /><span><b>{t('Conseil au DJ')}</b> · {advice}</span></p>}
-      {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le vumètre est dans le rouge. Baissez la sortie de la table de mixage.')}</Note>}
-      {st.limiting && <Note tone="warn">{t('Le limiteur d’une sortie travaille.')}</Note>}
-      {operate && <LevelPause mirror={mirror} st={st} />}
+    <Card title={t('En ce moment')} className="lv-now" actions={<span className="lv-status"><Badge tone={statusTone(st.status)}>{statusText(st.status)}</Badge></span>}>
+      <div className="lv-now-main">
+        <LevelMeter st={st} level={live} label={t('Niveau des entrées suivies')} showState />
+        <dl className="lv-figures">
+          <div><dt>{t('Moyenne')}</dt><dd>{levelOrDash(st.average)}</dd></div>
+          <div><dt>{t('Passages forts')}</dt><dd>{levelOrDash(st.loud)}</dd></div>
+          <div><dt>{t('Correction')}</dt><dd>{`${fmtSigned(st.correction)} dB`}</dd></div>
+          <div><dt>{t('Corrections (1 h)')}</dt><dd>{`${st.writes} / ${budget}`}</dd></div>
+        </dl>
+      </div>
+      <div className="lv-now-notes">
+        {advice && <p className="lv-advice"><Icon name="info" size={18} /><span><b>{t('Conseil au DJ')}</b> · {advice}</span></p>}
+        {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le vumètre est dans le rouge. Baissez la sortie de la table de mixage.')}</Note>}
+        {st.limiting && <Note tone="warn">{t('Le limiteur d’une sortie travaille.')}</Note>}
+        {operate && <LevelPause mirror={mirror} st={st} />}
+      </div>
     </Card>
   );
 }
@@ -185,7 +194,7 @@ function AutoCard(p: {
     if (r) toast(t('Niveau cible : {0}', `${fmtNumber(r.settings.target)} dBFS`), 'ok');
   };
   return (
-    <Card title={t('Gain automatique')} subtitle={t('Corrige par pas de {0} dB, sans jamais dépasser les limites choisies.', fmtNumber(LEVELER_STEP_DB))}>
+    <Card title={t('Gain automatique')} className="lv-auto" subtitle={t('Corrige par pas de {0} dB, sans jamais dépasser les limites choisies.', fmtNumber(LEVELER_STEP_DB))}>
       <div className="row wrap">
         <Toggle on={settings.enabled} disabled={!operate} onChange={(v) => { void levelerRequest(mirror, 'enable', v); }} icon="wave">
           {settings.enabled ? t('Gain automatique activé') : t('Gain automatique désactivé')}
@@ -200,7 +209,7 @@ function AutoCard(p: {
 
       <div className="field">
         <span className="field-label">{t('Entrées suivies')}</span>
-        <div className="lv-inputs" role="group" aria-label={t('Entrées suivies')}>
+        <div className="lv-inputs" role="group" aria-label={t('Entrées suivies')} title={t('Les entrées où arrive la table de mixage. Les entrées liées bougent ensemble.')}>
           {Array.from({ length: inputs }, (_, i) => {
             const on = settings.inputs.includes(i);
             const name = config.inputs[i]?.name ?? '';
@@ -218,27 +227,20 @@ function AutoCard(p: {
         <span className="field-hint">{t('Les entrées où arrive la table de mixage. Les entrées liées bougent ensemble.')}</span>
       </div>
 
-      <ParamRow
-        label={t('Niveau cible')} param={TARGET} value={toRaw(LIM.target, settings.target)} disabled={!admin}
-        onChange={(r) => change({ target: fromRaw(LIM.target, r) })} hint={t('Niveau moyen visé après le gain d’entrée')}
-      />
-      <div className="row end">
-        <Button small icon="ruler" disabled={!admin || (st.average === null && st.level === null)} onClick={() => { void takeTarget(); }}>
-          {t('Prendre le niveau actuel')}
-        </Button>
+      <div className="lv-target">
+        <ParamRow
+          label={t('Niveau cible')} param={TARGET} value={toRaw(LIM.target, settings.target)} disabled={!admin}
+          onChange={(r) => change({ target: fromRaw(LIM.target, r) })} hint={t('Niveau moyen visé après le gain d’entrée')}
+        />
+        <div className="row end">
+          <Button
+            small icon="ruler" className="btn-take" title={t('Prendre le niveau actuel')}
+            disabled={!admin || (st.average === null && st.level === null)} onClick={() => { void takeTarget(); }}
+          >
+            {t('Prendre le niveau actuel')}
+          </Button>
+        </div>
       </div>
-      <ParamRow
-        label={t('Zone tolérée')} param={TOLERANCE} value={toRaw(LIM.tolerance, settings.tolerance)} disabled={!admin}
-        onChange={(r) => change({ tolerance: fromRaw(LIM.tolerance, r) })} hint={t('Écart autour de la cible où rien ne bouge')}
-      />
-      <ParamRow
-        label={t('Remontée maximale')} param={BOOST} value={toRaw(LIM.maxBoost, settings.maxBoost)} disabled={!admin}
-        onChange={(r) => change({ maxBoost: fromRaw(LIM.maxBoost, r) })}
-      />
-      <ParamRow
-        label={t('Baisse maximale')} param={CUT} value={toRaw(LIM.maxCut, settings.maxCut)} disabled={!admin}
-        onChange={(r) => change({ maxCut: fromRaw(LIM.maxCut, r) })}
-      />
     </Card>
   );
 }
@@ -276,7 +278,7 @@ function NightCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState }): 
   const [mode, setMode] = useState<'chart' | 'table'>('chart');
   return (
     <Card
-      className="span2" title={t('Bilan de la soirée')} subtitle={nightSubtitle(sum, kept)}
+      className="span2 lv-hist" title={t('Bilan de la soirée')} subtitle={nightSubtitle(sum, kept)}
       actions={
         <Segmented
           small label={t('Affichage')} value={mode} onChange={setMode}
@@ -288,7 +290,7 @@ function NightCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState }): 
       {points.length < 2 ? (
         <p className="muted">{t('Le bilan se remplit pendant la musique, même quand le gain automatique est désactivé.')}</p>
       ) : mode === 'chart' ? (
-        <LevelHistory points={points} settings={st.settings} label={t('Niveau et correction pendant la soirée')} />
+        <LevelHistory points={points} settings={st.settings} label={t('Niveau et correction pendant la soirée')} fill />
       ) : (
         <LevelTable points={points} />
       )}
@@ -300,7 +302,6 @@ function AdvancedCard(p: {
   mirror: DeviceMirror; st: LevelerState; settings: LevelerSettings; change: (patch: Partial<LevelerSettings>) => void; admin: boolean;
 }): React.JSX.Element {
   const { mirror, st, settings, change, admin } = p;
-  const sp = LEVELER_SPEEDS[settings.speed];
   const check = async (): Promise<void> => {
     const ok = await confirmDialog({
       title: t('Vérifier les vumètres'),
@@ -312,16 +313,26 @@ function AdvancedCard(p: {
     if (r) toast(checkText(r), r.result === 'unclear' ? 'warn' : 'ok');
   };
   return (
-    <Card title={t('Réglages avancés')}>
-      <div className="field">
+    <Card title={t('Réglages avancés')} className="lv-adv">
+      <ParamRow
+        label={t('Zone tolérée')} param={TOLERANCE} value={toRaw(LIM.tolerance, settings.tolerance)} disabled={!admin}
+        onChange={(r) => change({ tolerance: fromRaw(LIM.tolerance, r) })} hint={t('Écart autour de la cible où rien ne bouge')}
+      />
+      <ParamRow
+        label={t('Remontée maximale')} param={BOOST} value={toRaw(LIM.maxBoost, settings.maxBoost)} disabled={!admin}
+        onChange={(r) => change({ maxBoost: fromRaw(LIM.maxBoost, r) })}
+      />
+      <ParamRow
+        label={t('Baisse maximale')} param={CUT} value={toRaw(LIM.maxCut, settings.maxCut)} disabled={!admin}
+        onChange={(r) => change({ maxCut: fromRaw(LIM.maxCut, r) })}
+      />
+      <div className="field field-inline">
         <span className="field-label">{t('Vitesse')}</span>
         <Segmented<LevelerSpeed>
           label={t('Vitesse')} value={settings.speed} disabled={!admin} onChange={(v) => change({ speed: v })}
-          options={[{ value: 'slow', label: t('Lente') }, { value: 'normal', label: t('Normale') }, { value: 'fast', label: t('Rapide') }]}
+          options={(['slow', 'normal', 'fast'] as const).map((v) => ({ value: v, label: v === 'slow' ? t('Lente') : v === 'normal' ? t('Normale') : t('Rapide'), title: speedText(v) }))}
         />
-        <span className="field-hint">
-          {t('Écoute {0} s avant d’agir, puis un pas toutes les {1} s pour monter, toutes les {2} s pour baisser.', secs(sp.loud), secs(sp.up), secs(sp.down))}
-        </span>
+        <span className="field-hint">{speedText(settings.speed)}</span>
       </div>
       <ParamRow
         label={t('Limite de corrections')} param={BUDGET} value={settings.budget} disabled={!admin} onChange={(v) => change({ budget: v })}
@@ -329,15 +340,15 @@ function AdvancedCard(p: {
       />
       <WritesField st={st} />
       <div className="field">
-        <span className="field-label">{t('Vumètres des entrées')}</span>
-        <div className="row wrap">
-          <Segmented<MeterPosition>
-            label={t('Vumètres des entrées')} value={settings.meter} disabled={!admin} onChange={(v) => change({ meter: v })}
-            options={[{ value: 'unknown', label: t('Pas vérifié') }, { value: 'pre', label: t('Avant le gain') }, { value: 'post', label: t('Après le gain') }]}
-          />
+        <div className="field-label-row">
+          <span className="field-label">{t('Vumètres des entrées')}</span>
           <Button small icon="refresh" disabled={!admin || st.status === 'offline' || st.status === 'checking'} onClick={() => { void check(); }}>{t('Vérifier')}</Button>
         </div>
-        <span className="field-hint">
+        <Segmented<MeterPosition>
+          label={t('Vumètres des entrées')} value={settings.meter} disabled={!admin} onChange={(v) => change({ meter: v })}
+          options={[{ value: 'unknown', label: t('Pas vérifié') }, { value: 'pre', label: t('Avant le gain') }, { value: 'post', label: t('Après le gain') }]}
+        />
+        <span className={st.check ? 'field-hint is-result' : 'field-hint'}>
           {st.check ? checkText(st.check) : t('Le gain automatique doit savoir si les vumètres du DSP mesurent avant ou après le gain d’entrée. La vérification le trouve toute seule.')}
         </span>
       </div>

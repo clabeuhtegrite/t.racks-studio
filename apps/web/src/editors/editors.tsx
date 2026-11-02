@@ -57,7 +57,7 @@ export function XoverEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.E
     );
   };
   return (
-    <Card title={t('Filtres (crossover)')} subtitle={t('Passe-haut (coupe-bas) et passe-bas (coupe-haut), 20 pentes Butterworth, Bessel et Linkwitz-Riley.')}>
+    <Card title={t('Filtres (crossover)')} className="card-xover" subtitle={t('Passe-haut (coupe-bas) et passe-bas (coupe-haut), 20 pentes Butterworth, Bessel et Linkwitz-Riley.')}>
       <div className="xovers">
         {row('hpf', c.hpf, t('Passe-haut (coupe-bas)'))}
         {row('lpf', c.lpf, t('Passe-bas (coupe-haut)'))}
@@ -76,16 +76,15 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
   const dyn = useDynamics(cfg, ch);
   const m = MODELS[cfg.model];
   return (
-    <Card title={t('Niveau, polarité et délai')}>
+    <Card title={t('Niveau, polarité et délai')} className="card-level" actions={<>
+      <Toggle small on={c.mute} tone="red" onChange={(on) => mirror.apply({ t: 'mute', ch, on })} disabled={!canOperate} icon="mute">{t('Mute')}</Toggle>
+      <Toggle small on={!!c.phase} tone="amber" onChange={(inv) => mirror.apply({ t: 'phase', ch, inv })} disabled={disabled} icon="phase">{c.phase ? t('Polarité inversée') : t('Polarité normale')}</Toggle>
+    </>}>
       <div className="level">
         <Meter db={meters?.db[ch]} zones={meterZones(cfg.model, ch)} vertical={false} dyn={ch >= m.inputs ? dyn.comp || dyn.limit : undefined} label={t('Niveau {0}', labelOf(cfg, ch))} marks={thresholdMarks(cfg, ch)} />
         <ParamRow label={t('Volume')} param={P.gain} value={c.gain} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })} disabled={!canOperate} color={color} origin={280} />
-        <div className="row">
-          <Toggle on={c.mute} tone="red" onChange={(on) => mirror.apply({ t: 'mute', ch, on })} disabled={!canOperate} icon="mute">{t('Mute')}</Toggle>
-          <Toggle on={!!c.phase} tone="amber" onChange={(inv) => mirror.apply({ t: 'phase', ch, inv })} disabled={disabled} icon="phase">{c.phase ? t('Polarité inversée') : t('Polarité normale')}</Toggle>
-        </div>
         <ParamRow label={t('Délai')} param={dp} value={c.delay} onChange={(raw) => mirror.apply({ t: 'delay', ch, raw })} disabled={disabled} color={color} />
-        <div className="prow">
+        <div className="prow lv-unit">
           <span className="prow-label">{t('Unité')}</span>
           <Segmented small label={t('Unité des délais')} value={unit} disabled={disabled} onChange={(u) => mirror.apply({ t: 'delayUnit', unit: u })}
             options={DELAY_UNIT_LABELS.map((l, i) => ({ value: i as DelayUnit, label: l, title: i === 0 ? t('millisecondes') : i === 1 ? t('mètres') : t('pieds') }))} />
@@ -147,7 +146,7 @@ export function GateEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
   );
   if (compact) return body;
   return (
-    <Card title={<>{t('Noise gate')}<BlockState on={gateOn(g)} title={gateOn(g) ? undefined : t('Seuil à −90 dB : le gate reste ouvert')} /></>}
+    <Card className="card-dyn" title={<>{t('Noise gate')}<BlockState on={gateOn(g)} title={gateOn(g) ? undefined : t('Seuil à −90 dB : le gate reste ouvert')} /></>}
       subtitle={t('Ferme l’entrée quand le signal passe sous le seuil (−90 dB = gate ouvert en permanence).')}>{body}</Card>
   );
 }
@@ -176,7 +175,7 @@ export function CompEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
   );
   if (compact) return body;
   return (
-    <Card title={<>{t('Compresseur')}<BlockState on={compOn(k)} />{acting && <Badge tone="warn">{t('compresse en ce moment')}</Badge>}</>} subtitle={t('Seuil +20 dB ou taux 1:1 = compresseur inactif.')}>{body}</Card>
+    <Card className="card-dyn" title={<>{t('Compresseur')}<BlockState on={compOn(k)} />{acting && <Badge tone="warn">{t('compresse en ce moment')}</Badge>}</>} subtitle={t('Seuil +20 dB ou taux 1:1 = compresseur inactif.')}>{body}</Card>
   );
 }
 
@@ -203,7 +202,7 @@ export function LimiterEditor({ cfg, ch, mirror, disabled, compact, expert }: Ed
   );
   if (compact) return body;
   return (
-    <Card title={<>{t('Limiteur')}<BlockState on={limiterOn(l)} />{limiting && <Badge tone="warn">{t('limite en ce moment')}</Badge>}</>}
+    <Card className="card-dyn" title={<>{t('Limiteur')}<BlockState on={limiterOn(l)} />{limiting && <Badge tone="warn">{t('limite en ce moment')}</Badge>}</>}
       subtitle={t('Protège les amplis et haut-parleurs : le niveau ne dépasse jamais le seuil (+20 dB = inactif).')}>{body}</Card>
   );
 }
@@ -213,7 +212,7 @@ export function RoutingEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX
   const m = MODELS[cfg.model];
   const o = cfg.outputs[ch - m.inputs];
   return (
-    <Card title={t('Routage')} subtitle={t('Entrées mélangées sur cette sortie et leur niveau dans le mélange.')}>
+    <Card title={t('Routage')} className="card-route" subtitle={t('Entrées mélangées sur cette sortie et leur niveau dans le mélange.')}>
       <div className="routing">
         {cfg.inputs.map((inp, i) => {
           const on = ((o.route >> i) & 1) === 1;
@@ -243,7 +242,7 @@ export function GeqEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.Ele
   const [fine, setFine] = useState(false);
   return (
     <Card
-      title={t('Égaliseur graphique 31 bandes · {0}', labelOf(cfg, ch))}
+      title={t('Égaliseur graphique 31 bandes · {0}', labelOf(cfg, ch))} className="card-geq"
       actions={<>
         <Toggle small on={fine} onChange={setFine} title={t('Affiche les valeurs exactes sous les curseurs')}>{t('Valeurs')}</Toggle>
         <Toggle small tone="amber" on={c.geqBypass} onChange={(on) => mirror.apply({ t: 'geqBypass', ch, on })} disabled={disabled}>{t('Bypass GEQ')}</Toggle>

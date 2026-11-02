@@ -88,10 +88,8 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
       title={t('Égaliseur paramétrique')} className="card-eq"
       subtitle={hints ? t('Glissez un point pour régler fréquence et gain, molette ou touches + / − pour la largeur (Q), flèches au clavier.') : undefined}
       actions={<>
-        <Segmented small label={t('Affichage')} value={mode} onChange={setMode} options={[{ value: 'mag', label: t('Amplitude') }, { value: 'phase', label: t('Phase') }]} />
-        <Toggle small on={showAll} onChange={setShowAll} title={t('Affiche les réglages de toutes les bandes sur la courbe')}>{t('Valeurs sur la courbe')}</Toggle>
         <Toggle small tone="amber" on={c.peqBypass} onChange={(on) => mirror.apply({ t: 'peqBypass', ch, on })} disabled={disabled} title={t('Contourne tout l’égaliseur de ce canal')}>{t('Bypass EQ')}</Toggle>
-        <Button small icon="refresh" disabled={disabled} onClick={async () => {
+        <Button small icon="refresh" className="btn-reset" title={t('Réinitialiser l’égaliseur')} disabled={disabled} onClick={async () => {
           if (await confirmDialog({ title: t('Réinitialiser l’égaliseur'), message: t('Remettre les {0} bandes de {1} à plat (0 dB, fréquences et largeurs d’origine) ?', c.peq.length, labelOf(cfg, ch)), ok: t('Réinitialiser'), danger: true })) {
             mirror.apply({ t: 'peqReset', ch });
           }
@@ -100,7 +98,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
     >
       <ResponseGraph
         freqs={freqs} curves={curves} mode={mode} handles={handles} markers={markers} showLabels={showAll} disabled={disabled}
-        label={t('Courbe de {0}', labelOf(cfg, ch))} height={300} onKeyDown={onKey} onSelect={setSel}
+        label={t('Courbe de {0}', labelOf(cfg, ch))} height={300} fill onKeyDown={onKey} onSelect={setSel}
         onHandle={(k, f, db) => {
           const cur = chan(mirror.config ?? cfg, ch).peq[k];
           setBand(k, { freq: freqHzToRaw(f), ...(peqTypeHasGain(cur.type) ? { gain: eqGainDbToRaw(db) } : {}) });
@@ -112,7 +110,10 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
           else mirror.apply({ t: 'lpf', ch, x: { ...cur.lpf, freq: freqHzToRaw(f) } });
         }}
       />
+      {/* how the curve is shown (the settings of the channel are in the head and the table) */}
       <div className="overlay-pick">
+        <Segmented small label={t('Affichage')} value={mode} onChange={setMode} options={[{ value: 'mag', label: t('Amplitude') }, { value: 'phase', label: t('Phase') }]} />
+        <Toggle small on={showAll} onChange={setShowAll} title={t('Affiche les réglages de toutes les bandes sur la courbe')}>{t('Valeurs sur la courbe')}</Toggle>
         <Select label={t('Superposer la courbe d’un autre canal')} value={-1} className="select-sm"
           options={[{ value: -1, label: t('Superposer un canal…') }, ...sameKind.filter((o) => !overlay.includes(o)).map((o) => ({ value: o, label: labelOf(cfg, o) }))]}
           onChange={(o) => { if (o >= 0) setOverlay([...overlay, o]); }} />

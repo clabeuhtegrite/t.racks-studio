@@ -46,18 +46,18 @@ export function DynamicsView(): React.JSX.Element {
     : Math.min(m.inputs + m.outputs - 1, Math.max(m.inputs, Number.isFinite(raw) && route.sub !== '' ? raw : m.inputs));
   const p = { cfg: config, ch, mirror, disabled: !canEdit };
   return (
-    <div className="page">
+    <div className="page dense dy-page">
       <div className="page-head"><h1>{t('Dynamique')}</h1></div>
       <Tabs label={t('Bloc')} value={tab} onChange={(t) => go('dynamique', t)} tabs={[
         { id: 'gate', label: t('Noise gate (entrées)') }, { id: 'comp', label: t('Compresseur (sorties)') }, { id: 'limit', label: t('Limiteur (sorties)') },
       ]} />
       <ChannelChips cfg={config} value={ch} only={tab === 'gate' ? 'in' : 'out'} onChange={(x) => go('dynamique', tab, String(x))} />
-      <Card title={`${tab === 'gate' ? t('Noise gate') : tab === 'comp' ? t('Compresseur') : t('Limiteur')} · ${titleOf(config, ch)}`}>
+      <Card className="dy-edit" title={`${tab === 'gate' ? t('Noise gate') : tab === 'comp' ? t('Compresseur') : t('Limiteur')} · ${titleOf(config, ch)}`}>
         {tab === 'gate' && <GateEditor {...p} compact />}
         {tab === 'comp' && <CompEditor {...p} compact />}
         {tab === 'limit' && <LimiterEditor {...p} compact expert={expert} />}
       </Card>
-      <Card title={t('Tous les canaux')}>
+      <Card className="dy-all" title={t('Tous les canaux')}>
         <DynTable cfg={config} tab={tab} mirror={mirror} disabled={!canEdit} selected={ch} />
       </Card>
     </div>
@@ -127,13 +127,13 @@ export function DelayView(): React.JSX.Element {
   const dp = delayParam(unit);
   const all = Array.from({ length: m.inputs + m.outputs }, (_, i) => i);
   return (
-    <div className="page">
+    <div className="page dense dl-page">
       <div className="page-head">
         <h1>{t('Délais')}</h1>
         <Segmented label={t('Unité')} value={unit} disabled={!canEdit} onChange={(u) => mirror.apply({ t: 'delayUnit', unit: u })}
           options={DELAY_UNIT_LABELS.map((l, i) => ({ value: i as DelayUnit, label: l }))} />
       </div>
-      <Card title={t('Délai de chaque canal')} subtitle={t('Jusqu’à 680 ms (environ 233 m) par canal, au 1/96 000 de seconde près.')}>
+      <Card className="dl-chans" title={t('Délai de chaque canal')} subtitle={t('Jusqu’à 680 ms (environ 233 m) par canal, au 1/96 000 de seconde près.')}>
         <div className="delays">
           {all.map((ch) => {
             const c = chan(config, ch);
@@ -164,7 +164,7 @@ function AlignHelper({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Dev
   const far = Math.max(0, ...ds.filter((d): d is number => d !== null));
   const delays = ds.map((d) => (d === null ? null : ((far - d) / c) * 1000));
   return (
-    <Card title={t('Alignement temporel par distances')} subtitle={t('Indiquez la distance entre chaque enceinte et le point d’écoute : les enceintes les plus proches sont retardées pour arriver en même temps que la plus éloignée.')}>
+    <Card className="dl-align" title={t('Alignement temporel par distances')} subtitle={t('Indiquez la distance entre chaque enceinte et le point d’écoute : les enceintes les plus proches sont retardées pour arriver en même temps que la plus éloignée.')}>
       <div className="align">
         {cfg.outputs.map((_, j) => (
           <Field key={j} label={titleOf(cfg, m.inputs + j)}>
@@ -181,7 +181,8 @@ function AlignHelper({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Dev
           delays.forEach((d, j) => { if (d !== null) mirror.apply({ t: 'delay', ch: m.inputs + j, raw: delayMsToRaw(d) }); });
         }}>{t('Appliquer les délais aux sorties')}</Button>
       </div>
-      <p className="small muted">{tx('Délais actuels : {0}', cfg.outputs.map((o, j) => `${labelOf(cfg, m.inputs + j)} ${fmtMs(delayRawToMs(o.delay), 2)}`).join(' · '))}</p>
+      {/* on a computer the delays are on screen beside this card */}
+      <p className="small muted dl-now">{tx('Délais actuels : {0}', cfg.outputs.map((o, j) => `${labelOf(cfg, m.inputs + j)} ${fmtMs(delayRawToMs(o.delay), 2)}`).join(' · '))}</p>
     </Card>
   );
 }
@@ -194,7 +195,7 @@ export function MatrixView(): React.JSX.Element {
   if (!mirror || !config) return <></>;
   const m = MODELS[config.model];
   return (
-    <div className="page">
+    <div className="page dense mx-page">
       <div className="page-head">
         <h1>{t('Matrice')}</h1>
         <Toggle small on={levels} onChange={setLevels}>{t('Niveaux de mélange')}</Toggle>

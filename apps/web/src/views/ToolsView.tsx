@@ -35,7 +35,7 @@ export function ToolsView(): React.JSX.Element {
   const route = useRoute();
   const tab = (TAB_IDS.includes(route.arg as Tab) ? route.arg : 'filtrage') as Tab;
   return (
-    <div className="page">
+    <div className="page dense tl-page">
       <div className="page-head"><h1>{t('Outils')}</h1></div>
       <Tabs label={t('Outils')} value={tab} tabs={tabs()} onChange={(v) => go('outils', v)} />
       {tab === 'filtrage' && <CrossoverAssistant />}
@@ -127,13 +127,13 @@ function CrossoverAssistant(): React.JSX.Element {
   };
   const slopeLabel = SLOPE_OPTIONS.find((o) => o.value === slope)?.label ?? '';
   return (
-    <div className="cards">
-      <Card title={t('Assistant de filtrage')} subtitle={t('Préparez un filtrage 2 ou 3 voies, vérifiez la somme théorique, puis appliquez-le aux sorties choisies.')} className="span2">
+    <div className="cards xo-cards">
+      <Card title={t('Assistant de filtrage')} subtitle={t('Préparez un filtrage 2 ou 3 voies, vérifiez la somme théorique, puis appliquez-le aux sorties choisies.')} className="span2 xo-graph">
         <div className="row wrap">
           <Segmented label={t('Nombre de voies')} value={ways} onChange={setWays} options={[{ value: 2, label: t('2 voies') }, { value: 3, label: t('3 voies') }]} />
           <Select label={t('Pente')} value={slope} onChange={setSlope} options={SLOPE_OPTIONS} />
         </div>
-        <ResponseGraph freqs={freqs} curves={curves} mode="mag" range={[-36, 9]} height={240} label={t('Réponse théorique du filtrage {0}', slopeLabel)}
+        <ResponseGraph freqs={freqs} curves={curves} mode="mag" range={[-36, 9]} height={240} fill label={t('Réponse théorique du filtrage {0}', slopeLabel)}
           markers={points.map((f, i) => ({ id: `p${i}`, f: freqRawToHz(f), label: fmtHzShort(freqRawToHz(f)), color: '#8b5cf6' }))}
           onMarker={(id, f) => {
             const i = Number(id.slice(1));
@@ -145,7 +145,7 @@ function CrossoverAssistant(): React.JSX.Element {
           <span>{tx('{0}Somme (haut-parleurs idéaux, même niveau, même distance)', <i className="legend-dash" />)}</span>
         </div>
       </Card>
-      <Card title={t('Fréquences de coupure')}>
+      <Card className="xo-cut" title={t('Fréquences de coupure')}>
         {ways === 2
           ? <ParamRow label={t('Grave / aigu')} param={P.freq} value={fs[0]} onChange={(v) => setFs((o) => [v, o[1], o[2]])} />
           : <>
@@ -159,7 +159,7 @@ function CrossoverAssistant(): React.JSX.Element {
         </label>
         {protect && <ParamRow label={t('Coupe-bas')} param={P.freq} value={protectF} onChange={setProtectF} />}
       </Card>
-      <Card title={t('Sorties')}>
+      <Card className="xo-outs" title={t('Sorties')}>
         {used.map((outs, w) => (
           <div key={w} className="way">
             <div className="way-head">
@@ -256,10 +256,8 @@ function Rs232Card(): React.JSX.Element {
   const hex = extHex(frame).replace(/(..)(?!$)/g, '$1 ');
   const chLabel = (i: number): string => (k === 0 ? m.inputLabels[i] : m.outputLabels[i]);
   return (
-    <div className="cards">
-      <Card title={t('Code RS-232 pour automates')} subtitle={t('Protocole simplifié (« Processor Extend Remote Control Protocol ») pour Crestron, AMX, domotique… Menu Help > RS232 Code du logiciel Windows.')} className="span2">
-        <p className="small">{tx('Trame de 9 octets, sans somme de contrôle : {0} | ID | commande | d1 | d2 | d3 | {1}. Liaison série 115200 bauds, 8 bits, sans parité, 1 bit d’arrêt. L’appareil ne répond qu’aux trames portant son ID.', <code>7B 7D</code>, <code>7D 7B</code>)}</p>
-        <Note>{tx('Plusieurs DSP sur une même ligne RS-485 : le firmware 1.04 ne se remet pas d’une trame Extend destinée à un autre ID (ou qui ne fait pas exactement 9 octets) et n’entend plus rien ensuite, protocole normal compris. Faites suivre chaque trame de 128 octets {0} : ils remettent sa réception à zéro et ne gênent aucun appareil.', <code>00</code>)}</Note>
+    <div className="cards rs-cards">
+      <Card title={t('Code RS-232 pour automates')} subtitle={t('Protocole simplifié (« Processor Extend Remote Control Protocol ») pour Crestron, AMX, domotique… Menu Help > RS232 Code du logiciel Windows.')} className="span2 rs-ref">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>{t('Code')}</th><th>{t('Fonction')}</th><th>{t('d1 d2 d3')}</th><th>{t('Réponse')}</th><th>{t('Firmware 1.04')}</th></tr></thead>
@@ -277,7 +275,9 @@ function Rs232Card(): React.JSX.Element {
           </table>
         </div>
       </Card>
-      <Card title={t('Générateur de trame')} className="span2">
+      <Card title={t('Générateur de trame')} className="span2 rs-gen">
+        {/* the frame format and the serial line, the form that builds a frame, then the RS-485 caveat */}
+        <p className="small">{tx('Trame de 9 octets, sans somme de contrôle : {0} | ID | commande | d1 | d2 | d3 | {1}. Liaison série 115200 bauds, 8 bits, sans parité, 1 bit d’arrêt. L’appareil ne répond qu’aux trames portant son ID.', <code>7B 7D</code>, <code>7D 7B</code>)}</p>
         <div className="form form-inline">
           <Field label={t('ID de l’appareil')}><TextInput value={id} onChange={(v) => setId(v.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" label="ID" /></Field>
           <Field label={t('Commande')}><Select label={t('Commande')} value={cmd} onChange={setCmd} options={EXT_COMMANDS.map((c) => ({ value: c.cmd, label: `${c.cmd.toString(16).toUpperCase()} · ${tm(c.name)}` }))} /></Field>
@@ -298,6 +298,7 @@ function Rs232Card(): React.JSX.Element {
         </div>
         <p className="small muted">{t('{0} Réponse : {1}.', tm(def.description), tm(def.reply))}</p>
         {!def.verified && <Note tone="warn">{t('Cette commande figure dans l’aide de Thomann mais le firmware 1.04 n’y répond pas.')}</Note>}
+        <Note>{tx('Plusieurs DSP sur une même ligne RS-485 : le firmware 1.04 ne se remet pas d’une trame Extend destinée à un autre ID (ou qui ne fait pas exactement 9 octets) et n’entend plus rien ensuite, protocole normal compris. Faites suivre chaque trame de 128 octets {0} : ils remettent sa réception à zéro et ne gênent aucun appareil.', <code>00</code>)}</Note>
       </Card>
     </div>
   );
@@ -431,7 +432,8 @@ function AboutCard(): React.JSX.Element {
   const { snap } = useDevice();
   return (
     <div className="cards">
-      <Card title="t.racks Studio" subtitle={t('Logiciel libre et non officiel (licence MIT)')}>
+      <Card title="t.racks Studio">
+        <p className="small muted">{t('Logiciel libre et non officiel (licence MIT)')}</p>
         <dl className="kv">
           <div><dt>{t('Application')}</dt><dd>{APP_VERSION}</dd></div>
           <div><dt>{t('Mode')}</dt><dd>{mode === 'bridge' ? t('pont t.racks Studio {0}', backend?.version ?? '') : t('navigateur (WebHID, Web Serial, démo)')}</dd></div>

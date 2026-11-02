@@ -45,7 +45,7 @@ export function PresetsView(): React.JSX.Element {
   };
 
   return (
-    <div className="page">
+    <div className="page dense pr-page">
       <div className="page-head">
         <h1>{t('Presets')}</h1>
         <div className="row">
@@ -55,7 +55,7 @@ export function PresetsView(): React.JSX.Element {
       </div>
 
       {config && (
-        <Card title={t('Preset en cours')}>
+        <Card className="pr-cur" title={t('Preset en cours')}>
           <div className="current-preset">
             <span className="preset-big">{presetLabel(snap.activePreset)}</span>
             <div className="grow">
@@ -74,7 +74,7 @@ export function PresetsView(): React.JSX.Element {
       )}
       {storing && config && <StoreDialog mirror={mirror} onClose={() => setStoring(false)} />}
 
-      <Card title={t('Mémoires de l’appareil')} subtitle={t('F00 est le réglage d’usine ; U01 à U20 sont les mémoires utilisateur (une mémoire vide contient le réglage d’usine). Rappeler remplace tous les réglages en cours.')}>
+      <Card className="pr-mem" title={t('Mémoires de l’appareil')} subtitle={t('F00 est le réglage d’usine ; U01 à U20 sont les mémoires utilisateur (une mémoire vide contient le réglage d’usine). Rappeler remplace tous les réglages en cours.')}>
         <div className="presets">
           {presets.map((p) => (
             <div key={p.slot} className={`preset ${p.slot === snap.activePreset ? 'is-on' : ''} ${p.user || p.slot === 0 ? '' : 'is-empty'}`}>
@@ -183,7 +183,7 @@ function UnitCard({ mirror, canEdit, onOpened }: { mirror: DeviceMirror; canEdit
   };
   const factory = (): Promise<void> => factoryReset(mirror);
   return (
-    <Card title={t('Appareil complet')} subtitle={t('Sauvegarde et restauration des 20 mémoires et des réglages de verrouillage, compatibles avec les fichiers .unt du logiciel Windows.')}>
+    <Card className="pr-unit" title={t('Appareil complet')} subtitle={t('Sauvegarde et restauration des 20 mémoires et des réglages de verrouillage, compatibles avec les fichiers .unt du logiciel Windows.')}>
       <div className="row wrap">
         <Button icon="download" disabled={!canEdit} onClick={backup}>{t('Sauvegarder l’appareil')}</Button>
         <Button icon="upload" disabled={!canEdit} onClick={restore}>{t('Restaurer une sauvegarde')}</Button>
