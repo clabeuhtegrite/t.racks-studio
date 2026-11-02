@@ -17,7 +17,7 @@ export interface BackendEvents {
 }
 
 /** Requests to the automatic gain of a device (see packages/protocol/src/leveler.ts). */
-export type LevelerOp = 'state' | 'history' | 'enable' | 'set' | 'target' | 'check';
+export type LevelerOp = 'state' | 'history' | 'enable' | 'pause' | 'set' | 'target' | 'check';
 
 export interface PortsInfo {
   usb: { path: string; product: string; serial: string }[] | null;

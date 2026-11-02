@@ -1,22 +1,26 @@
 // Gain auto page: keeps the level steady from one record to the next. What the automatic gain hears
-// and does right now, its settings, the last two hours, and the way to the DJ screen.
+// and does right now (and its pause), its settings, the summary of the night with its history, the
+// count of writes to the DSP's memory, and the way to the DJ screen.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  LEVELER_DEFAULTS, LEVELER_LIMITS, LEVELER_SPEEDS, LEVELER_STEP_DB, MODELS,
-  type DeviceConfig, type LevelerSettings, type LevelerSpeed, type LevelerState, type MeterCheck, type MeterPosition,
+  currentNight, LEVELER_DEFAULTS, LEVELER_LIMITS, LEVELER_SPEEDS, LEVELER_STEP_DB, MODELS, summarizeNight,
+  type DeviceConfig, type LevelerSettings, type LevelerSpeed, type LevelerState, type MeterCheck, type MeterPosition, type NightSummary,
 } from '@dsp-studio/protocol';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { confirmDialog, toast, useApp, useDevice } from '../state/store.ts';
-import { adviceOf, levelerRequest, statusText, statusTone, useLeveler, useLevelerHistory, useLiveLevel, type Advice } from '../state/leveler.ts';
+import {
+  adviceOf, fmtDuration, levelerRequest, statusText, statusTone, useLeveler, useLevelerHistory, useLiveLevel, type Advice,
+} from '../state/leveler.ts';
 import { go } from '../state/route.ts';
 import { Badge, Button, Card, Empty, Note, ParamRow, Segmented, Spinner, Toggle } from '../ui/kit.tsx';
 import { Icon } from '../ui/icons.tsx';
 import { LevelMeter } from '../ui/LevelMeter.tsx';
 import { LevelHistory, LevelTable } from '../ui/LevelHistory.tsx';
+import { LevelPause } from '../ui/LevelPause.tsx';
 import { colorOf, labelOf } from '../ui/channels.tsx';
-import { fmtNumber, fmtSigned, parseNumber, type Param } from '../ui/format.ts';
-import { t, tx } from '../i18n.tsx';
+import { fmtNumber, fmtPercent, fmtSigned, parseNumber, type Param } from '../ui/format.ts';
+import { locale, t, tn, tx } from '../i18n.tsx';
 
 // ------------------------------------------------------------------------------------- params
 /** A setting in half dB on a slider (raw = half dB from the low end). */
@@ -52,7 +56,10 @@ export function adviceText(a: Advice): string | null {
   switch (a.kind) {
     case 'none': return null;
     case 'ok': return t('Rien à toucher, le niveau est dans la zone.');
+    case 'quiet': return t('Rien à toucher : passage calme, le reste du disque est dans la zone.');
     case 'auto': return t('Rien à toucher, le gain automatique s’en occupe.');
+    case 'break': return t('Break en cours : rien à toucher.');
+    case 'limit': return t('Ne montez pas le gain : les limiteurs travaillent déjà.');
     case 'up': return t('Montez le gain de la table d’environ {0} dB.', a.db);
     case 'down': return t('Baissez le gain de la table d’environ {0} dB.', a.db);
   }
@@ -132,15 +139,15 @@ function LevelCards({ mirror, config, st }: { mirror: DeviceMirror; config: Devi
   const operate = role !== 'viewer';
   return (
     <div className="cards">
-      <NowCard mirror={mirror} st={st} config={config} />
+      <NowCard mirror={mirror} st={st} config={config} operate={operate} />
       <AutoCard mirror={mirror} config={config} st={st} settings={settings} change={change} admin={admin} operate={operate} />
-      <HistoryCard mirror={mirror} st={st} />
+      <NightCard mirror={mirror} st={st} />
       <AdvancedCard mirror={mirror} st={st} settings={settings} change={change} admin={admin} />
     </div>
   );
 }
 
-function NowCard({ mirror, st, config }: { mirror: DeviceMirror; st: LevelerState; config: DeviceConfig }): React.JSX.Element {
+function NowCard({ mirror, st, config, operate }: { mirror: DeviceMirror; st: LevelerState; config: DeviceConfig; operate: boolean }): React.JSX.Element {
   const live = useLiveLevel(mirror, st, config);
   const advice = adviceText(adviceOf(st));
   const budget = st.settings.budget;
@@ -148,14 +155,15 @@ function NowCard({ mirror, st, config }: { mirror: DeviceMirror; st: LevelerStat
     <Card title={t('En ce moment')} actions={<span className="lv-status"><Badge tone={statusTone(st.status)}>{statusText(st.status)}</Badge></span>}>
       <LevelMeter st={st} level={live} label={t('Niveau des entrées suivies')} showState />
       <dl className="lv-figures">
-        <div><dt>{t('Niveau sur 3 s')}</dt><dd>{levelOrDash(st.level)}</dd></div>
         <div><dt>{t('Moyenne')}</dt><dd>{levelOrDash(st.average)}</dd></div>
+        <div><dt>{t('Passages forts')}</dt><dd>{levelOrDash(st.loud)}</dd></div>
         <div><dt>{t('Correction')}</dt><dd>{`${fmtSigned(st.correction)} dB`}</dd></div>
         <div><dt>{t('Corrections (1 h)')}</dt><dd>{`${st.writes} / ${budget}`}</dd></div>
       </dl>
       {advice && <p className="lv-advice"><Icon name="info" size={18} /><span><b>{t('Conseil au DJ')}</b> · {advice}</span></p>}
       {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le vumètre est dans le rouge. Baissez la sortie de la table de mixage.')}</Note>}
       {st.limiting && <Note tone="warn">{t('Le limiteur d’une sortie travaille.')}</Note>}
+      {operate && <LevelPause mirror={mirror} st={st} />}
     </Card>
   );
 }
@@ -235,13 +243,40 @@ function AutoCard(p: {
   );
 }
 
-function HistoryCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState }): React.JSX.Element {
-  const points = useLevelerHistory(mirror);
+const percent = (part: number, whole: number): string => fmtPercent(whole ? (100 * part) / whole : 0);
+
+function NightFigures({ sum }: { sum: NightSummary }): React.JSX.Element {
+  const judged = sum.inZone + sum.low + sum.high;
+  return (
+    <dl className="lv-figures lv-six">
+      <div><dt>{t('Musique')}</dt><dd>{fmtDuration(sum.music)}</dd></div>
+      <div title={t('Trop faible : {0} · trop fort : {1}', percent(sum.low, judged), percent(sum.high, judged))}>
+        <dt>{t('Dans la zone')}</dt><dd>{judged ? percent(sum.inZone, judged) : '—'}</dd>
+      </div>
+      <div><dt>{t('Corrections')}</dt><dd>{sum.steps.toLocaleString(locale())}</dd></div>
+      <div><dt>{t('Plage de correction')}</dt><dd>{`${fmtSigned(sum.minCorrection)} / ${fmtSigned(sum.maxCorrection)} dB`}</dd></div>
+      <div><dt>{t('Saturation')}</dt><dd>{sum.clip ? fmtDuration(sum.clip) : t('aucune')}</dd></div>
+      <div><dt>{t('Limiteurs')}</dt><dd>{sum.limit ? fmtDuration(sum.limit) : t('jamais')}</dd></div>
+    </dl>
+  );
+}
+
+function nightSubtitle(sum: NightSummary | null, kept: boolean): string | undefined {
+  const since = sum ? new Intl.DateTimeFormat(locale(), { weekday: 'long', hour: '2-digit', minute: '2-digit' }).format(sum.from) : null;
+  // in the browser, the history lives as long as the page
+  if (!kept) return since === null ? undefined : t('Depuis {0}.', since);
+  return since === null ? t('Gardé 12 heures, même si le Raspberry Pi redémarre.') : t('Depuis {0}. Gardé 12 heures, même si le Raspberry Pi redémarre.', since);
+}
+
+function NightCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState }): React.JSX.Element {
+  const all = useLevelerHistory(mirror);
+  const points = useMemo(() => currentNight(all), [all]);
+  const sum = summarizeNight(points);
+  const kept = useApp((s) => s.mode) !== 'local';
   const [mode, setMode] = useState<'chart' | 'table'>('chart');
   return (
     <Card
-      className="span2" title={t('Deux dernières heures')}
-      subtitle={t('Niveau moyen après le gain et correction appliquée, un point toutes les 10 secondes.')}
+      className="span2" title={t('Bilan de la soirée')} subtitle={nightSubtitle(sum, kept)}
       actions={
         <Segmented
           small label={t('Affichage')} value={mode} onChange={setMode}
@@ -249,10 +284,11 @@ function HistoryCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState })
         />
       }
     >
+      {sum && sum.music > 0 && <NightFigures sum={sum} />}
       {points.length < 2 ? (
-        <p className="muted">{t('L’historique se remplit pendant la musique, même quand le gain automatique est désactivé.')}</p>
+        <p className="muted">{t('Le bilan se remplit pendant la musique, même quand le gain automatique est désactivé.')}</p>
       ) : mode === 'chart' ? (
-        <LevelHistory points={points} settings={st.settings} label={t('Niveau et correction des deux dernières heures')} />
+        <LevelHistory points={points} settings={st.settings} label={t('Niveau et correction pendant la soirée')} />
       ) : (
         <LevelTable points={points} />
       )}
@@ -284,13 +320,14 @@ function AdvancedCard(p: {
           options={[{ value: 'slow', label: t('Lente') }, { value: 'normal', label: t('Normale') }, { value: 'fast', label: t('Rapide') }]}
         />
         <span className="field-hint">
-          {t('Écoute {0} s avant d’agir, puis un pas toutes les {1} s pour monter, toutes les {2} s pour baisser.', secs(sp.long), secs(sp.up), secs(sp.down))}
+          {t('Écoute {0} s avant d’agir, puis un pas toutes les {1} s pour monter, toutes les {2} s pour baisser.', secs(sp.loud), secs(sp.up), secs(sp.down))}
         </span>
       </div>
       <ParamRow
         label={t('Limite de corrections')} param={BUDGET} value={settings.budget} disabled={!admin} onChange={(v) => change({ budget: v })}
         hint={t('Chaque correction est écrite dans la mémoire du DSP : cette limite la ménage.')}
       />
+      <WritesField st={st} />
       <div className="field">
         <span className="field-label">{t('Vumètres des entrées')}</span>
         <div className="row wrap">
@@ -305,5 +342,26 @@ function AdvancedCard(p: {
         </span>
       </div>
     </Card>
+  );
+}
+
+/** a DSP memory of this kind is usually rated for at least a million writes per place */
+const MEMORY_WRITES = 1_000_000;
+
+function WritesField({ st }: { st: LevelerState }): React.JSX.Element {
+  const { steps, since } = st.totals;
+  const share = (100 * steps) / MEMORY_WRITES;
+  const date = since === null ? null : new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(since);
+  return (
+    <div className="field">
+      <span className="field-label">{t('Écritures dans la mémoire du DSP')}</span>
+      <p className="lv-total">
+        <b>{tn(steps, '{1} écriture', '{1} écritures', steps.toLocaleString(locale()))}</b>
+        {date && <span className="muted"> · {t('depuis le {0}', date)}</span>}
+      </p>
+      <span className="field-hint">
+        {t('Chaque pas du gain automatique écrit une fois le gain de chaque entrée suivie. Une mémoire de ce type tient en général au moins un million d’écritures : {0} utilisés.', fmtPercent(share, share < 1 ? 2 : 1))}
+      </span>
+    </div>
   );
 }

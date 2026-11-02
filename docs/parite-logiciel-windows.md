@@ -100,7 +100,8 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
   marqués sur les vumètres (le logiciel Windows n’allume que le témoin Limit quand ils agissent).
 - Gain automatique (page Gain auto) : le pont ajuste doucement le gain des entrées de la table de
   mixage pour garder le même niveau d’un disque à l’autre, et un écran DJ plein écran dit quand
-  toucher au gain de la table. Le DSP n’a rien de tel : son compresseur et son limiteur ne sont que
-  sur les sorties, avec un relâchement de 3 s au plus.
+  toucher au gain de la table (avec une pause de 5 minutes) ; bilan de la soirée et compte des
+  écritures dans la mémoire du DSP. Le DSP n’a rien de tel : son compresseur et son limiteur ne
+  sont que sur les sorties, avec un relâchement de 3 s au plus.
 - Pilotage sans installation depuis Chrome ou Edge (USB et série), application installable sur
   téléphone (HTTPS).

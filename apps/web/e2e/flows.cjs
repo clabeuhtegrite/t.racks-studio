@@ -1,8 +1,8 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 37 vérifications
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 40 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
 // presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale,
-// gain automatique et écran DJ, marge avant le limiteur).
+// gain automatique, sa pause et l'écran DJ, marge avant le limiteur).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
 //   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
@@ -283,6 +283,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   const djLine = await B.locator('.dj-foot').innerText().catch(() => '');
   ok('écran DJ : le téléphone suit le gain auto de cet appareil', (await B.locator('.dj-main').isVisible()) && /Gain automatique\s:\s[+−]?\d/.test(djLine), djLine.split('\n')[0]);
   if (SHOTS) await B.screenshot({ path: `${SHOTS}/flow-dj-phone.png` });
+  // the DJ pauses it for 5 minutes from the phone, then resumes
+  await B.getByRole('button', { name: /^Pause 5 min/ }).click();
+  await wait(1500);
+  const paused = await B.locator('.dj-foot').innerText().catch(() => '');
+  ok('écran DJ : pause de 5 minutes', /En pause, reprise dans [45]:\d\d/.test(paused) && await B.getByRole('button', { name: 'Reprendre maintenant' }).isVisible(), paused.split('\n')[0]);
+  await B.getByRole('button', { name: 'Reprendre maintenant' }).click();
+  await wait(1500);
+  ok('écran DJ : reprise avant la fin de la pause', await B.getByRole('button', { name: /^Pause 5 min/ }).isVisible());
+  ok('gain auto : bilan de la soirée et compte des écritures',
+    (await A.locator('h2', { hasText: 'Bilan de la soirée' }).count()) === 1 && (await A.getByText('Écritures dans la mémoire du DSP').count()) === 1);
   await A.evaluate(() => { location.hash = '#/vue'; });
   await wait(1200);
   ok('vue globale : badge du gain auto', (await A.locator('.lv-badge', { hasText: 'Gain auto' }).count()) === 1);

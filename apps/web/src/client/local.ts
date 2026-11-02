@@ -3,8 +3,8 @@
 // from a static web host), and offers the same operations as the bridge.
 
 import {
-  callSession, DeviceSession, describeSource, Leveler, probeIds, restoreLevelerSettings, sourceKey, validateAction, VirtualDsp,
-  type Action, type DeviceInfo, type DeviceState, type FoundModule, type LevelerSettings, type LevelerState, type Role, type SessionSnapshot, type SourceSpec, type Transport,
+  callSession, DeviceSession, describeSource, Leveler, probeIds, restoreLevelerSettings, restoreLevelerTotals, sourceKey, validateAction, VirtualDsp,
+  type Action, type DeviceInfo, type DeviceState, type FoundModule, type LevelerSettings, type LevelerState, type LevelerTotals, type Role, type SessionSnapshot, type SourceSpec, type Transport,
 } from '@dsp-studio/protocol';
 import { Emitter, APP_VERSION, type Backend, type BackendEvents, type BackendStatus, type LevelerOp, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
 import { DSP_HID_FILTER, grantedHidDevices, hasWebHid, hasWebSerial, serialPortName, webHidTransport, webSerialTransport } from './webtransports.ts';
@@ -140,7 +140,7 @@ export class LocalBackend implements Backend {
   private snapTimers = new Map<string, ReturnType<typeof setTimeout>>();
   // automatic gain: runs in this page while it is open (with the bridge, it runs in the bridge)
   private levelers = new Map<string, Leveler>();
-  private levelerSaved = readJson<Record<string, { settings?: unknown; base?: unknown }>>(LEVELER_KEY, {});
+  private levelerSaved = readJson<Record<string, { settings?: unknown; base?: unknown; totals?: unknown }>>(LEVELER_KEY, {});
 
   get devices(): DeviceInfo[] { return [...this.map.values()].map((d) => d.info()); }
   on<K extends keyof BackendEvents>(k: K, f: (v: BackendEvents[K]) => void): () => void { return this.em.on(k, f); }
@@ -201,10 +201,11 @@ export class LocalBackend implements Backend {
   private newLeveler(key: string): Leveler {
     const saved = this.levelerSaved[key];
     const base = Array.isArray(saved?.base) && saved.base.every((x) => Number.isInteger(x)) ? (saved.base as number[]) : null;
+    // in the browser the history of the night lasts as long as the page
     const lv = new Leveler({
-      settings: restoreLevelerSettings(saved?.settings), base,
-      save: (settings: LevelerSettings, b: number[] | null) => {
-        this.levelerSaved[key] = { settings, base: b };
+      settings: restoreLevelerSettings(saved?.settings), base, totals: restoreLevelerTotals(saved?.totals),
+      save: (settings: LevelerSettings, b: number[] | null, totals: LevelerTotals) => {
+        this.levelerSaved[key] = { settings, base: b, totals };
         try { localStorage.setItem(LEVELER_KEY, JSON.stringify(this.levelerSaved)); } catch { /* private mode */ }
       },
     });
@@ -307,8 +308,9 @@ export class LocalBackend implements Backend {
     if (!lv) throw new Error(t('appareil inconnu'));
     switch (op) {
       case 'state': return clone(lv.state()) as T;
-      case 'history': return clone(lv.history()) as T;
+      case 'history': return clone(lv.history(typeof value === 'number' ? value : undefined)) as T;
       case 'enable': return clone(lv.enable(value === true)) as T;
+      case 'pause': return clone(lv.pause(value)) as T;
       case 'set': return clone(lv.update(clone(value))) as T;
       case 'target': return clone(lv.takeTarget()) as T;
       case 'check': return clone(await lv.checkMeter()) as T;

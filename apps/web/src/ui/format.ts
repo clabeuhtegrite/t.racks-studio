@@ -7,7 +7,7 @@ import {
   DELAY_RAW_MAX, delayRawToUnit, delayUnitToRaw, eqGainDbToRaw, eqGainRawToDb, freqHzToRaw, freqRawToHz, gainDbToRaw,
   gainRawToDb, qRawToValue, qValueToRaw, RATIOS, RATIO_MAX, thrDbToRaw, thrRawToDb, timeMsToRaw, timeRawToMs, type DelayUnit,
 } from '@dsp-studio/protocol';
-import { getLang, t } from '../i18n.tsx';
+import { getLang, locale, t } from '../i18n.tsx';
 
 const MINUS = '−';
 /** Decimal separator of the interface language. */
@@ -23,6 +23,9 @@ export function fmtSigned(v: number, digits = 1): string {
   if (Number(a) === 0) return comma(a);
   return (v < 0 ? MINUS : '+') + comma(a);
 }
+/** 87 %, 87%, 0,05 %: as the language writes a percentage */
+export const fmtPercent = (v: number, digits = 0): string =>
+  new Intl.NumberFormat(locale(), { style: 'percent', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v / 100);
 export const fmtDb = (db: number, digits = 1): string => (db <= -140 ? `${MINUS}∞ dB` : `${fmtSigned(db, digits)} dB`);
 export function fmtHz(hz: number): string {
   if (hz >= 1000) return `${comma((hz / 1000).toFixed(hz >= 10000 ? 1 : 2))} kHz`;

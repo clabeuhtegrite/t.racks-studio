@@ -2,7 +2,7 @@
 // with the rights of each role.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -77,6 +77,7 @@ describe('automatic gain in the bridge', () => {
   });
 
   afterAll(async () => {
+    levelers.close();
     server.close();
     await hub.close();
     await rm(dir, { recursive: true, force: true });
@@ -118,29 +119,48 @@ describe('automatic gain in the bridge', () => {
     expect(seen.key).toBe(KEY);
     expect((await viewer.req({ t: 'leveler', key: KEY, op: 'state' })).ok).toBe(true);
     expect(Array.isArray((await viewer.req({ t: 'leveler', key: KEY, op: 'history' })).value)).toBe(true);
+    // only the points after a time, for a screen that already has the others
+    expect((await viewer.req({ t: 'leveler', key: KEY, op: 'history', value: Date.now() + 1000 })).value).toEqual([]);
+
+    // pause for the DJ: operator too, not a viewer
+    expect((await viewer.req({ t: 'leveler', key: KEY, op: 'pause', value: 5 })).error).toBe('action non autorisée pour ce rôle');
+    const paused = await operator.req({ t: 'leveler', key: KEY, op: 'pause', value: 5 });
+    expect((paused.value as LevelerState).pause).toBeGreaterThan(290);
+    expect((await operator.req({ t: 'leveler', key: KEY, op: 'pause', value: 90 })).error).toBe('durée de pause invalide');
+    expect(((await operator.req({ t: 'leveler', key: KEY, op: 'pause', value: 0 })).value as LevelerState).pause).toBe(0);
     expect((await viewer.req({ t: 'leveler', key: KEY, op: 'check' })).error).toBe('action réservée à l’administrateur');
     expect((await viewer.req({ t: 'leveler', key: 'nope', op: 'state' })).error).toBe('appareil inconnu');
     expect((await operator.req({ t: 'leveler', key: KEY, op: 'enable', value: false })).ok).toBe(true);
     for (const c of [admin, operator, viewer]) c.close();
   });
 
-  it('remembers its settings for the next start, and forgets a removed device', async () => {
-    levelers.get(KEY).update({ target: -16, enabled: true });
+  it('remembers its settings, its count of writes and the night for the next start, and forgets a removed device', async () => {
+    const lv = levelers.get(KEY);
+    lv.update({ target: -16, enabled: true });
+    lv.core.countStep(Date.now()); // a step written to the DSP's memory
+    await waitFor(() => lv.history().length > 0);
+    const points = lv.history();
     await levelers.flush();
-    const saved = JSON.parse(await readFile(join(dir, 'leveler.json'), 'utf8')) as { devices: Record<string, { settings: { target: number } }> };
+    const saved = JSON.parse(await readFile(join(dir, 'leveler.json'), 'utf8')) as { devices: Record<string, { settings: { target: number }; totals: { steps: number } }> };
     expect(saved.devices[KEY].settings.target).toBe(-16);
+    expect(saved.devices[KEY].totals.steps).toBe(1);
+    expect(await readdir(join(dir, 'leveler-history'))).toEqual([`${encodeURIComponent(KEY)}.jsonl`]);
 
     const hub2 = new Hub();
     hub2.add({ kind: 'demo', model: 'dsp206' }, undefined, false);
     const again = new Levelers(hub2, join(dir, 'leveler.json'));
     await again.init();
     expect(again.get(KEY).settings).toMatchObject({ target: -16, enabled: true });
+    expect(again.get(KEY).state().totals.steps).toBe(1);
+    expect(again.get(KEY).history().slice(0, points.length)).toEqual(points);
 
     await hub2.remove(KEY);
     expect(again.find(KEY)).toBeUndefined();
     await again.flush();
     const after = JSON.parse(await readFile(join(dir, 'leveler.json'), 'utf8')) as { devices: Record<string, unknown> };
     expect(after.devices[KEY]).toBeUndefined();
+    expect(await readdir(join(dir, 'leveler-history'))).toEqual([]);
+    again.close();
     await hub2.close();
   });
 });

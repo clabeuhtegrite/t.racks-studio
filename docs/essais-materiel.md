@@ -57,6 +57,8 @@ sur l’appareil.
 | Gain auto : vumètres | Gain auto > Réglages avancés > Vérifier, pendant la musique | « avant le gain » ou « après le gain », le même résultat deux fois de suite (noter lequel) | — |
 | Gain auto : correction | cible −14 dBFS, gain auto activé, puis un disque nettement plus faible (ou baisser la sortie de la table de 6 dB) | le gain des entrées remonte par pas de 0,5 dB jusqu’à la zone, sans dépasser la remontée maximale ; l’écran DJ passe de « Correction en cours » à « Bon niveau » | — |
 | Gain auto : break et silence | un break de 20 s, puis lever le diamant | le gain ne remonte pas pendant le break ; « Silence : en pause » quand le diamant est levé | — |
+| Gain auto : limiteur | limiteur d’une sortie réglé bas (par exemple −20 dB), puis un disque nettement plus faible | le gain ne monte pas tant que le limiteur agit (« Saturation ou limiteur : ne monte plus ») ; l’écran DJ dit « Ne montez pas le gain » | — |
+| Gain auto : pause et redémarrage | écran DJ > Pause 5 min, puis débrancher et rebrancher le Raspberry Pi | le gain ne bouge plus pendant la pause ; après le redémarrage, le bilan de la soirée et le compte des écritures sont toujours là | — |
 
 À la fin, restaurez la sauvegarde du début si besoin.
 
