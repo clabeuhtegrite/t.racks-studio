@@ -430,6 +430,9 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .meter-bar { position: relative; overflow: hidden; background: var(--track); border-radius: 3px; }
 .meter-fill { position: absolute; inset: 0; transition: clip-path 70ms linear; }
 .meter-mark { position: absolute; background: rgba(0, 0, 0, 0.35); }
+/* thresholds of the compressor (light) and the limiter (full), drawn across the bar */
+.meter-thr { position: absolute; z-index: 1; background: var(--text); box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface) 75%, transparent); }
+.meter-thr-comp { opacity: 0.5; }
 .meter-leds { display: flex; gap: 3px; }
 .led { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-3); }
 .led-red.is-on { background: var(--red); box-shadow: 0 0 6px var(--red); }
@@ -439,11 +442,13 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .meter-v .meter-bar { flex: 1; width: 8px; }
 .meter-v .meter-fill { background: linear-gradient(to top, var(--m-green) 0 var(--y), var(--m-yellow) var(--y) var(--r), var(--m-red) var(--r)); }
 .meter-v .meter-mark { left: 0; right: 0; height: 1px; }
+.meter-v .meter-thr { left: 0; right: 0; height: 2px; margin-bottom: -1px; }
 .meter-v .meter-leds { flex-direction: column; }
 .meter-h { flex-direction: row-reverse; align-items: center; width: 100%; height: 12px; }
 .meter-h .meter-bar { flex: 1; height: 8px; }
 .meter-h .meter-fill { background: linear-gradient(to right, var(--m-green) 0 var(--y), var(--m-yellow) var(--y) var(--r), var(--m-red) var(--r)); }
 .meter-h .meter-mark { top: 0; bottom: 0; width: 1px; }
+.meter-h .meter-thr { top: 0; bottom: 0; width: 2px; margin-left: -1px; }
 
 /* ------------------------------------------------------------------ graphs */
 .graph { position: relative; width: 100%; color: var(--text); user-select: none; -webkit-user-select: none; }
@@ -742,6 +747,19 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-level { display: flex; align-items: center; gap: 8px; }
 .gv-level .meter { flex: 1; min-width: 0; }
 .gv-db { flex: none; width: 46px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* margin left before the compressor and the limiter act */
+.gv-dyn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin-top: -4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); }
+.gv-margin strong { font-weight: 700; }
+.gv-margin.is-ok strong { color: var(--green); }
+.gv-margin.is-low strong { color: var(--amber); }
+.gv-margin.is-on { padding: 0 5px; border-radius: 6px; background: color-mix(in srgb, #ffa446 22%, transparent); color: var(--text); }
+.gv-margin.is-on strong { color: #ffa446; }
+:root[data-theme="light"] .gv-margin.is-on strong { color: #b45309; }
+/* legend: a bit of bar with its threshold mark, as drawn on the level bar */
+.gv-margin-key { position: relative; display: inline-block; flex: none; width: 11px; height: 8px; border-radius: 2px; background: var(--track); }
+.gv-margin-key::after { content: ""; position: absolute; left: 4.5px; top: 0; bottom: 0; width: 2px; background: var(--text); }
+.gv-margin-comp::after { opacity: 0.5; }
 .gv-vol { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .gv-curve { display: block; width: 100%; height: 34px; border-radius: 6px; background: var(--graph-bg); }
 .gv-zero { stroke: var(--grid-zero); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
@@ -774,6 +792,7 @@ button.choice-item:hover { border-color: var(--accent); }
 @container (max-width: 520px) {
   .gv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .gv-ch { padding: 8px 9px 9px; }
+  .gv-dyn { font-size: 11.5px; column-gap: 6px; }
 }
 @container (max-width: 460px) {
   .prow, .route-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }

@@ -7,8 +7,8 @@ import { encodeFrame, FrameParser, type Frame } from './frame.ts';
 import { MODELS, type ModelId } from './models.ts';
 import { applyAction, type Action } from './state.ts';
 import { decodeAscii } from './commands.ts';
-import { gainRawToDb, ratioValue, thrRawToDb } from './codecs.ts';
-import { encodeLevel, levelToDb } from './meters.ts';
+import { gainRawToDb, ratioValue } from './codecs.ts';
+import { compDbfs, encodeLevel, levelToDb, limiterDbfs } from './meters.ts';
 import type { Transport } from './session.ts';
 
 export interface VirtualDspOptions {
@@ -41,7 +41,7 @@ export class VirtualDsp {
     this.deviceId = o.deviceId ?? 1;
     this.config = defaultConfig(o.model);
     this.slots = Array.from({ length: MODELS[o.model].userPresets }, () => ({ config: null, name: 'Default Preset' }));
-    this.signalDb = o.signalDb === undefined ? -18 : o.signalDb;
+    this.signalDb = o.signalDb === undefined ? -21 : o.signalDb; // programme level: green on the meters, yellow on the peaks
     this.latency = o.latencyMs ?? 2;
     this.eeprom[EEPROM.DEVICE_ID] = this.deviceId;
     this.eeprom.set([192, 168, 1, 100], EEPROM.IP);
@@ -239,17 +239,19 @@ export class VirtualDsp {
       const o = c.outputs[j];
       let sum = 0;
       for (let i = 0; i < m.inputs; i++) if ((o.route >> i) & 1) sum += groups[i] * Math.pow(10, gainRawToDb(o.mix[i]) / 20);
-      let db = levelToDb(sum * Math.pow(10, gainRawToDb(o.gain) / 20));
-      const compThr = thrRawToDb(o.comp.threshold);
+      // compressor, then limiter, at the thresholds the firmware gives the DSP, then the output volume
+      let db = levelToDb(sum);
+      const compThr = compDbfs(o.comp.threshold);
       if (o.comp.ratio > 0 && db > compThr) {
         db = compThr + (db - compThr) / ratioValue(o.comp.ratio);
         status |= 1 << j;
       }
-      const limThr = thrRawToDb(o.limiter.threshold);
-      if (db > limThr) {
+      const limThr = limiterDbfs(o.limiter.threshold);
+      if (o.limiter.threshold < 220 && db > limThr) {
         db = limThr;
         status |= 1 << (8 + j);
       }
+      db += gainRawToDb(o.gain);
       groups[4 + j] = db > -140 ? Math.pow(10, db / 20) : 0; // meters are taken before the output mute, like the hardware
     }
     const out: number[] = [];

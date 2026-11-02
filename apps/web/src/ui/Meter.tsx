@@ -2,14 +2,18 @@ import type { MeterZones } from '@dsp-studio/protocol';
 import { t } from '../i18n.tsx';
 // Level meter (dBFS) coloured like the bars of the official editors: green, then yellow from the
 // first yellow segment, then red (the "Clip" segment, which also lights the red LED). Outputs have
-// the editors' orange "Limit" LED: it lights while the compressor or the limiter acts.
+// the editors' orange "Limit" LED: it lights while the compressor or the limiter acts. Thresholds can
+// be marked across the bar (where the compressor and the limiter start to act).
 
 const MIN_DB = -60;
 const MAX_DB = 6;
 
 export function levelToPos(db: number): number { return Math.max(0, Math.min(1, (db - MIN_DB) / (MAX_DB - MIN_DB))); }
 
-export function Meter(p: { db: number | null | undefined; zones: MeterZones; dyn?: boolean; vertical?: boolean; label: string; compact?: boolean }): React.JSX.Element {
+/** A threshold drawn across the bar: where the compressor or the limiter starts to act. */
+export interface MeterMark { db: number; kind: 'comp' | 'limit'; title: string }
+
+export function Meter(p: { db: number | null | undefined; zones: MeterZones; dyn?: boolean; vertical?: boolean; label: string; compact?: boolean; marks?: MeterMark[] }): React.JSX.Element {
   const db = p.db ?? -140;
   const pos = levelToPos(db);
   const clip = db > p.zones.red;
@@ -27,6 +31,10 @@ export function Meter(p: { db: number | null | undefined; zones: MeterZones; dyn
         <div className="meter-fill" style={{ clipPath: h ? `inset(0 ${hide} 0 0)` : `inset(${hide} 0 0 0)` }} />
         {!p.compact && [-6, -18, -40].map((m) => (
           <span key={m} className="meter-mark" style={h ? { left: `${levelToPos(m) * 100}%` } : { bottom: `${levelToPos(m) * 100}%` }} />
+        ))}
+        {p.marks?.filter((m) => m.db >= MIN_DB && m.db <= MAX_DB).map((m) => (
+          <span key={m.kind} className={`meter-thr meter-thr-${m.kind}`} title={m.title}
+            style={h ? { left: `${levelToPos(m.db) * 100}%` } : { bottom: `${levelToPos(m.db) * 100}%` }} />
         ))}
       </div>
     </div>

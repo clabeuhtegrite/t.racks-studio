@@ -116,7 +116,7 @@ les envoyer.
 | Type de bande | 0 cloche, 1 plateau grave, 2 plateau aigu, 3 passe-bas 6 dB, 4 passe-bas 12 dB, 5 passe-haut 6 dB, 6 passe-haut 12 dB, 7 passe-tout 1, 8 passe-tout 2 |
 | Pente des filtres | 0 = filtre coupé, 1 … 20 = Butterworth, Bessel et Linkwitz-Riley de 6 à 48 dB/octave |
 | Délai | échantillons à 96 kHz, 0 … 65 280 (680 ms) ; distances calculées avec 343,5 m/s |
-| Seuils (gate, compresseur, limiteur) | 2 × dB + 180 : gate −90 à 0 dB, compresseur et limiteur −90 à +20 dB |
+| Seuils (gate, compresseur, limiteur) | 2 × dB + 180 : gate −90 à 0 dB, compresseur et limiteur −90 à +20 dB. Le firmware les transmet au DSP en dB sur l’échelle des vumètres : seuil moins 14 dB pour le gate, moins 17,8 dB pour le compresseur, moins 15 dB pour le limiteur (et à +20 dB le limiteur est coupé). |
 | Attaque, relâchement, maintien | ms − 1 (attaque 1 … 999 ms, relâchement 10 … 3000 ms, maintien 10 … 999 ms) |
 | Ratio | 0 … 14 : 1:1 à 1:20 (15 valeurs) ; 15 = limiteur |
 | Genou | 0 … 12 dB |

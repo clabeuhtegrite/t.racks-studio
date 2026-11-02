@@ -1,8 +1,8 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 36 vérifications
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 37 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
 // presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale,
-// gain automatique et écran DJ).
+// gain automatique et écran DJ, marge avant le limiteur).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
 //   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
@@ -289,6 +289,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await A.evaluate(() => { location.hash = '#/niveau'; });
   await wait(1000);
   await A.getByRole('button', { name: 'Gain automatique activé' }).click();
+  await wait(600);
+
+  // 17. margin before the limiter: set on Out1 of the 408, shown with its mark in the overview
+  await A.evaluate(() => { location.hash = '#/canal/4'; });
+  await wait(1500);
+  const thr = A.locator('.card').filter({ has: A.locator('h2', { hasText: 'Limiteur' }) }).getByRole('textbox', { name: 'Seuil', exact: true });
+  await thr.click(); await thr.fill('10'); await thr.press('Enter');
+  await wait(1000);
+  await A.evaluate(() => { location.hash = '#/vue'; });
+  await wait(4000);
+  const out1 = A.locator('.gv-dev').first().locator('.gv-ch').nth(4);
+  const margin = (await out1.locator('.gv-margin').allInnerTexts()).join(' ');
+  ok('vue globale : marge avant le limiteur, seuil marqué sur le vumètre', /Lim\.\s*(\d+\sdB|en action)/.test(margin) && (await out1.locator('.meter-thr-limit').count()) === 1, margin);
+  await A.evaluate(() => { location.hash = '#/canal/4'; });
+  await wait(1200);
+  await thr.click(); await thr.fill('20'); await thr.press('Enter');
   await wait(600);
 
   console.log(results.join('\n'));
