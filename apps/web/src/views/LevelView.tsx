@@ -119,7 +119,7 @@ export function LevelView(): React.JSX.Element {
       {!st ? (
         <Empty icon="refresh" title={t('Lecture…')}><Spinner /></Empty>
       ) : (
-        <LevelCards mirror={mirror} config={config} st={st} />
+        <LevelCards key={mirror.key} mirror={mirror} config={config} st={st} />
       )}
     </div>
   );

@@ -4,7 +4,7 @@
 // screen stays on where the browser allows that (HTTPS or the computer itself).
 
 import { useEffect, useState } from 'react';
-import { selectDevice, useApp, useDevice } from '../state/store.ts';
+import { connectDevice, selectDevice, useApp, useDevice } from '../state/store.ts';
 import { adviceOf, statusText, useLeveler, useLiveLevel } from '../state/leveler.ts';
 import { go, useRoute } from '../state/route.ts';
 import { Badge, Button } from '../ui/kit.tsx';
@@ -82,6 +82,7 @@ export function DjView(): React.JSX.Element {
   const route = useRoute();
   const devices = useApp((s) => s.devices);
   const current = useApp((s) => s.current);
+  const role = useApp((s) => s.role);
   // #/dj/<device>: a tablet can stay on one device
   useEffect(() => {
     if (route.arg && route.arg !== current && devices.some((d) => d.key === route.arg)) selectDevice(route.arg);
@@ -94,8 +95,14 @@ export function DjView(): React.JSX.Element {
 
   const advice = adviceOf(st);
   let hero: Hero;
+  const link = mirror?.info?.state;
   if (!mirror) hero = { tone: 'none', icon: 'wait', main: devices.length ? t('Choisissez un appareil') : t('Aucun appareil') };
-  else if (!st || st.status === 'offline' || !config) hero = { tone: 'none', icon: 'wait', main: t('Appareil non connecté'), sub: mirror.info ? stateLabel(mirror.info.state) : undefined };
+  else if (link === 'connecting') hero = { tone: 'none', icon: 'wait', main: t('Connexion…') };
+  else if (link === 'locked') hero = { tone: 'none', icon: 'warning', main: t('Appareil verrouillé') };
+  else if (link !== 'online' || !st || st.status === 'offline' || !config) {
+    hero = { tone: 'none', icon: 'wait', main: link === 'offline' ? t('Appareil hors ligne') : t('Appareil non connecté') };
+  }
+  else if (st.status === 'checking') hero = { tone: 'auto', icon: 'auto', main: statusText('checking') };
   else if (st.clip) hero = { tone: 'clip', icon: 'warning', main: t('Ça sature'), sub: t('Baissez la sortie de la table de mixage') };
   else if (advice.kind === 'up') hero = { tone: 'move', icon: 'up', main: t('Montez le gain'), sub: t('d’environ {0} dB', advice.db) };
   else if (advice.kind === 'down') hero = { tone: 'move', icon: 'down', main: t('Baissez le gain'), sub: t('d’environ {0} dB', advice.db) };
@@ -125,6 +132,9 @@ export function DjView(): React.JSX.Element {
       <main className={`dj-hero dj-${hero.tone}`} aria-live="polite">
         <p className="dj-main"><BigIcon shape={hero.icon} /><span>{hero.main}</span></p>
         {hero.sub && <p className="dj-sub">{hero.sub}</p>}
+        {mirror && (link === 'idle' || link === 'offline') && role !== 'viewer' && (
+          <Button kind="primary" icon="plug" onClick={() => connectDevice(mirror.key)}>{link === 'offline' ? t('Réessayer') : t('Se connecter')}</Button>
+        )}
       </main>
 
       {st && st.status !== 'offline' && config && (
