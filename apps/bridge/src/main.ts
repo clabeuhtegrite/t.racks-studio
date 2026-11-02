@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { validateSource } from '@dsp-studio/protocol';
 import { locale, pickLang, setLang, t, tm } from '@dsp-studio/i18n';
 import { Hub, type SourceSpec } from './hub.ts';
+import { Levelers } from './leveler.ts';
 import { Library } from './library.ts';
 import { BRIDGE_VERSION, startServer } from './server.ts';
 
@@ -127,6 +128,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   // the remembered devices are listed, not connected: connections are opened from the interface
   const saved = await loadSaved(stateFile);
   for (const d of saved.devices) hub.add(d.spec, d.label, false);
+  // automatic gain of each device, running even with no screen open
+  const levelers = new Levelers(hub, join(args.data, 'leveler.json'), log);
+  await levelers.init();
 
   let lastSaved = JSON.stringify(saved.devices);
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -147,7 +151,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   const tls = args.cert && args.key ? { cert: await readFile(args.cert), key: await readFile(args.key) } : undefined;
   const server = await startServer({
-    port: args.port, host: args.host, webDir: args.web, library, hub, tls, allowOrigins: args.allowOrigins,
+    port: args.port, host: args.host, webDir: args.web, library, hub, levelers, tls, allowOrigins: args.allowOrigins,
     pins: { admin: args.pin, operator: args.operatorPin }, onDevicesChanged: persist, log,
   }).catch((e: NodeJS.ErrnoException) => {
     if (e.code === 'EADDRINUSE') fail(t('le port {0} est déjà utilisé (essayez --port 8081)', args.port));
@@ -184,6 +188,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     force.unref();
     server.close();
     await hub.close();
+    await levelers.flush();
     process.exit(0);
   };
   process.on('SIGINT', () => { void stop(); });
