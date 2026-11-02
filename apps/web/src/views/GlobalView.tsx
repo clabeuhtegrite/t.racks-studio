@@ -269,8 +269,10 @@ function LiveLevel({ mirror, ch, output, label }: { mirror: DeviceMirror; ch: nu
 
 /** "Comp. 4 dB": dB left before the block acts (amber under 6 dB), or "en action" while it acts. */
 function Margin({ kind, h, name, setting }: { kind: 'comp' | 'limit'; h: Headroom; name: string; setting: string }): React.JSX.Element {
-  const state = h.acting ? 'is-on' : h.margin === null ? 'is-idle' : h.margin < 6 ? 'is-low' : 'is-ok';
-  const value = h.acting ? t('en action') : h.margin === null ? '—' : `${Math.max(0, Math.round(h.margin))} dB`;
+  // the colour follows the dB shown, so "6 dB" is never amber on one output and green on another
+  const shown = h.margin === null ? null : Math.max(0, Math.round(h.margin));
+  const state = h.acting ? 'is-on' : shown === null ? 'is-idle' : shown < 6 ? 'is-low' : 'is-ok';
+  const value = h.acting ? t('en action') : shown === null ? '—' : `${shown} dB`;
   const title = h.acting
     ? (kind === 'comp' ? t('Le compresseur ({0}) agit en ce moment.', setting) : t('Le limiteur ({0}) agit en ce moment.', setting))
     : h.margin === null ? t('Pas de signal sur cette sortie.')
