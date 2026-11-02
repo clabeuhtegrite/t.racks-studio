@@ -39,8 +39,8 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 
 - **Übersicht** (die Startseite): alle verbundenen DSPs auf einen Blick, live: Pegel,
   Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, Übersteuerung, Kompressor und Limiter,
-  wenn sie greifen, und an jedem Ausgang die Reserve, bevor Kompressor und Limiter greifen, mit
-  ihren Schwellen auf der Pegelanzeige.
+  wenn sie greifen, und an jedem Ausgang die Reserve, bevor Kompressor und Limiter greifen, jeweils
+  in einer eigenen Zeile, mit ihren Schwellen auf der Pegelanzeige.
 - **Konsole**: Lautstärke, Mute, Polarität und Pegelanzeigen aller Ein- und Ausgänge,
   Frequenzgangkurven der Kanäle. Die Pegelanzeigen lesen sich wie im Windows-Editor: grüner, gelber
   und roter Bereich, und an jedem Ausgang die orange LED, die leuchtet, solange sein Kompressor oder

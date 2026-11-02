@@ -609,6 +609,8 @@
  "Marge avant le compresseur et le limiteur de {0}": "Reserve vor Kompressor und Limiter von {0}",
  "Marge": "Reserve",
  "Lim.": "Lim.",
+ "Compresseur désactivé sur cette sortie (taux 1:1).": "Kompressor auf diesem Ausgang aus (Ratio 1:1).",
+ "Limiteur désactivé sur cette sortie (seuil au maximum).": "Limiter auf diesem Ausgang aus (Schwelle am Maximum).",
  "en action": "greift",
  "Le compresseur ({0}) agit en ce moment.": "Der Kompressor ({0}) greift gerade.",
  "Le limiteur ({0}) agit en ce moment.": "Der Limiter ({0}) greift gerade.",

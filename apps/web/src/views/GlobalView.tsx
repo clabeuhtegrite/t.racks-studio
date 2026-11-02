@@ -102,7 +102,7 @@ function DeviceOverview({ mirror, isCurrent }: { mirror: DeviceMirror; isCurrent
         {config && <DeviceFacts cfg={config} mirror={mirror} isCurrent={isCurrent} />}
         {config && (
           <div className="gv-actions">
-            <Button small icon="console" onClick={() => open(mirror.key, isCurrent, 'console')}>{t('Console')}</Button>
+            <Button small icon="console" title={t('Console')} onClick={() => open(mirror.key, isCurrent, 'console')}>{t('Console')}</Button>
             <Button small icon={allOutMuted ? 'speaker' : 'mute'} kind={allOutMuted ? 'plain' : 'danger'} disabled={!canOperate}
               title={t('Coupe ou rétablit toutes les sorties d’un coup')}
               onClick={() => outs.forEach((ch) => { if (chan(config, ch).mute === allOutMuted) mirror.apply({ t: 'mute', ch, on: !allOutMuted }); })}>
@@ -255,29 +255,56 @@ function LiveLevel({ mirror, ch, output, label }: { mirror: DeviceMirror; ch: nu
   const room = output ? dynamicsHeadroom(cfg, ch, meters?.peak[ch], meters?.recent ?? 0) : null;
   const marks = output ? thresholdMarks(cfg, ch) : undefined;
   const o = output ? cfg.outputs[ch - MODELS[cfg.model].inputs] : null;
+  const uses = output ? dynamicsInUse(cfg) : null;
   return (
     <>
       <div className="gv-level">
         <Meter db={db} zones={meterZones(cfg.model, ch)} dyn={output ? !!dyn && (dyn.comp || dyn.limit) : undefined} vertical={false} compact label={t('Niveau {0}', label)} marks={marks} />
         <span className="gv-db">{db === undefined || db <= -60 ? '—' : `${Math.round(db)} dB`}</span>
       </div>
-      {o && room && (room.comp || room.limit) && (
-        <div className="gv-dyn" aria-label={t('Marge avant le compresseur et le limiteur de {0}', label)}>
-          <span className="muted gv-dyn-label">{t('Marge')}</span>
-          {room.comp && <Margin kind="comp" h={room.comp} name={t('Comp.')} setting={fmtDb(thrRawToDb(o.comp.threshold), 0)} />}
-          {room.limit && <Margin kind="limit" h={room.limit} name={t('Lim.')} setting={fmtDb(thrRawToDb(o.limiter.threshold), 0)} />}
+      {o && room && uses && (uses.comp || uses.limit) && (
+        <div className="gv-dyn" role="group" aria-label={t('Marge avant le compresseur et le limiteur de {0}', label)}>
+          <div className="gv-dyn-grid">
+            <span className="muted gv-dyn-label">{t('Marge')}</span>
+            {uses.comp && (room.comp
+              ? <Margin kind="comp" h={room.comp} name={t('Comp.')} setting={fmtDb(thrRawToDb(o.comp.threshold), 0)} />
+              : <Unused kind="comp" name={t('Comp.')} title={t('Compresseur désactivé sur cette sortie (taux 1:1).')} />)}
+            {uses.limit && (room.limit
+              ? <Margin kind="limit" h={room.limit} name={t('Lim.')} setting={fmtDb(thrRawToDb(o.limiter.threshold), 0)} />
+              : <Unused kind="limit" name={t('Lim.')} title={t('Limiteur désactivé sur cette sortie (seuil au maximum).')} />)}
+          </div>
         </div>
       )}
     </>
   );
 }
 
-/** "Comp. 4 dB": dB left before the block acts (amber under 6 dB), or "en action" while it acts. */
+/** Whether some output of the device uses its compressor, its limiter. Each of the two then has a line
+ *  of its own on every output tile of the device, so the lines of the tiles stay level. */
+function dynamicsInUse(cfg: DeviceConfig): { comp: boolean; limit: boolean } {
+  const n = MODELS[cfg.model].inputs;
+  const all = cfg.outputs.map((_, j) => dynamicsHeadroom(cfg, n + j, null, 0));
+  return { comp: all.some((r) => r.comp !== null), limit: all.some((r) => r.limit !== null) };
+}
+
+/** The line of a block this output does not use, while another output of the device does. */
+function Unused({ kind, name, title }: { kind: 'comp' | 'limit'; name: string; title: string }): React.JSX.Element {
+  return (
+    <span className="gv-margin is-off" title={title}>
+      <i className={`gv-margin-key gv-margin-${kind}`} aria-hidden="true" />{name} <strong>{t('inactif')}</strong>
+    </span>
+  );
+}
+
+/** "Comp. 4 dB": dB left before the block acts (amber under 6 dB), or "en action" while it acts. In a tile too
+ *  narrow for the words, a lit LED stands for them (the words stay for screen readers). */
 function Margin({ kind, h, name, setting }: { kind: 'comp' | 'limit'; h: Headroom; name: string; setting: string }): React.JSX.Element {
   // the colour follows the dB shown, so "6 dB" is never amber on one output and green on another
   const shown = h.margin === null ? null : Math.max(0, Math.round(h.margin));
   const state = h.acting ? 'is-on' : shown === null ? 'is-idle' : shown < 6 ? 'is-low' : 'is-ok';
-  const value = h.acting ? t('en action') : shown === null ? '—' : `${shown} dB`;
+  const value = h.acting
+    ? <><span className="gv-act-txt">{t('en action')}</span><i className="gv-act-led" aria-hidden="true" /></>
+    : shown === null ? '—' : `${shown} dB`;
   const title = h.acting
     ? (kind === 'comp' ? t('Le compresseur ({0}) agit en ce moment.', setting) : t('Le limiteur ({0}) agit en ce moment.', setting))
     : h.margin === null ? t('Pas de signal sur cette sortie.')
