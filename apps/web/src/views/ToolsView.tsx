@@ -202,10 +202,10 @@ function DelayCalculator(): React.JSX.Element {
       <div className="form">
         <Field label={t('Température (°C)')}><TextInput value={temp} onChange={setTemp} inputMode="decimal" label={t('Température')} /></Field>
         <p className="small muted">{tx('Vitesse du son : {0} m/s. L’appareil convertit les mètres avec {1} m/s.', fmtNumber(c, 1), fmtNumber(SPEED_OF_SOUND, 1))}</p>
-        <Field label={t('Distance (m)')} hint={fromDist !== null ? t('= {0} ms, soit {1} échantillons à 96 kHz', fmtNumber(fromDist, 2), Math.round((fromDist * DELAY_FS) / 1000)) : undefined}>
+        <Field label={t('Distance (m)')} result hint={fromDist !== null ? t('= {0} ms, soit {1} échantillons à 96 kHz', fmtNumber(fromDist, 2), Math.round((fromDist * DELAY_FS) / 1000)) : undefined}>
           <TextInput value={dist} onChange={setDist} inputMode="decimal" label={t('Distance en mètres')} />
         </Field>
-        <Field label={t('Temps (ms)')} hint={fromMs !== null ? `= ${fmtNumber(fromMs, 2)} m` : undefined}>
+        <Field label={t('Temps (ms)')} result hint={fromMs !== null ? `= ${fmtNumber(fromMs, 2)} m` : undefined}>
           <TextInput value={ms} onChange={setMs} inputMode="decimal" label={t('Temps en millisecondes')} />
         </Field>
       </div>
@@ -220,7 +220,7 @@ function WavelengthCalculator(): React.JSX.Element {
   const lambda = hz > 0 ? SPEED_OF_SOUND / hz : null;
   return (
     <Card title={t('Longueur d’onde')} subtitle={t('Utile pour placer des subwoofers ou repérer un creux de filtrage en peigne.')}>
-      <Field label={t('Fréquence (Hz)')} hint={lambda !== null ? `λ = ${fmtNumber(lambda, 2)} m ; ½ λ = ${fmtNumber(lambda / 2, 2)} m ; ¼ λ = ${fmtNumber(lambda / 4, 2)} m` : undefined}>
+      <Field label={t('Fréquence (Hz)')} result hint={lambda !== null ? `λ = ${fmtNumber(lambda, 2)} m ; ½ λ = ${fmtNumber(lambda / 2, 2)} m ; ¼ λ = ${fmtNumber(lambda / 4, 2)} m` : undefined}>
         <TextInput value={f} onChange={setF} inputMode="decimal" label={t('Fréquence')} />
       </Field>
     </Card>
@@ -258,6 +258,7 @@ function Rs232Card(): React.JSX.Element {
   return (
     <div className="cards rs-cards">
       <Card title={t('Code RS-232 pour automates')} subtitle={t('Protocole simplifié (« Processor Extend Remote Control Protocol ») pour Crestron, AMX, domotique… Menu Help > RS232 Code du logiciel Windows.')} className="span2 rs-ref">
+        <Note>{tx('Plusieurs DSP sur une même ligne RS-485 : le firmware 1.04 ne se remet pas d’une trame Extend destinée à un autre ID (ou qui ne fait pas exactement 9 octets) et n’entend plus rien ensuite, protocole normal compris. Faites suivre chaque trame de 128 octets {0} : ils remettent sa réception à zéro et ne gênent aucun appareil.', <code>00</code>)}</Note>
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>{t('Code')}</th><th>{t('Fonction')}</th><th>{t('d1 d2 d3')}</th><th>{t('Réponse')}</th><th>{t('Firmware 1.04')}</th></tr></thead>
@@ -265,7 +266,7 @@ function Rs232Card(): React.JSX.Element {
               {EXT_COMMANDS.map((c) => (
                 <tr key={c.cmd} className={c.cmd === cmd ? 'is-on' : ''} onClick={() => setCmd(c.cmd)}>
                   <td><code>{c.cmd.toString(16).toUpperCase()}</code></td>
-                  <td><strong>{tm(c.name)}</strong><br /><span className="small muted">{tm(c.description)}</span></td>
+                  <td title={tm(c.description)}><strong>{tm(c.name)}</strong><span className="small muted rs-desc">{tm(c.description)}</span></td>
                   <td className="small">{tm(c.data)}</td>
                   <td className="small">{tm(c.reply)}</td>
                   <td>{c.verified ? <Badge tone="ok">{t('vérifié')}</Badge> : <Badge tone="warn">{t('sans réponse')}</Badge>}</td>
@@ -276,7 +277,7 @@ function Rs232Card(): React.JSX.Element {
         </div>
       </Card>
       <Card title={t('Générateur de trame')} className="span2 rs-gen">
-        {/* the frame format and the serial line, the form that builds a frame, then the RS-485 caveat */}
+        {/* the frame format and the serial line, then the form that builds a frame */}
         <p className="small">{tx('Trame de 9 octets, sans somme de contrôle : {0} | ID | commande | d1 | d2 | d3 | {1}. Liaison série 115200 bauds, 8 bits, sans parité, 1 bit d’arrêt. L’appareil ne répond qu’aux trames portant son ID.', <code>7B 7D</code>, <code>7D 7B</code>)}</p>
         <div className="form form-inline">
           <Field label={t('ID de l’appareil')}><TextInput value={id} onChange={(v) => setId(v.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" label="ID" /></Field>
@@ -298,7 +299,6 @@ function Rs232Card(): React.JSX.Element {
         </div>
         <p className="small muted">{t('{0} Réponse : {1}.', tm(def.description), tm(def.reply))}</p>
         {!def.verified && <Note tone="warn">{t('Cette commande figure dans l’aide de Thomann mais le firmware 1.04 n’y répond pas.')}</Note>}
-        <Note>{tx('Plusieurs DSP sur une même ligne RS-485 : le firmware 1.04 ne se remet pas d’une trame Extend destinée à un autre ID (ou qui ne fait pas exactement 9 octets) et n’entend plus rien ensuite, protocole normal compris. Faites suivre chaque trame de 128 octets {0} : ils remettent sa réception à zéro et ne gênent aucun appareil.', <code>00</code>)}</Note>
       </Card>
     </div>
   );

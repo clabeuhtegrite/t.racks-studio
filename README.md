@@ -64,6 +64,8 @@ in French).
 - One-tap “mute the outputs”, delay alignment from distances, 2- and 3-way crossover assistant,
   delay and wavelength calculators.
 - Printable settings sheet (or PDF).
+- On a computer every page fits the screen, with nothing to scroll (from 1280 × 600 up to wide
+  screens); on a phone or a tablet it reads from top to bottom.
 - Light and dark themes, app installable on phones and tablets (over HTTPS).
 - Automatic gain for vinyl DJ sets: the bridge gently evens out the level from one record to the
   next (target, tolerance, limits), judging each record on its loud parts, waiting out breakdowns
@@ -182,7 +184,7 @@ npm test                      # unit tests: protocol, firmware conformance, brid
 npm run typecheck
 npm run dev:bridge            # a bridge with its own data (.dev/), then in another terminal:
 npm run dev                   # the interface with hot reload, on http://localhost:5173
-node apps/web/e2e/flows.cjs   # 37 end-to-end checks in a browser (Playwright, bridge running)
+node apps/web/e2e/flows.cjs   # 39 end-to-end checks in a browser (Playwright, bridge running)
 ```
 
 | Folder | |

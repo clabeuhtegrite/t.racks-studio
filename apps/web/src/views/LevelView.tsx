@@ -13,7 +13,7 @@ import {
   adviceOf, fmtDuration, levelerRequest, statusText, statusTone, useLeveler, useLevelerHistory, useLiveLevel, type Advice,
 } from '../state/leveler.ts';
 import { go } from '../state/route.ts';
-import { Badge, Button, Card, Empty, Note, ParamRow, Segmented, Spinner, Toggle } from '../ui/kit.tsx';
+import { Badge, Button, Card, Empty, HintIcon, Note, ParamRow, Segmented, Spinner, Toggle } from '../ui/kit.tsx';
 import { Icon } from '../ui/icons.tsx';
 import { LevelMeter } from '../ui/LevelMeter.tsx';
 import { LevelHistory, LevelTable } from '../ui/LevelHistory.tsx';
@@ -208,8 +208,8 @@ function AutoCard(p: {
       )}
 
       <div className="field">
-        <span className="field-label">{t('Entrées suivies')}</span>
-        <div className="lv-inputs" role="group" aria-label={t('Entrées suivies')} title={t('Les entrées où arrive la table de mixage. Les entrées liées bougent ensemble.')}>
+        <span className="field-label">{t('Entrées suivies')}<HintIcon text={t('Les entrées où arrive la table de mixage. Les entrées liées bougent ensemble.')} size={13} /></span>
+        <div className="lv-inputs" role="group" aria-label={t('Entrées suivies')}>
           {Array.from({ length: inputs }, (_, i) => {
             const on = settings.inputs.includes(i);
             const name = config.inputs[i]?.name ?? '';
@@ -327,7 +327,7 @@ function AdvancedCard(p: {
         onChange={(r) => change({ maxCut: fromRaw(LIM.maxCut, r) })}
       />
       <div className="field field-inline">
-        <span className="field-label">{t('Vitesse')}</span>
+        <span className="field-label">{t('Vitesse')}<HintIcon text={speedText(settings.speed)} size={13} /></span>
         <Segmented<LevelerSpeed>
           label={t('Vitesse')} value={settings.speed} disabled={!admin} onChange={(v) => change({ speed: v })}
           options={(['slow', 'normal', 'fast'] as const).map((v) => ({ value: v, label: v === 'slow' ? t('Lente') : v === 'normal' ? t('Normale') : t('Rapide'), title: speedText(v) }))}
@@ -341,7 +341,7 @@ function AdvancedCard(p: {
       <WritesField st={st} />
       <div className="field">
         <div className="field-label-row">
-          <span className="field-label">{t('Vumètres des entrées')}</span>
+          <span className="field-label">{t('Vumètres des entrées')}<HintIcon text={t('Le gain automatique doit savoir si les vumètres du DSP mesurent avant ou après le gain d’entrée. La vérification le trouve toute seule.')} size={13} /></span>
           <Button small icon="refresh" disabled={!admin || st.status === 'offline' || st.status === 'checking'} onClick={() => { void check(); }}>{t('Vérifier')}</Button>
         </div>
         <Segmented<MeterPosition>
@@ -363,16 +363,15 @@ function WritesField({ st }: { st: LevelerState }): React.JSX.Element {
   const { steps, since } = st.totals;
   const share = (100 * steps) / MEMORY_WRITES;
   const date = since === null ? null : new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(since);
+  const hint = t('Chaque pas du gain automatique écrit une fois le gain de chaque entrée suivie. Une mémoire de ce type tient en général au moins un million d’écritures : {0} utilisés.', fmtPercent(share, share < 1 ? 2 : 1));
   return (
-    <div className="field">
-      <span className="field-label">{t('Écritures dans la mémoire du DSP')}</span>
+    <div className="field lv-writes">
+      <span className="field-label">{t('Écritures dans la mémoire du DSP')}<HintIcon text={hint} size={13} /></span>
       <p className="lv-total">
         <b>{tn(steps, '{1} écriture', '{1} écritures', steps.toLocaleString(locale()))}</b>
         {date && <span className="muted"> · {t('depuis le {0}', date)}</span>}
       </p>
-      <span className="field-hint">
-        {t('Chaque pas du gain automatique écrit une fois le gain de chaque entrée suivie. Une mémoire de ce type tient en général au moins un million d’écritures : {0} utilisés.', fmtPercent(share, share < 1 ? 2 : 1))}
-      </span>
+      <span className="field-hint">{hint}</span>
     </div>
   );
 }

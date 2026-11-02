@@ -22,10 +22,10 @@ export function GeqView(): React.JSX.Element {
   const m = MODELS[config.model];
   const ch = Math.min(m.inputs - 1, Math.max(0, Number(route.arg) || 0));
   return (
-    <div className="page">
+    <div className="page geq-page">
       <div className="page-head"><h1>{t('Égaliseur graphique')}</h1><p className="muted small">{t('31 bandes au tiers d’octave, sur chaque entrée.')}</p></div>
       <ChannelChips cfg={config} value={ch} only="in" onChange={(x) => go('geq', x)} label={t('Entrée')} />
-      <GeqEditor cfg={config} ch={ch} mirror={mirror} disabled={!canEdit} />
+      <GeqEditor cfg={config} ch={ch} mirror={mirror} disabled={!canEdit} fill />
     </div>
   );
 }
@@ -172,7 +172,7 @@ function AlignHelper({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Dev
             <span className="small muted">{delays[j] === null ? ' ' : `→ ${fmtMs(delays[j]!, 2)}`}</span>
           </Field>
         ))}
-        <Field label={t('Température (°C)')} hint={t('Vitesse du son : {0} m/s (l’appareil compte {1} m/s pour l’affichage en m / ft).', fmtNumber(c, 1), fmtNumber(SPEED_OF_SOUND, 1))}>
+        <Field label={t('Température (°C)')} result hint={t('Vitesse du son : {0} m/s (l’appareil compte {1} m/s pour l’affichage en m / ft).', fmtNumber(c, 1), fmtNumber(SPEED_OF_SOUND, 1))}>
           <TextInput value={temp} onChange={setTemp} inputMode="decimal" label={t('Température')} />
         </Field>
       </div>

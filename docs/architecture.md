@@ -162,7 +162,7 @@ servie en HTTPS, ou depuis `localhost`.
 | --- | --- |
 | `npm test` | trames, codage des valeurs, fichiers `.prs` / `.unt` octet pour octet, courbes, session (sur le DSP virtuel), pont, et **conformité au firmware** : chaque commande mesurée sur le vrai firmware (fichiers `packages/protocol/test/fixtures/`) doit modifier les mêmes octets dans le DSP virtuel |
 | `npm run test:emulator` | 12 essais de la session sur le vrai firmware dans l’émulateur (voir [emulator/](../emulator/README.md)) |
-| `node apps/web/e2e/flows.cjs` | 26 parcours dans un vrai navigateur, sur deux écrans à la fois (Playwright) |
+| `node apps/web/e2e/flows.cjs` | 39 vérifications dans un vrai navigateur, sur deux écrans à la fois (Playwright) |
 | `python3 emulator/selftest.py 206` | l’émulateur lui-même : premier allumage, réglages, preset, rallumage |
 
 Les mesures de conformité se refont avec `emulator/tools/mapper.py` ; les autres relevés du dossier

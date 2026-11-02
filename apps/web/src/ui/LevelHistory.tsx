@@ -54,7 +54,7 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
   const { target, tolerance } = p.settings;
   const L = 46, R = 12, T = 18, GAP = 34, B = 24;
   // the level panel gets two thirds of the height, the correction panel the rest
-  const panels = p.fill && boxH >= 200 ? boxH - T - GAP - B : 252;
+  const panels = p.fill && boxH >= 140 ? boxH - T - GAP - B : 252;
   const HA = Math.round((panels * 2) / 3), HB = panels - HA;
   const W = w - L - R;
   const h = T + HA + GAP + HB + B;
@@ -80,9 +80,12 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
     prev = q;
   }
 
+  // a low panel keeps a line every 12 dB, so the labels do not touch
+  const levelStep = HA < 110 ? 12 : 6;
   const levelTicks: number[] = [];
-  for (let v = Math.ceil(lo / 6) * 6; v <= hi; v += 6) levelTicks.push(v);
-  const cStep = cMax <= 6 ? 3 : 6;
+  for (let v = Math.ceil(lo / levelStep) * levelStep; v <= hi; v += levelStep) levelTicks.push(v);
+  // a low panel: only the limits and zero
+  const cStep = HB < 50 ? cMax : cMax <= 6 ? 3 : 6;
   const corrTicks: number[] = [];
   for (let v = -cMax; v <= cMax; v += cStep) corrTicks.push(v);
   const span = (t1 - t0) / 60_000;

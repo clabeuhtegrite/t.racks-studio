@@ -89,6 +89,7 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .pre { white-space: pre-wrap; }
 .block { display: block; }
 .text-error { color: var(--red); }
+.text-warn { color: var(--amber); }
 .grow { flex: 1 1 auto; min-width: 0; }
 .row { display: flex; align-items: center; gap: 8px; }
 .row.center { justify-content: center; flex-wrap: wrap; }
@@ -258,6 +259,7 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .card-head p { margin-top: 3px; }
 /* the card's explanation as a tooltip, used where a page is laid out to fit the screen */
 .card-hint { display: none; align-items: center; color: var(--muted); cursor: help; }
+.field-label > .card-hint { margin-left: 5px; vertical-align: -2px; }
 .card-hint:hover { color: var(--text); }
 .card-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .card-flow { padding: 10px 12px; }
@@ -705,6 +707,7 @@ button.choice-item:hover { border-color: var(--accent); }
 .way { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
 .way-head { display: flex; align-items: center; gap: 8px; }
 .way-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.rs-desc { display: block; }
 .frame-out { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 11px; border: 1px solid var(--border); background: var(--input); }
 .frame-out .frame-hex { flex: 1; font-size: 17px; letter-spacing: 0.04em; background: none; border: 0; padding: 0; }
 .frames { font-family: var(--mono); font-size: 12px; max-height: 62vh; overflow: auto; padding: 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--input); }
@@ -759,7 +762,8 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-db { flex: none; width: 46px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* margin left before the compressor and the limiter act */
 .gv-dyn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin-top: -4px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); }
+.gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); max-width: 100%; min-width: 0; }
+.gv-margin strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gv-margin strong { font-weight: 700; }
 .gv-margin.is-ok strong { color: var(--green); }
 .gv-margin.is-low strong { color: var(--amber); }
@@ -935,7 +939,7 @@ button.choice-item:hover { border-color: var(--accent); }
   .dense .vf { width: 80px; }
   .dense .stepper .vf { width: 84px; }
   .dense .sl-h { height: 24px; min-width: 40px; }
-  .dense .prow { grid-template-columns: 76px minmax(0, 1fr) auto; gap: 8px; }
+  .dense .prow { grid-template-columns: 82px minmax(0, 1fr) auto; gap: 8px; }
   .ch-page .route-row { grid-template-columns: minmax(64px, 110px) minmax(0, 1fr) auto; gap: 8px; }
   .dense .prow > .sl, .dense .route-row > .sl { grid-column: auto; grid-row: auto; }
   .ch-page .level, .ch-page .xover, .ch-page .dyn-params, .ch-page .routing { gap: 6px; }
@@ -950,10 +954,13 @@ button.choice-item:hover { border-color: var(--accent); }
     .ch-page .card-eq .bands { display: none; }
     .ch-page .card-eq .band-table { display: block; }
   }
-  .ch-page .band-table .table th { padding: 2px 5px; }
-  .ch-page .band-table .table td { padding: 1px 5px; }
+  .ch-page .band-table .table th { padding: 2px 3px; }
+  .ch-page .band-table .table td { padding: 1px 3px; }
   .ch-page .band-table .select-sm, .ch-page .band-table .vf, .ch-page .band-table .tg-sm { height: 24px; font-size: 12px; }
-  .ch-page .band-table .vf { width: 76px; }
+  .ch-page .band-table .vf { width: 72px; padding-left: 4px; padding-right: 4px; }
+  /* the Q column: "3,00" needs less room than a frequency or a gain */
+  .ch-page .band-table td:nth-child(4) .vf { width: 56px; }
+  .ch-page .band-table .tg-sm { padding: 0 8px; }
   .ch-page .bands { gap: 8px; }
   .ch-page .band-tab { height: 28px; border-radius: 7px; }
   .ch-page .band-edit { gap: 6px; }
@@ -975,11 +982,44 @@ button.choice-item:hover { border-color: var(--accent); }
   .ch-geq .geq-slider { width: 100%; height: auto; flex: 1 1 0; min-height: 60px; }
   .ch-geq .geq-slider .sl-thumb { width: 14px; margin-left: -7px; }
 
+  /* ---- console: the strips share the width, the faders take the height of the screen */
+  .cs-page .console { flex: 1 1 auto; min-height: 0; align-items: stretch; padding-bottom: 0; }
+  .cs-page .strip-group { flex: var(--n, 1) 1 0; }
+  .cs-page .strips { flex: 1 1 auto; min-height: 0; }
+  .cs-page .strip { flex: 1 1 0; width: auto; min-width: 76px; padding: 8px 5px 10px; }
+  .cs-page .strip-name { max-width: 100%; }
+  .cs-page .strip-body { flex: 1 1 0; height: auto; min-height: 110px; }
+  .cs-page .strip .vf { width: 100%; max-width: 84px; }
+  .cs-page .strip-btns .tg { padding: 0 7px; }
+  /* the curves above the strips: a part of the height, the faders keep the rest */
+  .cs-page .graph-fill { --graph-h: clamp(110px, 24vh, 300px); }
+
+  /* ---- graphic EQ page: the curve and the 31 faders share the height of the screen */
+  .geq-page > .card-geq { flex: 1 1 auto; }
+  .geq-page .card-geq .graph-fill { --graph-h: auto; flex: 2 1 0; min-height: 100px; }
+  .geq-page .geq { flex: 3 1 0; min-height: 150px; overflow: hidden; padding-bottom: 0; }
+  .geq-page .geq-slider { height: auto; flex: 1 1 0; min-height: 80px; }
+
+  /* ---- device, general tab: the information on the left, network and maintenance on the right */
+  .dv-gen { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "info net" "info maint"; grid-template-rows: auto 1fr; }
+  .dv-info { grid-area: info; }
+  .dv-net { grid-area: net; }
+  .dv-maint { grid-area: maint; }
+  .dv-page .kv > div { padding: 6px 0; }
+  .dv-page .names { row-gap: 0; }
+  .dv-page .name-row { margin-bottom: 6px; }
+
   /* ---- automatic gain: now and the advanced settings, then the settings, then the history */
-  .lv-cards { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "now now now" "auto adv hist"; align-items: stretch; }
+  .lv-cards { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "now now now" "auto adv hist"; align-items: stretch; }
   .lv-now-main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px 22px; align-items: center; }
   .lv-now-notes { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
   .lv-now-notes > * { flex: 1 1 300px; }
+  .lv-now-notes > .lv-pause { flex: 0 0 auto; margin-left: auto; }
+  .lv-now .lvm { --lvm-h: 14px; gap: 4px; }
+  /* the warnings of the moment are one line each, like the advice beside them */
+  .lv-now-notes { gap: 4px 20px; }
+  .lv-now-notes > .note { flex: 0 1 auto; padding: 2px 0; border: 0; background: none; font-size: 13px; }
+  .lv-now-notes > .lv-advice { flex: 0 1 auto; }
   .lv-now { grid-area: now; }
   .lv-auto { grid-area: auto; }
   .lv-hist { grid-area: hist; }
@@ -989,9 +1029,15 @@ button.choice-item:hover { border-color: var(--accent); }
   .dense .field-inline { display: grid; grid-template-columns: 136px minmax(0, 1fr); align-items: center; gap: 4px 8px; }
   .dense .field-inline > .seg { justify-self: start; }
   .dense .field-inline > .field-hint { grid-column: 1 / -1; }
+  /* the speed keeps its three choices whatever the language: its label, the choices against the right edge */
+  .lv-page .field-inline { grid-template-columns: auto minmax(0, 1fr); }
+  .lv-page .field-inline > .seg { justify-self: end; }
   .lv-page .seg button { padding: 4px 11px; }
   .lv-page .vf { width: 100px; }
-  .lv-page .note { padding: 7px 10px; gap: 8px; font-size: 12.5px; line-height: 1.4; }
+  .lv-page .note { padding: 6px 10px; gap: 8px; font-size: 12.5px; line-height: 1.4; }
+  /* the explanations of the settings go into the (i) tooltips, results stay */
+  .dense .field-hint:not(.is-result) { display: none; }
+  .lv-writes { gap: 2px; }
   /* the inputs of a DSP 408 on one line */
   .lv-page .lv-inputs { flex-wrap: nowrap; }
   .lv-page .lv-inputs .chip { flex: 0 1 92px; min-width: 0; }
@@ -999,6 +1045,11 @@ button.choice-item:hover { border-color: var(--accent); }
   .lv-hist .lvh-table { flex: 1 1 0; min-height: 0; max-height: none; }
   .lv-figures dd { font-size: 15px; }
   .lv-figures > div { padding: 6px 10px; }
+  /* the night summary: six figures on two lines above its curve */
+  .lv-hist .lv-figures.lv-six { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .lv-hist .lv-six > div { padding: 4px 6px; gap: 0; }
+  .lv-hist .lv-six dt { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lv-hist .lv-six dd { font-size: 13.5px; }
 
   /* ---- delays: every channel beside the alignment from distances */
   .dl-page { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
@@ -1006,6 +1057,7 @@ button.choice-item:hover { border-color: var(--accent); }
   .dl-page .delays { gap: 6px; }
   .dl-page .delay-row { grid-template-columns: minmax(96px, 150px) minmax(0, 1fr) auto; column-gap: 10px; }
   .dl-page .delay-row .vf { width: 96px; }
+  .dl-page .delay-row .sl { grid-column: auto; grid-row: auto; }
   .dl-page .align { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .dl-page .align > .field { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 120px) minmax(0, 1fr); align-items: center; gap: 4px 10px; }
   .dl-page .align > .field > .field-hint { grid-column: 1 / -1; }
@@ -1031,6 +1083,23 @@ button.choice-item:hover { border-color: var(--accent); }
   /* the editor beside it has the − and + buttons; the table keeps the fields (arrow keys step) */
   .dy-all .stepper > button { display: none; }
 
+  /* ---- connection: the devices and the bridge, the form to add a device beside them */
+  .cx-cards { flex: 1 1 auto; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "dev add" "mode add"; align-items: stretch; align-content: start; }
+  .cx-cards:not(:has(> .cx-add)) { grid-template-areas: "dev mode"; grid-template-rows: auto; }
+  .cx-dev { grid-area: dev; }
+  .cx-mode { grid-area: mode; align-self: start; }
+  .cx-cards > .cx-add { grid-area: add; }
+  .cx-page .devs { gap: 6px; max-height: 46vh; overflow-y: auto; }
+  .cx-page .dev { flex-wrap: nowrap; padding: 7px 10px; gap: 10px; }
+  .cx-page .dev-icon { width: 32px; height: 32px; border-radius: 8px; }
+  .cx-page .dev-main { min-width: 120px; }
+  .cx-page .dev-title { row-gap: 2px; min-width: 0; }
+  .cx-page .dev-title > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cx-page .dev-actions { flex-wrap: nowrap; }
+  .cx-page .kv > div { padding: 5px 0; }
+  .cx-page .tabs button { padding: 7px 12px; }
+  .cx-page .add-form { gap: 10px; }
+
   /* ---- tools: the tabs beside the title, then the chosen tool fills the page */
   .tl-page { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
   .tl-page > .page-head { grid-column: 1; grid-row: 1; }
@@ -1048,13 +1117,19 @@ button.choice-item:hover { border-color: var(--accent); }
   .xo-outs .pick { height: 28px; padding: 0 10px; }
   .xo-outs .row.end { margin-top: auto; }
   /* RS-232: the commands beside the frame generator */
-  .rs-cards { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: stretch; }
+  .rs-cards { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: stretch; }
+  /* each description is in its row's tooltip, and under the frame of the chosen command */
+  .rs-ref .rs-desc { display: none; }
+  .rs-ref .note { padding: 7px 10px; font-size: 12.5px; }
+  .rs-gen .form-inline .input { width: 84px; }
   .rs-cards > .span2 { grid-column: auto; }
   .rs-ref .table-wrap { flex: 1 1 0; min-height: 0; overflow: auto; }
-  .rs-ref .table th, .rs-ref .table td { padding: 5px 8px; }
+  .rs-ref .table { font-size: 12.5px; }
+  .rs-ref .table th, .rs-ref .table td { padding: 4px 6px; }
+  .rs-ref .table td:nth-child(2) { white-space: nowrap; }
   .rs-gen .form-inline { gap: 8px 12px; }
   .rs-gen .frame-out { padding: 10px 12px; }
-  .rs-gen .frame-out .frame-hex { font-size: 15px; }
+  .rs-gen .frame-out .frame-hex { font-size: 14px; white-space: nowrap; letter-spacing: 0.02em; }
 
   /* ---- matrix: each switch beside its level, so the eight outputs fit */
   .mx-page .matrix { width: 100%; }
@@ -1097,7 +1172,8 @@ button.choice-item:hover { border-color: var(--accent); }
   .gv-ch-name { flex-direction: row; align-items: baseline; gap: 6px; }
   .gv-ch-sub { flex: 1 1 auto; min-width: 0; }
   /* the mute keeps its icon (and its tooltip), the margin its tooltips */
-  .gv-ch-head .tg > span { display: none; }
+  /* (the text stays for screen readers and keeps the button its name) */
+  .gv-ch-head .tg > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .gv-ch-head .tg { width: 28px; padding: 0; }
   .gv-dyn-label { display: none; }
   .gv-vol { gap: 4px; font-size: 12px; }
@@ -1107,34 +1183,72 @@ button.choice-item:hover { border-color: var(--accent); }
   /* narrow EQ cards: every other frequency label, the reset button keeps its icon */
   @container (max-width: 900px) { .ch-geq .geq-band:nth-child(even) .geq-f { visibility: hidden; } }
   @container (max-width: 440px) {
-    .ch-page .card-eq .btn-reset > span { display: none; }
+    .ch-page .card-eq .btn-reset > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .ch-page .card-eq .btn-reset { width: 26px; padding: 0; }
   }
 }
 /* narrower computers: tighter chips, the rename button keeps only its icon */
+@media (min-width: 1101px) and (max-width: 1599px) {
+  .ch-page .chip { min-width: 58px; padding: 3px 8px 3px 10px; }
+  .ch-page .chips { gap: 5px; }
+  .ch-page .btn-rename > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ch-page .btn-rename { width: 26px; padding: 0; }
+  /* automatic gain: the choices keep their three buttons on one line in every language */
+  .lv-page .seg button { padding: 4px 8px; font-size: 12.5px; }
+  .lv-adv .seg button { padding-left: 7px; padding-right: 7px; font-size: 12px; }
+}
 @media (min-width: 1101px) and (max-width: 1439px) {
   .ch-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.45fr); }
   .ch-page .route-row { grid-template-columns: minmax(56px, 88px) minmax(0, 1fr) auto; }
-  .ch-page .chip { min-width: 58px; padding: 3px 8px 3px 10px; }
-  .ch-page .chips { gap: 5px; }
-  .ch-page .btn-rename > span { display: none; }
-  .ch-page .btn-rename { width: 26px; padding: 0; }
   /* automatic gain: the settings get the width the history can spare */
-  .lv-cards { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 0.9fr); }
-  .lv-page .prow { grid-template-columns: 128px minmax(0, 1fr) auto; }
-  .lv-page .field-inline { grid-template-columns: 128px minmax(0, 1fr); }
-  .lv-page .prow-label, .lv-page .field-inline > .field-label { font-size: 12.5px; }
-  .lv-page .vf { width: 84px; }
+  .lv-cards { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1.1fr); }
+  .lv-page .prow { grid-template-columns: 124px minmax(0, 1fr) auto; }
+  .lv-page .prow-label, .lv-page .field-inline > .field-label { font-size: 12px; }
+  .lv-page .vf { width: 78px; }
   .lv-auto .prow { grid-template-columns: 88px minmax(0, 1fr) auto; }
   .lv-auto .vf { width: 96px; }
-  .lv-page .seg button { padding: 4px 8px; font-size: 12.5px; }
   .lv-now-main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
   .lv-figures > div { padding: 6px 8px; }
   .lv-figures dt { font-size: 11.5px; }
+  .lv-hist .lv-six dt { font-size: 10.5px; }
+  .lv-hist .lv-figures.lv-six { gap: 4px; }
+  .lv-hist .lv-six > div { padding-left: 5px; padding-right: 5px; }
+  /* console: the twelve strips of a DSP 408 still side by side */
+  .cs-page .console { gap: 14px; }
+  .cs-page .strips { gap: 6px; }
+  .cs-page .strip { padding-left: 3px; padding-right: 3px; }
+  .cs-page .strip-btns { gap: 3px; }
+  .cs-page .strip-btns .tg { padding: 0 5px; font-size: 12px; }
+  .cx-page .tabs button { padding-left: 9px; padding-right: 9px; }
+}
+/* the narrowest computer screens: mute and polarity one above the other in each strip */
+@media (min-width: 1101px) and (max-width: 1279px) {
+  .cs-page .strip { min-width: 0; padding-left: 2px; padding-right: 2px; }
+  .cs-page .strip-body { gap: 4px; }
+  .cs-page .strip-btns { flex-direction: column; align-items: stretch; width: 100%; max-width: 84px; }
+  .cs-page .strip .vf { font-size: 12px; padding: 0 2px; }
+  /* channel page: the chips keep the channel ids, the names stay in their tooltips */
+  .ch-page .chip { min-width: 0; padding: 3px 7px 3px 9px; }
+  .ch-page .chip-name { display: none; }
+  .ch-page .chips { gap: 4px; }
+  .cx-page .tabs button { padding-left: 5px; padding-right: 5px; }
+  .cx-page .dev-icon { display: none; }
+  /* overview: the tiles are too narrow for the small response curve */
+  .gv-curve { display: none; }
+  /* automatic gain: the speed choices under their label, every choice a little tighter */
+  .lv-adv .field-inline { grid-template-columns: minmax(0, 1fr); }
+  .lv-adv .field-inline > .seg { justify-self: start; }
+  .lv-adv .seg button { padding-left: 5px; padding-right: 5px; font-size: 11.5px; }
+  .lv-hist .lv-six dt { white-space: normal; line-height: 1.15; hyphens: auto; overflow-wrap: anywhere; }
+}
+/* below the width of a landscape tablet */
+@media (min-width: 1101px) and (max-width: 1179px) {
+  .cx-page .tabs button > svg { display: none; }
+  .lv-adv .seg button { padding-left: 3px; padding-right: 3px; font-size: 11px; }
 }
 /* short computer screens: the signal chain goes (every block is on screen anyway) and level,
    polarity and delay become one line across the page */
-@media (min-width: 1101px) and (max-height: 700px) {
+@media (min-width: 1101px) and (max-height: 724px) {
   .ch-page > .card.card-flow { display: none; }
   .ch-page:not(.is-linked) > .page-head > div:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .ch-page.is-linked > .page-head > div:first-child { grid-column: 1 / -1; max-width: none; }
@@ -1149,11 +1263,13 @@ button.choice-item:hover { border-color: var(--accent); }
   .ch-page .card-level > .level > .meter { grid-column: auto; }
   .ch-page .card-eq .graph-fill { min-height: 108px; }
   /* automatic gain: the fixed explanations go (each control keeps its tooltip), results stay */
-  .lv-page .field-hint:not(.is-result) { display: none; }
-  .lv-hist .graph-fill { min-height: 170px; }
+  .lv-hist .graph-fill { min-height: 140px; }
+  .lv-page .lv-adv { gap: 6px; }
+  .lv-adv .seg button { padding-top: 3px; padding-bottom: 3px; }
+  .lv-adv .vf { height: 26px; }
   /* the target and its "take the current level" button on one line */
   .lv-target { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-  .lv-target .btn-take > span { display: none; }
+  .lv-target .btn-take > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .lv-target .btn-take { width: 26px; padding: 0; }
 }
 /* very short screens: every gap a little tighter */
@@ -1170,7 +1286,7 @@ button.choice-item:hover { border-color: var(--accent); }
   .nav-group { margin: 7px 12px 1px; }
   .gv-curve { display: none; }
 }
-@media (min-width: 1101px) and (max-height: 719px) {
+@media (min-width: 1101px) and (max-height: 800px) {
   .gv-pills { max-height: 40px; }
 }
 @media (min-width: 1101px) and (max-height: 660px) {

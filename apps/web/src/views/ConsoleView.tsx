@@ -27,7 +27,7 @@ export function ConsoleView(): React.JSX.Element {
   const outs = allChannels(config).filter((ch) => ch >= m.inputs);
   const allOutMuted = outs.every((ch) => chan(config, ch).mute);
   return (
-    <div className="page page-wide">
+    <div className="page page-wide cs-page">
       <div className="page-head">
         <h1>{t('Console')}</h1>
         <div className="row">
@@ -41,13 +41,14 @@ export function ConsoleView(): React.JSX.Element {
       </div>
       {curves && <OverlayCurves config={config} />}
       <div className="console">
-        <div className="strip-group">
+        {/* --n: on a PC each group takes a share of the width in proportion to its strips */}
+        <div className="strip-group" style={{ ['--n' as string]: config.inputs.length }}>
           <h2 className="strip-group-title">{t('Entrées')}</h2>
           <div className="strips">
             {config.inputs.map((c, i) => <Strip key={i} ch={i} c={c} {...stripInfo(config, i)} mirror={mirror} canEdit={canEdit} canOperate={canOperate} />)}
           </div>
         </div>
-        <div className="strip-group">
+        <div className="strip-group" style={{ ['--n' as string]: config.outputs.length }}>
           <h2 className="strip-group-title">{t('Sorties')}</h2>
           <div className="strips">
             {config.outputs.map((c, j) => <Strip key={j} ch={m.inputs + j} c={c} {...stripInfo(config, m.inputs + j)} mirror={mirror} canEdit={canEdit} canOperate={canOperate} />)}
@@ -73,7 +74,7 @@ function OverlayCurves({ config }: { config: DeviceConfig }): React.JSX.Element 
         <button type="button" className={mode === 'phase' ? 'is-on' : ''} onClick={() => setMode('phase')}>{t('Phase')}</button>
       </div>
     }>
-      <ResponseGraph freqs={freqs} curves={curves} mode={mode} height={230} label={t('Courbes de réponse des canaux affichés')} />
+      <ResponseGraph freqs={freqs} curves={curves} mode={mode} height={230} fill label={t('Courbes de réponse des canaux affichés')} />
       <div className="chips chips-small">
         {allChannels(config).map((ch) => (
           <button key={ch} type="button" aria-pressed={shown.includes(ch)} className={`chip ${shown.includes(ch) ? 'is-on' : ''}`} style={{ ['--ch' as string]: colorOf(config, ch) }}

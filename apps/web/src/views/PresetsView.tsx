@@ -119,7 +119,7 @@ function StoreDialog({ mirror, onClose }: { mirror: DeviceMirror; onClose: () =>
       {target?.user
         ? <Note tone="warn">{t('{0} contient déjà « {1} » : il sera remplacé par les réglages actuels.', presetLabel(slot), target.name)}</Note>
         : <p className="small muted">{t('Les réglages actuels seront mémorisés dans l’appareil.')}</p>}
-      <Field label={t('Nom du preset (14 caractères)')} hint={t('{0} / {1} caractères', name.length, 14)}>
+      <Field label={t('Nom du preset (14 caractères)')} result hint={t('{0} / {1} caractères', name.length, 14)}>
         <TextInput value={name} onChange={setName} maxLength={14} label={t('Nom du preset (14 caractères)')} onEnter={store} />
       </Field>
     </Modal>

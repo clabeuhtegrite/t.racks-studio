@@ -35,7 +35,8 @@ export function DeviceView(): React.JSX.Element {
   if (!mirror || !config || !snap) return <></>;
   const disabled = !canEdit;
   return (
-    <div className="page">
+    // on a PC the tabs are laid out to fit the screen: their explanations go into the (i) tooltips
+    <div className="page dense dv-page">
       <div className="page-head">
         <div>
           <h1>{t('Appareil')}</h1>
@@ -44,7 +45,7 @@ export function DeviceView(): React.JSX.Element {
       </div>
       <Tabs label={t('Sections')} value={tab} tabs={tabs()} onChange={(v) => go('appareil', v)} />
       {tab === 'general' && (
-        <div className="cards">
+        <div className="cards dv-gen">
           <InfoCard mirror={mirror} snap={snap} config={config} />
           <NetworkCard key={snap.system ? `${snap.system.deviceId}-${snap.system.ip.join('.')}` : 'none'} mirror={mirror} snap={snap} disabled={disabled} />
           <MaintenanceCard mirror={mirror} disabled={disabled} />
@@ -87,7 +88,7 @@ function InfoCard({ mirror, snap, config }: { mirror: DeviceMirror; snap: Sessio
     [t('Verrouillage'), lock ? [lock.locked ? t('verrouillé') : t('déverrouillé'), lock.ptsOn ? t('limite d’allumages active ({0} sur {1})', lock.ptsCount, lock.ptsLimit) : ''].filter(Boolean).join(' · ') : '—'],
   ];
   return (
-    <Card title={t('Informations')} actions={
+    <Card className="dv-info" title={t('Informations')} actions={
       <Button small icon="refresh" disabled={role !== 'admin'} onClick={() => run(t('Relecture de l’appareil'), () => mirror.call('sync'), t('Appareil relu'))}>{t('Relire')}</Button>
     }>
       <dl className="kv">
@@ -128,7 +129,7 @@ function NetworkCard({ mirror, snap, disabled }: { mirror: DeviceMirror; snap: S
     await run(t('Réglages réseau'), () => mirror.call('setNetwork', idN, ipN), t('Enregistré : éteignez puis rallumez le DSP pour l’appliquer'));
   };
   return (
-    <Card title={t('Réseau')} subtitle={t('ID et adresse IP de l’appareil (menu « Network setup » du logiciel Windows).')}>
+    <Card className="dv-net" title={t('Réseau')} subtitle={t('ID et adresse IP de l’appareil (menu « Network setup » du logiciel Windows).')}>
       <div className="form">
         <Field label={t('ID de l’appareil')} hint={t('De 1 à 250. Distingue plusieurs DSP sur une même ligne RS-485 ; le pilotage se fait sur cet ID.')}>
           <TextInput value={id} onChange={(v) => setId(v.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" disabled={disabled} label={t('ID de l’appareil')} className={idOk ? '' : 'is-bad'} />
@@ -157,7 +158,7 @@ function NetworkCard({ mirror, snap, disabled }: { mirror: DeviceMirror; snap: S
 
 function MaintenanceCard({ mirror, disabled }: { mirror: DeviceMirror; disabled: boolean }): React.JSX.Element {
   return (
-    <Card title={t('Maintenance')}>
+    <Card className="dv-maint" title={t('Maintenance')}>
       <div className="stack">
         <div className="row between">
           <div>
@@ -374,7 +375,7 @@ function LockCard({ mirror, disabled }: { mirror: DeviceMirror; disabled: boolea
         <Field label={t('Mot de passe')} hint={newPwHint()}>
           <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Mot de passe')} />
         </Field>
-        <Field label={t('Confirmation')} hint={pw2 && pw !== pw2 ? t('Les deux saisies diffèrent') : undefined}>
+        <Field label={t('Confirmation')} result hint={pw2 && pw !== pw2 ? t('Les deux saisies diffèrent') : undefined}>
           <TextInput type="password" value={pw2} onChange={(v) => setPw2(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Confirmation du mot de passe')} />
         </Field>
         <div className="row end">
@@ -470,7 +471,8 @@ function PtsPasswordCard({ mirror, lock, disabled }: { mirror: DeviceMirror; loc
     setPw('');
   };
   return (
-    <Card title={t('Mot de passe PTS')} subtitle={due ? t('La limite d’allumages est atteinte : saisissez le mot de passe PTS.') : t('Allumages : {0} sur {1} autorisés.', lock.ptsCount, lock.ptsLimit)}>
+    <Card title={t('Mot de passe PTS')}>
+      <p className={due ? 'small text-warn' : 'small muted'}>{due ? t('La limite d’allumages est atteinte : saisissez le mot de passe PTS.') : t('Allumages : {0} sur {1} autorisés.', lock.ptsCount, lock.ptsLimit)}</p>
       <form className="form" onSubmit={(e) => { e.preventDefault(); if (pw) void check(); }}>
         <Field label={t('Mot de passe PTS')} hint={pwHint()}>
           <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Mot de passe PTS')} />

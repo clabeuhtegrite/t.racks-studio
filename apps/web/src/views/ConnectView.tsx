@@ -18,9 +18,10 @@ export function ConnectView(): React.JSX.Element {
   const mode = useApp((s) => s.mode);
   const role = useApp((s) => s.role);
   return (
-    <div className="page">
+    <div className="page dense cx-page">
       <div className="page-head"><h1>{t('Connexion')}</h1></div>
-      <div className="cards">
+      {/* on a computer: the devices and the link to the bridge, the form to add one beside them */}
+      <div className="cards cx-cards">
         <ModeCard />
         <DevicesCard />
         {backend && role === 'admin' && (mode === 'bridge' ? <AddOnBridge backend={backend} /> : <AddInBrowser backend={backend} />)}
@@ -51,7 +52,7 @@ function ModeCard(): React.JSX.Element {
   };
   if (mode === 'bridge') {
     return (
-      <Card title={<><Icon name="plug" size={18} />{' '}{t('Pont t.racks Studio')}</>} subtitle={t('Un ordinateur relié aux DSP partage leur pilotage avec tous les écrans du réseau.')}>
+      <Card className="cx-mode" title={<><Icon name="plug" size={18} />{' '}{t('Pont t.racks Studio')}</>} subtitle={t('Un ordinateur relié aux DSP partage leur pilotage avec tous les écrans du réseau.')}>
         <dl className="kv">
           <div><dt>{t('État')}</dt><dd>{status === 'online' ? <Badge tone="ok">{t('connecté')}</Badge> : <Badge tone="warn">{status === 'offline' ? t('injoignable, nouvel essai…') : t('connexion…')}</Badge>}</dd></div>
           <div><dt>{t('Version')}</dt><dd>{backend?.version || '—'}</dd></div>
@@ -66,7 +67,7 @@ function ModeCard(): React.JSX.Element {
     );
   }
   return (
-    <Card title={<><Icon name="usb" size={18} />{' '}{t('Mode navigateur')}</>} subtitle={t('Ce navigateur pilote lui-même le DSP branché sur cet ordinateur (USB ou adaptateur série).')}>
+    <Card className="cx-mode" title={<><Icon name="usb" size={18} />{' '}{t('Mode navigateur')}</>} subtitle={t('Ce navigateur pilote lui-même le DSP branché sur cet ordinateur (USB ou adaptateur série).')}>
       <p className="small">{t('Pour piloter depuis un téléphone ou une tablette, ou à plusieurs, lancez le pont t.racks Studio sur l’ordinateur relié aux DSP, puis ouvrez son adresse ou indiquez-la ici.')}</p>
       <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (addr.trim()) void connect(addr.trim()); }}>
         <Field label={t('Adresse du pont')} hint={t('Exemple : 192.168.1.20 ou regie.local:8080')}>
@@ -87,7 +88,7 @@ function DevicesCard(): React.JSX.Element {
   const role = useApp((s) => s.role);
   const backend = useApp((s) => s.backend);
   return (
-    <Card title={t('Appareils mémorisés')} subtitle={devices.length ? t('Les appareils déjà utilisés restent dans cette liste : connectez-vous à celui que vous voulez piloter. Plusieurs peuvent être connectés à la fois.') : undefined}>
+    <Card className="cx-dev" title={t('Appareils mémorisés')} subtitle={devices.length ? t('Les appareils déjà utilisés restent dans cette liste : connectez-vous à celui que vous voulez piloter. Plusieurs peuvent être connectés à la fois.') : undefined}>
       {devices.length === 0 && <p className="muted">{t('Aucun appareil pour l’instant.')}</p>}
       <div className="devs">
         {devices.map((d) => backend && <DeviceRow key={d.key} d={d} current={d.key === current} admin={role === 'admin'} operate={role !== 'viewer'} backend={backend} />)}
@@ -200,7 +201,7 @@ function AddOnBridge({ backend }: { backend: Backend }): React.JSX.Element {
     ),
   };
   return (
-    <Card title={t('Ajouter un appareil')} subtitle={t('Choisissez la liaison, renseignez l’appareil, puis touchez Ajouter : il rejoint les appareils mémorisés.')} className="span2">
+    <Card title={t('Ajouter un appareil')} subtitle={t('Choisissez la liaison, renseignez l’appareil, puis touchez Ajouter : il rejoint les appareils mémorisés.')} className="span2 cx-add">
       <Tabs label={t('Type de liaison')} value={tab} onChange={(t) => { setTab(t); idScan.reset(); }} tabs={[
         { id: 'tcp', label: <><Icon name="ethernet" size={16} />{' '}{t('Ethernet')}</> },
         { id: 'usb', label: <><Icon name="usb" size={16} />{' '}{t('USB')}</> },
@@ -354,7 +355,7 @@ function AddInBrowser({ backend }: { backend: Backend }): React.JSX.Element {
   const hid = hasWebHid(), ser = hasWebSerial();
   const secure = window.isSecureContext;
   return (
-    <Card title={t('Ajouter un appareil')} className="span2">
+    <Card title={t('Ajouter un appareil')} className="span2 cx-add">
       {!secure && <Note tone="warn">{t('Cette page n’est pas sécurisée : le navigateur n’autorise l’USB et le port série que sur une adresse https ou localhost.')}</Note>}
       {secure && (!hid || !ser) && <Note>{t('L’USB (WebHID) et le port série (Web Serial) demandent Chrome, Edge ou Opera sur ordinateur. Sur téléphone ou tablette, passez par le pont t.racks Studio.')}</Note>}
       <div className="add-grid">

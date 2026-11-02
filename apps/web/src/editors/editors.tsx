@@ -233,7 +233,8 @@ export function RoutingEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX
 }
 
 // ------------------------------------------------------------------------------ GEQ
-export function GeqEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.Element {
+/** `fill`: the curve takes the height the layout gives it (the PC page of the graphic EQ). */
+export function GeqEditor({ cfg, ch, mirror, disabled, fill }: EdProps & { fill?: boolean }): React.JSX.Element {
   const c = cfg.inputs[ch];
   const color = colorOf(cfg, ch);
   const freqs = useMemo(() => logFreqs(240), []);
@@ -251,7 +252,7 @@ export function GeqEditor({ cfg, ch, mirror, disabled }: EdProps): React.JSX.Ele
         }}>{t('Réinitialiser')}</Button>
       </>}
     >
-      <ResponseGraph freqs={freqs} curves={[{ id: 'geq', color, values: r.mag, width: 2.4, fill: true }]} mode="mag" range={[-15, 15]} height={170} label={t('Courbe du GEQ')} />
+      <ResponseGraph freqs={freqs} curves={[{ id: 'geq', color, values: r.mag, width: 2.4, fill: true }]} mode="mag" range={[-15, 15]} height={170} fill={fill} label={t('Courbe du GEQ')} />
       <div className="geq" ref={scroller}>
         {c.geq.map((raw, k) => (
           <div key={k} className={`geq-band ${raw !== 120 ? 'is-active' : ''}`}>

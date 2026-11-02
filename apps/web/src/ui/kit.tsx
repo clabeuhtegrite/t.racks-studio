@@ -70,6 +70,11 @@ export function Select<T extends string | number>(p: { value: T; options: { valu
   );
 }
 
+/** (i) with the explanation as a tooltip, shown instead of the explanation where a page is laid out to fit a computer screen. */
+export function HintIcon({ text, size = 14 }: { text: string; size?: number }): React.JSX.Element {
+  return <span className="card-hint" title={text}><Icon name="info" size={size} /><span className="sr-only">{text}</span></span>;
+}
+
 export function Card(p: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; id?: string; subtitle?: ReactNode }): React.JSX.Element {
   return (
     <section className={`card ${p.className ?? ''}`} id={p.id}>
@@ -80,7 +85,7 @@ export function Card(p: { title?: ReactNode; actions?: ReactNode; children: Reac
               <h2>
                 {p.title}
                 {/* where a page is laid out to fit the screen, the explanation moves into a tooltip */}
-                {typeof p.subtitle === 'string' && <span className="card-hint" title={p.subtitle}><Icon name="info" size={14} /><span className="sr-only">{p.subtitle}</span></span>}
+                {typeof p.subtitle === 'string' && <HintIcon text={p.subtitle} />}
               </h2>
             )}
             {p.subtitle && <p className="muted small card-sub">{p.subtitle}</p>}
@@ -156,12 +161,14 @@ export function Stepper(p: { value: number; param: Param; onChange: (v: number) 
   );
 }
 
-export function Field(p: { label: ReactNode; children: ReactNode; hint?: ReactNode; className?: string }): React.JSX.Element {
+/** `result`: the hint is a live result (a computed value, an error), shown even where the
+ *  explanations go into the (i) tooltips. */
+export function Field(p: { label: ReactNode; children: ReactNode; hint?: ReactNode; result?: boolean; className?: string }): React.JSX.Element {
   return (
     <label className={`field ${p.className ?? ''}`}>
-      <span className="field-label">{p.label}</span>
+      <span className="field-label">{p.label}{typeof p.hint === 'string' && !p.result && <HintIcon text={p.hint} size={13} />}</span>
       {p.children}
-      {p.hint && <span className="field-hint">{p.hint}</span>}
+      {p.hint && <span className={p.result ? 'field-hint is-result' : 'field-hint'}>{p.hint}</span>}
     </label>
   );
 }
