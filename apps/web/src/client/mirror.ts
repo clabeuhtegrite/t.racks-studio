@@ -15,7 +15,18 @@ import { t } from '../i18n.tsx';
 
 export interface UndoEntry { key: string; action: Action; inverse: Action[]; redo: Action[]; at: number }
 export interface FrameLine { dir: 'tx' | 'rx'; hex: string; at: number }
-export interface MeterState { db: number[]; status: number; at: number }
+export interface MeterState {
+  db: number[];
+  status: number;
+  at: number;
+  /** highest level of each channel over the last PEAK_MS: the loudest moments, for the margins */
+  peak: number[];
+  /** status bits seen over the last RECENT_MS, so a block acting in bursts stays shown */
+  recent: number;
+}
+/** Window of the peaks behind the margins of the compressor and limiter (meters come 4 times a second). */
+export const PEAK_MS = 3000;
+const RECENT_MS = 1500;
 
 /** Applies an action to a copy of the configuration (structural sharing). */
 export function applyImmutable(cfg: DeviceConfig, a: Action): DeviceConfig {
@@ -74,6 +85,7 @@ export class DeviceMirror {
   snap: SessionSnapshot | null = null;
   config: DeviceConfig | null = null;
   meters: MeterState | null = null;
+  private meterHist: { at: number; db: number[]; status: number }[] = [];
   /** automatic gain of the device (levels for the DJ screen too) */
   leveler: LevelerState | null = null;
   levelerRev = 0;
@@ -126,7 +138,13 @@ export class DeviceMirror {
       b.on('action', (e) => { if (e.key === this.key) this.onAction(e.action, e.origin, e.seq); }),
       b.on('meters', (e) => {
         if (e.key !== this.key) return;
-        this.meters = { db: e.db, status: e.status, at: Date.now() };
+        const now = Date.now();
+        const hist = this.meterHist;
+        hist.push({ at: now, db: e.db, status: e.status });
+        while (hist.length && now - hist[0].at > PEAK_MS) hist.shift();
+        const peak = e.db.map((_, ch) => hist.reduce((top, h) => Math.max(top, h.db[ch] ?? -140), -140));
+        const recent = hist.reduce((bits, h) => (now - h.at <= RECENT_MS ? bits | h.status : bits), 0);
+        this.meters = { db: e.db, status: e.status, at: now, peak, recent };
         this.meterRev++;
         for (const f of this.meterListeners) f();
       }),

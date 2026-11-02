@@ -37,7 +37,9 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 **Tout ce que fait le logiciel Windows**
 
 - **Vue globale** (la page d’accueil) : tous les DSP connectés d’un coup d’œil, en direct : niveaux,
-  volumes, mutes et traitements actifs de chaque canal, écrêtage, compresseur et limiteur en action.
+  volumes, mutes et traitements actifs de chaque canal, écrêtage, compresseur et limiteur en action,
+  et sur chaque sortie la marge qui reste avant que son compresseur et son limiteur agissent, avec
+  leurs seuils marqués sur le vumètre.
 - **Console** : volume, mute, polarité et vumètres de toutes les entrées et sorties, courbes de
   réponse des canaux. Les vumètres se lisent comme ceux du logiciel Windows : zones verte, jaune et
   rouge, et sur chaque sortie le voyant orange qui s’allume quand son compresseur ou son limiteur
@@ -180,7 +182,7 @@ npm test                      # tests : protocole, conformité au firmware, pont
 npm run typecheck
 npm run dev:bridge            # un pont avec ses propres données (.dev/), puis dans un autre terminal :
 npm run dev                   # l’interface avec rechargement à chaud, sur http://localhost:5173
-node apps/web/e2e/flows.cjs   # 32 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
+node apps/web/e2e/flows.cjs   # 37 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
 ```
 
 | Dossier | |

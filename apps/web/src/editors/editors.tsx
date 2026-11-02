@@ -4,14 +4,14 @@
 
 import { useMemo, useRef, useState } from 'react';
 import {
-  dynamicsActive, eqGainRawToDb, GEQ_FREQS, logFreqs, meterZones, MODELS, ratioValue, SLOPES, thrRawToDb,
+  dynamicsActive, dynamicsHeadroom, eqGainRawToDb, GEQ_FREQS, levelOnThresholdScale, logFreqs, meterZones, MODELS, ratioValue, SLOPES, thrRawToDb,
   type DelayUnit, type DeviceConfig, type InputChannel, type OutputChannel, type Xover,
 } from '@dsp-studio/protocol';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { confirmDialog, useMeters } from '../state/store.ts';
 import { Badge, Button, Card, ParamRow, Segmented, Select, Stepper, Toggle, ValueField } from '../ui/kit.tsx';
 import { Slider } from '../ui/Slider.tsx';
-import { Meter } from '../ui/Meter.tsx';
+import { Meter, type MeterMark } from '../ui/Meter.tsx';
 import { delayParam, DELAY_UNIT_LABELS, fmtIso, fmtIsoHz, fmtSigned, P } from '../ui/format.ts';
 import { chan, colorOf, labelOf, responseOf } from '../ui/channels.tsx';
 import { TransferGraph } from '../ui/TransferGraph.tsx';
@@ -78,7 +78,7 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
   return (
     <Card title={t('Niveau, polarité et délai')}>
       <div className="level">
-        <Meter db={meters?.db[ch]} zones={meterZones(cfg.model, ch)} vertical={false} dyn={ch >= m.inputs ? dyn.comp || dyn.limit : undefined} label={t('Niveau {0}', labelOf(cfg, ch))} />
+        <Meter db={meters?.db[ch]} zones={meterZones(cfg.model, ch)} vertical={false} dyn={ch >= m.inputs ? dyn.comp || dyn.limit : undefined} label={t('Niveau {0}', labelOf(cfg, ch))} marks={thresholdMarks(cfg, ch)} />
         <ParamRow label={t('Volume')} param={P.gain} value={c.gain} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })} disabled={!canOperate} color={color} origin={280} />
         <div className="row">
           <Toggle on={c.mute} tone="red" onChange={(on) => mirror.apply({ t: 'mute', ch, on })} disabled={!canOperate} icon="mute">{t('Mute')}</Toggle>
@@ -97,6 +97,15 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
 
 // ------------------------------------------------------------------------------ dynamics
 /** What the compressor and the limiter of an output are doing now (status word of the meters). */
+/** Where the compressor and the limiter of an output start to act, marked on its level bar. */
+export function thresholdMarks(cfg: DeviceConfig, ch: number): MeterMark[] {
+  const room = dynamicsHeadroom(cfg, ch, null, 0);
+  const marks: MeterMark[] = [];
+  if (room.comp) marks.push({ db: room.comp.at, kind: 'comp', title: t('Le compresseur agit à partir d’ici') });
+  if (room.limit) marks.push({ db: room.limit.at, kind: 'limit', title: t('Le limiteur agit à partir d’ici') });
+  return marks;
+}
+
 export function useDynamics(cfg: DeviceConfig, ch: number): { comp: boolean; limit: boolean } {
   const meters = useMeters();
   return meters ? dynamicsActive(meters.status, cfg, ch) : { comp: false, limit: false };
@@ -127,7 +136,7 @@ export function GateEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
   };
   const body = (
     <div className="dyn">
-      <TransferGraph kind="gate" thrDb={thrRawToDb(g.threshold)} levelDb={level} color={color} label={t('Courbe du gate {0}', labelOf(cfg, ch))} />
+      <TransferGraph kind="gate" thrDb={thrRawToDb(g.threshold)} levelDb={level === null ? null : levelOnThresholdScale(cfg, ch, level, 'gate')} color={color} label={t('Courbe du gate {0}', labelOf(cfg, ch))} />
       <div className="dyn-params">
         <ParamRow label={t('Seuil')} param={P.gateThr} value={g.threshold} onChange={(threshold) => set({ threshold })} disabled={disabled} color={color} />
         <ParamRow label={t('Attaque')} param={P.gateAttack} value={g.attack} onChange={(attack) => set({ attack })} disabled={disabled} color={color} />
@@ -155,7 +164,7 @@ export function CompEditor({ cfg, ch, mirror, disabled, compact }: EdProps & { c
   };
   const body = (
     <div className="dyn">
-      <TransferGraph kind="comp" thrDb={thrRawToDb(k.threshold)} ratio={ratioValue(k.ratio)} kneeDb={k.knee} levelDb={level} color={color} label={t('Courbe du compresseur {0}', labelOf(cfg, ch))} />
+      <TransferGraph kind="comp" thrDb={thrRawToDb(k.threshold)} ratio={ratioValue(k.ratio)} kneeDb={k.knee} levelDb={level === null ? null : levelOnThresholdScale(mirror.config ?? cfg, ch, level, 'comp')} color={color} label={t('Courbe du compresseur {0}', labelOf(cfg, ch))} />
       <div className="dyn-params">
         <ParamRow label={t('Seuil')} param={P.thr} value={k.threshold} onChange={(threshold) => set({ threshold })} disabled={disabled} color={color} />
         <div className="prow"><span className="prow-label">{t('Taux')}</span><Stepper value={k.ratio} param={P.ratio} onChange={(ratio) => set({ ratio })} disabled={disabled} label={t('Taux de compression')} /></div>
@@ -183,7 +192,7 @@ export function LimiterEditor({ cfg, ch, mirror, disabled, compact, expert }: Ed
   };
   const body = (
     <div className="dyn">
-      <TransferGraph kind="limit" thrDb={thrRawToDb(l.threshold)} levelDb={level} color={color} label={t('Courbe du limiteur {0}', labelOf(cfg, ch))} />
+      <TransferGraph kind="limit" thrDb={thrRawToDb(l.threshold)} levelDb={level === null ? null : levelOnThresholdScale(mirror.config ?? cfg, ch, level, 'limit')} color={color} label={t('Courbe du limiteur {0}', labelOf(cfg, ch))} />
       <div className="dyn-params">
         <ParamRow label={t('Seuil')} param={P.thr} value={l.threshold} onChange={(threshold) => set({ threshold })} disabled={disabled} color={color} />
         <ParamRow label={t('Attaque')} param={P.attack} value={l.attack} onChange={(attack) => set({ attack })} disabled={disabled} color={color} />

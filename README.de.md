@@ -39,7 +39,8 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 
 - **Übersicht** (die Startseite): alle verbundenen DSPs auf einen Blick, live: Pegel,
   Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, Übersteuerung, Kompressor und Limiter,
-  wenn sie greifen.
+  wenn sie greifen, und an jedem Ausgang die Reserve, bevor Kompressor und Limiter greifen, mit
+  ihren Schwellen auf der Pegelanzeige.
 - **Konsole**: Lautstärke, Mute, Polarität und Pegelanzeigen aller Ein- und Ausgänge,
   Frequenzgangkurven der Kanäle. Die Pegelanzeigen lesen sich wie im Windows-Editor: grüner, gelber
   und roter Bereich, und an jedem Ausgang die orange LED, die leuchtet, solange sein Kompressor oder
@@ -184,7 +185,7 @@ npm test                      # Unit-Tests: Protokoll, Firmware-Konformität, Br
 npm run typecheck
 npm run dev:bridge            # eine Bridge mit eigenen Daten (.dev/), dann in einem anderen Terminal:
 npm run dev                   # die Oberfläche mit Hot Reload, auf http://localhost:5173
-node apps/web/e2e/flows.cjs   # 32 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
+node apps/web/e2e/flows.cjs   # 37 End-to-End-Prüfungen im Browser (Playwright, Bridge gestartet)
 ```
 
 | Ordner | |

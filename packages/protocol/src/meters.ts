@@ -11,6 +11,7 @@
 //   1 red segment; outputs: 4 green, 3 yellow, 1 red, plus one orange "Limit" segment that lights
 //   while the compressor (ratio other than 1:1) or the limiter (threshold under +20 dB) acts.
 
+import { gainRawToDb, thrRawToDb } from './codecs.ts';
 import type { DeviceConfig } from './config.ts';
 import { MODELS, type ModelId } from './models.ts';
 
@@ -71,5 +72,61 @@ export function dynamicsActive(status: number, cfg: DeviceConfig, ch: number): {
   return {
     comp: ((status >> j) & 1) === 1 && o.comp.ratio > 0,
     limit: ((status >> (8 + j)) & 1) === 1 && o.limiter.threshold < 220,
+  };
+}
+
+// Where the compressor and the limiter start to act, on the scale of the meters. Read on the
+// firmware (words it sends to the audio DSP when a threshold is set, the same on both models): the
+// limiter gets its threshold minus 15 dB, the compressor its threshold minus 17.8 dB (whatever the
+// knee and the ratio), the gate minus 14 dB, as dB of the DSP's own scale, the one of the meters.
+// A limiter at +20 dB is also switched off by a flag. Both blocks come before the output volume (the editor's block
+// diagram), and the output meters are taken as reading after it (their red segment is the
+// output's clipping), so the volume moves the thresholds on the meter. To be checked on a real unit.
+export const LIMITER_OFFSET_DB = 15;
+export const COMP_OFFSET_DB = 17.8;
+/** The gate of the inputs gets its threshold minus 14 dB. */
+export const GATE_OFFSET_DB = 14;
+/** dBFS where a limiter threshold (raw) starts to act, before the output volume. */
+export const limiterDbfs = (raw: number): number => thrRawToDb(raw) - LIMITER_OFFSET_DB;
+/** dBFS where a compressor threshold (raw) starts to act, before the output volume. */
+export const compDbfs = (raw: number): number => thrRawToDb(raw) - COMP_OFFSET_DB;
+
+/**
+ * A level read on a meter, moved onto the scale of the thresholds as they are set (for the curves of
+ * the gate, compressor and limiter). The input meters are taken as reading at the gate.
+ */
+export function levelOnThresholdScale(cfg: DeviceConfig, ch: number, db: number, block: 'gate' | 'comp' | 'limit'): number {
+  if (block === 'gate') return db + GATE_OFFSET_DB;
+  const o = cfg.outputs[ch - MODELS[cfg.model].inputs];
+  return db - (o ? gainRawToDb(o.gain) : 0) + (block === 'comp' ? COMP_OFFSET_DB : LIMITER_OFFSET_DB);
+}
+
+export interface Headroom {
+  /** where the block starts to act, as read on the output meter (dBFS) */
+  at: number;
+  /** dB left before it acts at the level given (negative: above it); null without signal */
+  margin: number | null;
+  /** acting now, according to the DSP */
+  acting: boolean;
+}
+
+/** Below this level an output is taken as silent: no margin is worked out. */
+export const SILENCE_DBFS = -80;
+
+/**
+ * Headroom of the compressor and the limiter of an output, null for a block that is off (compressor
+ * at 1:1, limiter at +20 dB: the editors' conditions). `db` is the level to compare (the meter, or its recent peak).
+ */
+export function dynamicsHeadroom(cfg: DeviceConfig, ch: number, db: number | null | undefined, status: number): { comp: Headroom | null; limit: Headroom | null } {
+  const j = ch - MODELS[cfg.model].inputs;
+  const o = cfg.outputs[j];
+  if (!o) return { comp: null, limit: null };
+  const vol = gainRawToDb(o.gain);
+  const acting = dynamicsActive(status, cfg, ch);
+  const level = db !== null && db !== undefined && db > SILENCE_DBFS ? db : null;
+  const make = (at: number, on: boolean): Headroom => ({ at, margin: level === null ? null : at - level, acting: on });
+  return {
+    comp: o.comp.ratio > 0 ? make(compDbfs(o.comp.threshold) + vol, acting.comp) : null,
+    limit: o.limiter.threshold < 220 ? make(limiterDbfs(o.limiter.threshold) + vol, acting.limit) : null,
   };
 }

@@ -1,18 +1,21 @@
 // Overview of every device, live: level of each channel (clip and limiter LEDs), mute, volume, a
 // small response curve and the active blocks of the channel with their main setting (the editor's
 // hidden block diagram), plus the state of each device: connection, preset, lock, links, test
-// generator. Mutes work from here; a tap on a channel opens it.
+// generator. On outputs, the margin left before the compressor and the limiter act, on the peaks of
+// the last seconds, with their thresholds marked on the level bar. Mutes work from here; a tap on a
+// channel opens it.
 
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { describeSource, dynamicsActive, GEQ_FREQS, logFreqs, meterZones, MODELS, type AnyChannel, type DeviceConfig, type DeviceInfo } from '@dsp-studio/protocol';
+import { describeSource, dynamicsActive, dynamicsHeadroom, GEQ_FREQS, logFreqs, meterZones, MODELS, thrRawToDb, type AnyChannel, type DeviceConfig, type DeviceInfo, type Headroom } from '@dsp-studio/protocol';
 import { DeviceMirror } from '../client/mirror.ts';
 import type { Backend } from '../client/types.ts';
 import { connectDevice, errorText, selectDevice, toast, useApp } from '../state/store.ts';
 import { go } from '../state/route.ts';
 import { Badge, Button, Card, Empty, Toggle } from '../ui/kit.tsx';
 import { Meter } from '../ui/Meter.tsx';
+import { thresholdMarks } from '../editors/editors.tsx';
 import { Icon } from '../ui/icons.tsx';
-import { fmtIsoHz, fmtSigned, P, presetLabel, stateLabel } from '../ui/format.ts';
+import { fmtDb, fmtIsoHz, fmtSigned, P, presetLabel, stateLabel } from '../ui/format.ts';
 import { statusText, statusTone, useLeveler } from '../state/leveler.ts';
 import '../ui/level.css';
 import { channelBlocks, chan, colorOf, labelOf, linkMates, responseOf } from '../ui/channels.tsx';
@@ -243,11 +246,42 @@ function LiveLevel({ mirror, ch, output, label }: { mirror: DeviceMirror; ch: nu
   if (!cfg) return <></>;
   const db = meters?.db[ch];
   const dyn = output && meters ? dynamicsActive(meters.status, cfg, ch) : null;
+  // margins on the peaks of the last seconds, and the status bits of the last moments
+  const room = output ? dynamicsHeadroom(cfg, ch, meters?.peak[ch], meters?.recent ?? 0) : null;
+  const marks = output ? thresholdMarks(cfg, ch) : undefined;
+  const o = output ? cfg.outputs[ch - MODELS[cfg.model].inputs] : null;
   return (
-    <div className="gv-level">
-      <Meter db={db} zones={meterZones(cfg.model, ch)} dyn={output ? !!dyn && (dyn.comp || dyn.limit) : undefined} vertical={false} compact label={t('Niveau {0}', label)} />
-      <span className="gv-db">{db === undefined || db <= -60 ? '—' : `${Math.round(db)} dB`}</span>
-    </div>
+    <>
+      <div className="gv-level">
+        <Meter db={db} zones={meterZones(cfg.model, ch)} dyn={output ? !!dyn && (dyn.comp || dyn.limit) : undefined} vertical={false} compact label={t('Niveau {0}', label)} marks={marks} />
+        <span className="gv-db">{db === undefined || db <= -60 ? '—' : `${Math.round(db)} dB`}</span>
+      </div>
+      {o && room && (room.comp || room.limit) && (
+        <div className="gv-dyn" aria-label={t('Marge avant le compresseur et le limiteur de {0}', label)}>
+          <span className="muted">{t('Marge')}</span>
+          {room.comp && <Margin kind="comp" h={room.comp} name={t('Comp.')} setting={fmtDb(thrRawToDb(o.comp.threshold), 0)} />}
+          {room.limit && <Margin kind="limit" h={room.limit} name={t('Lim.')} setting={fmtDb(thrRawToDb(o.limiter.threshold), 0)} />}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** "Comp. 4 dB": dB left before the block acts (amber under 6 dB), or "en action" while it acts. */
+function Margin({ kind, h, name, setting }: { kind: 'comp' | 'limit'; h: Headroom; name: string; setting: string }): React.JSX.Element {
+  // the colour follows the dB shown, so "6 dB" is never amber on one output and green on another
+  const shown = h.margin === null ? null : Math.max(0, Math.round(h.margin));
+  const state = h.acting ? 'is-on' : shown === null ? 'is-idle' : shown < 6 ? 'is-low' : 'is-ok';
+  const value = h.acting ? t('en action') : shown === null ? '—' : `${shown} dB`;
+  const title = h.acting
+    ? (kind === 'comp' ? t('Le compresseur ({0}) agit en ce moment.', setting) : t('Le limiteur ({0}) agit en ce moment.', setting))
+    : h.margin === null ? t('Pas de signal sur cette sortie.')
+      : kind === 'comp' ? t('Compresseur ({0}) : marge avant qu’il agisse, sur les pics des 3 dernières secondes (estimée d’après le vumètre).', setting)
+        : t('Limiteur ({0}) : marge avant qu’il agisse, sur les pics des 3 dernières secondes (estimée d’après le vumètre).', setting);
+  return (
+    <span className={`gv-margin ${state}`} title={title}>
+      <i className={`gv-margin-key gv-margin-${kind}`} aria-hidden="true" />{name} <strong>{value}</strong>
+    </span>
   );
 }
 

@@ -96,6 +96,8 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 - « Couper les sorties » d’un geste, alignement des délais par distances, assistant de filtrage 2 ou
   3 voies, calculs de délai et de longueur d’onde.
 - Fiche des réglages imprimable (ou en PDF).
+- Marge avant le compresseur et le limiteur de chaque sortie, dans la Vue globale, avec leurs seuils
+  marqués sur les vumètres (le logiciel Windows n’allume que le témoin Limit quand ils agissent).
 - Gain automatique (page Gain auto) : le pont ajuste doucement le gain des entrées de la table de
   mixage pour garder le même niveau d’un disque à l’autre, et un écran DJ plein écran dit quand
   toucher au gain de la table. Le DSP n’a rien de tel : son compresseur et son limiteur ne sont que

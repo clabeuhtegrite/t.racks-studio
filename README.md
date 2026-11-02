@@ -37,7 +37,9 @@ in French).
 **Everything the Windows editor does**
 
 - **Overview** (the home page): every connected DSP at a glance, live: levels, volumes, mutes and
-  the processing active on each channel, clipping, compressor and limiter at work.
+  the processing active on each channel, clipping, compressor and limiter at work, and on each
+  output the headroom left before its compressor and limiter act, with their thresholds marked on
+  the meter.
 - **Console**: volume, mute, polarity and meters of every input and output, response curves of the
   channels. The meters read like the Windows editor’s: green, yellow and red zones, and on each
   output the orange LED that lights while its compressor or limiter acts.
@@ -178,7 +180,7 @@ npm test                      # unit tests: protocol, firmware conformance, brid
 npm run typecheck
 npm run dev:bridge            # a bridge with its own data (.dev/), then in another terminal:
 npm run dev                   # the interface with hot reload, on http://localhost:5173
-node apps/web/e2e/flows.cjs   # 32 end-to-end checks in a browser (Playwright, bridge running)
+node apps/web/e2e/flows.cjs   # 37 end-to-end checks in a browser (Playwright, bridge running)
 ```
 
 | Folder | |
