@@ -38,8 +38,8 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 
 - **Vue globale** (la page d’accueil) : tous les DSP connectés d’un coup d’œil, en direct : niveaux,
   volumes, mutes et traitements actifs de chaque canal, écrêtage, compresseur et limiteur en action,
-  et sur chaque sortie la marge qui reste avant que son compresseur et son limiteur agissent, avec
-  leurs seuils marqués sur le vumètre.
+  et sur chaque sortie la marge qui reste avant que son compresseur et son limiteur agissent, sur
+  une ligne chacun, avec leurs seuils marqués sur le vumètre.
 - **Console** : volume, mute, polarité et vumètres de toutes les entrées et sorties, courbes de
   réponse des canaux. Les vumètres se lisent comme ceux du logiciel Windows : zones verte, jaune et
   rouge, et sur chaque sortie le voyant orange qui s’allume quand son compresseur ou son limiteur

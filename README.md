@@ -38,8 +38,8 @@ in French).
 
 - **Overview** (the home page): every connected DSP at a glance, live: levels, volumes, mutes and
   the processing active on each channel, clipping, compressor and limiter at work, and on each
-  output the headroom left before its compressor and limiter act, with their thresholds marked on
-  the meter.
+  output the headroom left before its compressor and limiter act, a line each, with their
+  thresholds marked on the meter.
 - **Console**: volume, mute, polarity and meters of every input and output, response curves of the
   channels. The meters read like the Windows editor’s: green, yellow and red zones, and on each
   output the orange LED that lights while its compressor or limiter acts.

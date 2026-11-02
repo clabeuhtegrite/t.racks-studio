@@ -760,20 +760,45 @@ button.choice-item:hover { border-color: var(--accent); }
 .gv-level { display: flex; align-items: center; gap: 8px; }
 .gv-level .meter { flex: 1; min-width: 0; }
 .gv-db { flex: none; width: 46px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-/* margin left before the compressor and the limiter act */
-.gv-dyn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin-top: -4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+/* margin left before the compressor and the limiter act: a line each, "Marge" beside both (above them in a
+   narrow tile; on a computer it is in the tooltips). The tile's width decides how compact the lines get, so
+   that no line is ever cut: no legend mark, a smaller text, then a lit LED instead of the words "en action". */
+.gv-dyn { container: gv-dyn / inline-size; margin-top: -4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.gv-dyn-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; gap: 1px 7px; }
+.gv-dyn-label { grid-column: 1; grid-row: 1 / span 2; }
+.gv-dyn-grid > .gv-margin { grid-column: 2; }
 .gv-margin { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); max-width: 100%; min-width: 0; }
+.gv-act-led { display: none; width: 7px; height: 7px; border-radius: 50%; background: #ffa446; box-shadow: 0 0 5px #ffa446; }
 .gv-margin strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gv-margin strong { font-weight: 700; }
 .gv-margin.is-ok strong { color: var(--green); }
 .gv-margin.is-low strong { color: var(--amber); }
 .gv-margin.is-on { padding: 0 5px; border-radius: 6px; background: color-mix(in srgb, #ffa446 22%, transparent); color: var(--text); }
 .gv-margin.is-on strong { color: #ffa446; }
+.gv-margin.is-off { opacity: 0.6; }
+.gv-margin.is-off strong { font-weight: 500; }
 :root[data-theme="light"] .gv-margin.is-on strong { color: #b45309; }
 /* legend: a bit of bar with its threshold mark, as drawn on the level bar */
 .gv-margin-key { position: relative; display: inline-block; flex: none; width: 11px; height: 8px; border-radius: 2px; background: var(--track); }
 .gv-margin-key::after { content: ""; position: absolute; left: 4.5px; top: 0; bottom: 0; width: 2px; background: var(--text); }
 .gv-margin-comp::after { opacity: 0.5; }
+/* narrower tiles (after the rules above, which they override) */
+@container gv-dyn (max-width: 174px) {
+  .gv-dyn-grid { grid-template-columns: minmax(0, 1fr); }
+  .gv-dyn-label { grid-row: auto; }
+  .gv-dyn-grid > .gv-margin { grid-column: 1; }
+}
+@container gv-dyn (max-width: 123px) {
+  .gv-dyn-grid { font-size: 11.5px; }
+  .gv-margin-key { display: none; }
+}
+@container gv-dyn (max-width: 103px) {
+  .gv-dyn-grid { font-size: 11px; }
+  .gv-margin.is-on { padding: 0 5px 0 4px; }
+  .gv-margin.is-on strong { display: inline-flex; align-items: center; overflow: visible; }
+  .gv-act-txt { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gv-act-led { display: inline-block; }
+}
 .gv-vol { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .gv-vol > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gv-vol > strong { white-space: nowrap; }
@@ -809,7 +834,7 @@ button.choice-item:hover { border-color: var(--accent); }
 @container (max-width: 520px) {
   .gv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .gv-ch { padding: 8px 9px 9px; }
-  .gv-dyn { font-size: 11.5px; column-gap: 6px; }
+  .gv-dyn { font-size: 11.5px; }
 }
 @container (max-width: 460px) {
   .prow, .route-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
@@ -1176,6 +1201,9 @@ button.choice-item:hover { border-color: var(--accent); }
   .gv-ch-head .tg > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .gv-ch-head .tg { width: 28px; padding: 0; }
   .gv-dyn-label { display: none; }
+  .gv-dyn { line-height: 1.25; }
+  .gv-dyn-grid { grid-template-columns: minmax(0, 1fr); }
+  .gv-dyn-grid > .gv-margin { grid-column: 1; }
   .gv-vol { gap: 4px; font-size: 12px; }
   .gv-curve { height: 22px; }
   /* at most three lines of active blocks (fewer on short screens); the tooltip lists them all */
@@ -1233,8 +1261,11 @@ button.choice-item:hover { border-color: var(--accent); }
   .ch-page .chips { gap: 4px; }
   .cx-page .tabs button { padding-left: 5px; padding-right: 5px; }
   .cx-page .dev-icon { display: none; }
-  /* overview: the tiles are too narrow for the small response curve */
+  /* overview: the tiles are too narrow for the small response curve; the buttons of a device keep
+     their icons (the compressor and limiter lines follow the width of their tile, see .gv-dyn) */
   .gv-curve { display: none; }
+  .gv-actions .btn > span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gv-actions .btn { width: 28px; padding: 0; }
   /* automatic gain: the speed choices under their label, every choice a little tighter */
   .lv-adv .field-inline { grid-template-columns: minmax(0, 1fr); }
   .lv-adv .field-inline > .seg { justify-self: start; }
@@ -1288,6 +1319,7 @@ button.choice-item:hover { border-color: var(--accent); }
 }
 @media (min-width: 1101px) and (max-height: 800px) {
   .gv-pills { max-height: 40px; }
+  .gv-curve { height: 16px; }
 }
 @media (min-width: 1101px) and (max-height: 660px) {
   .gv-pills { max-height: 18px; }

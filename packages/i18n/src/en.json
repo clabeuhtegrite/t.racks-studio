@@ -609,6 +609,8 @@
  "Marge avant le compresseur et le limiteur de {0}": "Headroom before the compressor and the limiter of {0}",
  "Marge": "Headroom",
  "Lim.": "Lim.",
+ "Compresseur désactivé sur cette sortie (taux 1:1).": "Compressor off on this output (ratio 1:1).",
+ "Limiteur désactivé sur cette sortie (seuil au maximum).": "Limiter off on this output (threshold at maximum).",
  "en action": "acting",
  "Le compresseur ({0}) agit en ce moment.": "The compressor ({0}) is acting now.",
  "Le limiteur ({0}) agit en ce moment.": "The limiter ({0}) is acting now.",
