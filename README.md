@@ -1,127 +1,212 @@
-# DSP Studio
+<p align="center">
+  <img src="apps/web/public/icon.svg" width="80" height="80" alt="" />
+</p>
 
-Interface web complète pour les processeurs **the t.racks DSP 206** (2 entrées, 6 sorties) et
-**DSP 408** (4 entrées, 8 sorties) de Thomann. Elle remplace le « Processor Editor », qui n’existe
-que sous Windows, par une application qui fonctionne sur téléphone, tablette et ordinateur, avec
-toutes ses fonctions : chaque menu, dialogue et réglage du logiciel Windows a sa place dans DSP
-Studio (voir [la correspondance complète](docs/parite-logiciel-windows.md)).
+<h1 align="center">t.racks Studio</h1>
 
-Le protocole a été vérifié sur le vrai firmware des appareils, qui tourne dans un émulateur fourni
-avec le projet ([emulator/](emulator/README.md)).
+<p align="center">
+  Every setting of your t.racks DSP 206 and DSP 408, from a phone, a tablet or a computer.
+</p>
 
-## Ce qu’on peut faire
+<p align="center">
+  <b>English</b> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a>
+</p>
 
-- **Console** : volumes, mutes, polarité et vumètres de toutes les entrées et sorties, mute général
-  des sorties, annuler / rétablir, comparaison A/B.
-- **Canaux** : égaliseur paramétrique (8 bandes par entrée, 9 par sortie, 9 types de filtres) avec
-  courbe tactile, passe-haut et passe-bas (20 pentes Butterworth, Bessel, Linkwitz-Riley), délai,
-  gate (entrées), compresseur et limiteur (sorties), routage et mélange des entrées, égaliseur
-  graphique 31 bandes (entrées).
-- **Vues d’ensemble** : EQ graphique, dynamique, délais (avec alignement par distances), matrice.
-- **Presets** : rappel et enregistrement des 20 mémoires et du réglage d’usine F00, fichiers `.prs`
-  et sauvegardes complètes `.unt` compatibles avec le logiciel Windows, retour aux réglages d’usine.
-- **Appareil** : liaisons de canaux, copie de canal, noms des canaux, verrouillage par mot de passe,
-  compteur d’allumages (PTS), ID et adresse IP, générateur de test (bruits rose et blanc, 31 sinus).
-- **Outils** : assistant de filtrage 2 ou 3 voies, calculs de délai et de longueur d’onde, codes de
-  commande RS-232 (avec générateur de trames), console des trames échangées, journal des messages.
-- **En plus du logiciel Windows** : plusieurs appareils à la fois, plusieurs écrans synchronisés en
-  direct, codes d’accès administrateur / opérateur, bibliothèque partagée de presets et de scènes,
-  fiche des réglages imprimable, thème clair ou sombre, application installable sur téléphone.
+<p align="center">
+  <a href="https://github.com/clabeuhtegrite/t.racks-studio/actions/workflows/ci.yml"><img src="https://github.com/clabeuhtegrite/t.racks-studio/actions/workflows/ci.yml/badge.svg" alt="Tests" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.18-339933.svg" alt="Node.js 22.18 or newer" />
+</p>
 
-## Démarrage rapide
+![The console of a DSP 408: response curves, meters, faders and mutes of every channel](docs/screenshots/en/console.png)
 
-Il faut [Node.js](https://nodejs.org) 22.18 ou plus récent.
+t.racks Studio replaces the *Processor Editor*, the Windows-only software of the **t.racks DSP 206**
+(2 inputs, 6 outputs) and **DSP 408** (4 inputs, 8 outputs) loudspeaker processors sold by Thomann.
+It runs in the browser of any screen on the network, in English, French or German, and keeps every
+menu, dialog and setting of the Windows editor ([where to find each one](docs/parite-logiciel-windows.md),
+in French).
+
+> [!NOTE]
+> t.racks Studio is an independent project, not made or endorsed by Thomann. Every command has been
+> checked against the devices’ own firmware, running in an emulator, but not on a real unit yet. If
+> you own one, a [hardware test report](https://github.com/clabeuhtegrite/t.racks-studio/issues/new?template=hardware-test.yml)
+> helps a lot.
+
+## Features
+
+**Everything the Windows editor does**
+
+- **Console**: volume, mute, polarity and meters of every input and output, response curves of the
+  channels.
+- **Channels**: parametric EQ (8 bands per input, 9 per output, 9 filter types) on a touch curve,
+  high-pass and low-pass filters (20 slopes: Butterworth, Bessel, Linkwitz-Riley), delay, gate
+  (inputs), compressor and limiter (outputs), routing and input mix, 31-band graphic EQ (inputs).
+- **Overviews**: graphic EQ, dynamics, delays and routing matrix of all the channels.
+- **Presets**: recall and store the 20 user memories and the F00 factory preset, `.prs` presets and
+  `.unt` full backups compatible with the Windows editor, factory reset.
+- **Device**: channel links, channel copy, channel names, password lock, power-on limit (PTS),
+  device ID and IP address, test generator (pink and white noise, 31 sine tones).
+- **Tools**: RS-232 command codes with a frame generator, console of the frames exchanged, message
+  log.
+
+**And more**
+
+- Several DSPs at once, and any number of screens kept in sync live.
+- Access codes: administrator (every setting) and operator (volumes, mutes and preset recall only).
+- Undo and redo, A/B comparison of two versions of the settings.
+- A library shared by every screen: presets, backups and scenes recalled in one tap without using a
+  device memory, with notes.
+- One-tap “mute the outputs”, delay alignment from distances, 2- and 3-way crossover assistant,
+  delay and wavelength calculators.
+- Printable settings sheet (or PDF).
+- Light and dark themes, app installable on phones and tablets (over HTTPS).
+- Runs on a Raspberry Pi wired to the venue network.
+
+![A channel in the light theme: parametric EQ and crossover of an output](docs/screenshots/en/channel.png)
+
+<p align="center">
+  <img src="docs/screenshots/en/phone.png" width="760" alt="On a phone: the console, the parametric EQ of an input and the presets" />
+</p>
+
+## Getting started
+
+You need [Node.js](https://nodejs.org) 22.18 or newer, on Windows, macOS or Linux. Then, in a
+terminal:
 
 ```sh
+git clone https://github.com/clabeuhtegrite/t.racks-studio.git
+cd t.racks-studio
 npm install
-npm run build        # compile l’interface web
-npm start -- --demo  # sans appareil : un DSP 206 et un DSP 408 virtuels
+npm run build
+npm start
 ```
 
-Ouvrez ensuite l’adresse affichée (par exemple http://localhost:8080) : sur cet ordinateur, ou sur
-n’importe quel téléphone ou tablette du même réseau Wi-Fi avec l’adresse en `http://192.168…:8080`.
+`npm start` runs the **bridge**, a small program that talks to the DSPs and serves the interface to
+every screen of the network. Open the address it shows: http://localhost:8080 on this computer, or
+the `http://192.168…:8080` one on a phone or a tablet of the same network.
 
-### Avec un vrai DSP
+Then add your DSPs once, on the **Connection** screen. t.racks Studio remembers them: you connect to
+them and disconnect from them on that screen.
 
-Le **pont** est le petit programme lancé par `npm start`. Il tourne sur un ordinateur (ou un
-Raspberry Pi) relié au DSP et sert l’interface à tous les écrans du réseau.
+| | |
+|---|---|
+| **Demo** | a virtual DSP 206 or DSP 408, to try everything without hardware |
+| **Ethernet** | searches the network, or takes the IP address of the DSP (192.168.1.101 out of the box) |
+| **USB** | a DSP plugged into the computer that runs the bridge |
+| **RS&#8209;232 / RS&#8209;485** | through a serial adapter (`COM3` on Windows, `/dev/ttyUSB0` on Linux); DSPs sharing an RS-485 bus are told apart by their ID |
+
+### Options
+
+`npm start -- --help` lists them all. The main ones:
+
+| Option | |
+|---|---|
+| `--pin code` | administrator code; without one, anyone on the network can change everything |
+| `--operator-pin code` | operator code: volumes, mutes and preset recall only |
+| `--port n` | HTTP port, 8080 by default |
+| `--data folder` | remembered devices and library, `~/.dsp-studio` by default |
+| `--cert file --key file` | HTTPS, for the installable app, and for USB or serial in the browser of another computer |
+
+### Linux and USB
+
+To open a DSP on USB without being root, install the udev rule, then unplug the DSP and plug it in
+again. Serial adapters need your user in the `dialout` group.
 
 ```sh
-npm start -- --tcp 192.168.1.101       # par Ethernet (adresse IP du DSP, 192.168.1.101 d’origine)
-npm start -- --usb                     # par USB
-npm start -- --serial /dev/ttyUSB0     # par RS-232 / RS-485 (COM3 sous Windows)
-npm start -- --tcp 192.168.1.101 --usb # plusieurs appareils à la fois
+sudo cp deploy/raspberry-pi/60-t.racks-dsp.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo usermod -aG dialout "$USER"   # serial adapters; takes effect at the next login
 ```
 
-Les appareils peuvent aussi être ajoutés depuis l’écran **Connexion**, qui sait chercher les DSP
-sur le réseau. Plusieurs DSP sur un même bus RS-485 se distinguent par leur ID : `--serial COM3#2`.
+### Without the bridge
 
-`npm start -- --help` liste toutes les options :
+The built interface (`apps/web/dist`) also works on its own, from any web server. Chrome and Edge
+then drive a DSP plugged into the computer over USB or serial by themselves (WebHID, Web Serial):
+this is the **browser mode** of the Connection screen. Ethernet always needs the bridge, since a
+browser cannot open a TCP connection.
 
-| Option | Rôle |
-| --- | --- |
-| `--pin code` | code administrateur (sinon toute personne du réseau peut tout régler) |
-| `--operator-pin code` | code opérateur : volumes, mutes et rappel de presets seulement |
-| `--port n` | port de l’interface (8080 par défaut) |
-| `--cert fichier --key fichier` | HTTPS : application installable, USB et série du navigateur depuis un autre appareil |
-| `--data dossier` | bibliothèque et appareils mémorisés (`~/.dsp-studio` par défaut) |
-| `--demo [206\|408]` | DSP virtuel |
+## On a Raspberry Pi
 
-### Sans rien installer (Chrome ou Edge sur ordinateur)
-
-L’interface peut aussi piloter un DSP branché **en USB ou en série directement depuis le
-navigateur** (WebHID / Web Serial) : écran Connexion, mode navigateur. L’Ethernet passe toujours par
-le pont, car un navigateur ne peut pas ouvrir de connexion TCP directe.
-
-### Linux : accès à l’USB
-
-Pour que le pont (ou Chrome) puisse ouvrir le DSP en USB sans être administrateur :
+For a permanent setup, a Raspberry Pi wired to the venue network runs t.racks Studio for every
+screen, and starts it by itself when it is switched on. On Raspberry Pi OS Lite:
 
 ```sh
-echo 'SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0168", ATTRS{idProduct}=="0821", MODE="0660", TAG+="uaccess"' \
-  | sudo tee /etc/udev/rules.d/70-tracks-dsp.rules
-sudo udevadm control --reload-rules   # puis débranchez et rebranchez le DSP
+curl -fsSL https://raw.githubusercontent.com/clabeuhtegrite/t.racks-studio/main/deploy/raspberry-pi/install.sh | sudo bash
 ```
 
-## Sécurité
+Then open http://tracks-studio.local/. The [Raspberry Pi guide](docs/raspberry-pi.md) covers the
+card, the options, a fixed address and the access codes.
 
-Sans code, toute personne du réseau peut tout régler : définissez `--pin` dès que le réseau n’est
-pas le vôtre. Le pont refuse les pages d’autres sites (contrôle de l’origine), bloque un code après
-plusieurs erreurs et n’envoie jamais au DSP les commandes réservées à l’usine (mise à jour du
-firmware, effacement).
+## Security
+
+Without codes, anyone on the network can change every setting: set `--pin` as soon as the network
+is not yours alone. The bridge refuses pages from other sites (origin check), stops accepting codes
+for a minute after several wrong ones, and never sends the commands reserved for the factory
+(firmware update, memory erase) to a DSP.
+
+## Tested on the real firmware
+
+The firmware of the DSPs runs, instruction by instruction, in an emulator that comes with the
+project ([emulator/](emulator/README.md), in French), and the conformance tests check t.racks
+Studio against it. The firmware belongs to Thomann: the emulator downloads it from Thomann’s
+website to your computer, and it is never included in this repository.
 
 ## Documentation
 
-- [Correspondance avec le logiciel Windows](docs/parite-logiciel-windows.md) : chaque fonction et où
-  la trouver.
-- [Essais sur un vrai appareil](docs/essais-materiel.md) : quoi vérifier, et comment enregistrer les
-  échanges si quelque chose diffère.
-- [Architecture](docs/architecture.md) et [protocole des DSP](docs/protocole.md).
-- [Émulateur du firmware](emulator/README.md).
+Mostly in French for now:
 
-## Développement
+- [Windows editor parity](docs/parite-logiciel-windows.md): every function of the Windows editor,
+  and where it is in t.racks Studio.
+- [Hardware tests](docs/essais-materiel.md): what to check on a real unit, and how to record the
+  frames when something differs.
+- [Architecture](docs/architecture.md) and [protocol of the DSPs](docs/protocole.md).
+- [Firmware emulator](emulator/README.md).
+- [Raspberry Pi](docs/raspberry-pi.md), in English and [in French](docs/raspberry-pi.fr.md).
+
+## Development
 
 ```sh
-npm test               # tests (protocole, conformité au firmware, pont)
+npm test                      # unit tests: protocol, firmware conformance, bridge, translations
 npm run typecheck
-node apps/web/e2e/flows.cjs   # 26 parcours dans un navigateur (avec Playwright, pont lancé)
-npm run dev:bridge     # pont avec appareils virtuels, puis dans un autre terminal :
-npm run dev            # interface avec rechargement à chaud (http://localhost:5173)
+npm run dev:bridge            # a bridge with its own data (.dev/), then in another terminal:
+npm run dev                   # the interface with hot reload, on http://localhost:5173
+node apps/web/e2e/flows.cjs   # 29 end-to-end checks in a browser (Playwright, bridge running)
 ```
 
-| Dossier | Contenu |
-| --- | --- |
-| `packages/protocol` | trames, réglages, commandes, presets, fichiers .prs/.unt, DSP virtuel (TypeScript, sans dépendance) |
-| `apps/bridge` | le pont : USB, Ethernet, série, découverte, serveur web et WebSocket, bibliothèque |
-| `apps/web` | l’interface (React) |
-| `emulator` | émulateur du firmware (Python) et tests sur le vrai firmware |
+| Folder | |
+|---|---|
+| `packages/protocol` | frames, settings, commands, presets, `.prs` and `.unt` files, virtual DSP (TypeScript, no dependency) |
+| `packages/i18n` | translations, shared by the interface and the bridge |
+| `apps/bridge` | the bridge: USB, Ethernet, serial, discovery, web and WebSocket server, library |
+| `apps/web` | the interface (React) |
+| `emulator` | firmware emulator (Python) and its tests |
+| `deploy/raspberry-pi` | install script and service for a Raspberry Pi |
 
-## Remerciements et mentions
+### Translations
 
-Le protocole a d’abord été décrit par d’autres passionnés, dont les travaux ont servi de point de
-départ : dxtrzlb/z3r0-dsp206, gr4per/dsp206, FlexiFlizz/t.racks-DSP-control,
-Aeternitaas/dsp-408-ui et DoctorRemoteControl/dsp408-protocol. Aucun code n’en est repris : tout a
-été réécrit et vérifié sur le firmware.
+The interface is written in French, and each French text is the key of its translation in
+[`en.json`](packages/i18n/src/en.json) and [`de.json`](packages/i18n/src/de.json). `npm run i18n`
+lists the texts left to translate, and the tests check that every translation keeps the
+placeholders (`{0}`, `{1}`…) of its text. Corrections are welcome; to add a language, see
+[`packages/i18n/src/index.ts`](packages/i18n/src/index.ts).
 
-DSP Studio n’est ni développé ni soutenu par Thomann. « the t.racks » est une marque de Thomann GmbH.
-Le firmware des appareils n’est pas fourni avec ce projet. Licence MIT.
+### Contributing
+
+Issues and pull requests are welcome, in English, French or German. Before a pull request, run
+`npm run typecheck` and `npm test`. The end-to-end checks use virtual DSPs; never point them at a
+DSP in use, since they change its presets and its lock.
+
+## Credits
+
+Other enthusiasts first described the protocol, and their work was the starting point:
+[dxtrzlb/z3r0-dsp206](https://github.com/dxtrzlb/z3r0-dsp206),
+[gr4per/dsp206](https://github.com/gr4per/dsp206),
+[FlexiFlizz/t.racks-DSP-control](https://github.com/FlexiFlizz/t.racks-DSP-control),
+[Aeternitaas/dsp-408-ui](https://github.com/Aeternitaas/dsp-408-ui) and
+[DoctorRemoteControl/dsp408-protocol](https://github.com/DoctorRemoteControl/dsp408-protocol). No
+code was taken from them: everything was written again and checked against the firmware.
+
+## License
+
+[MIT](LICENSE). t.racks Studio is not developed, supported or endorsed by Thomann. “the t.racks” is
+a trademark of Thomann. The firmware of the devices is not part of this project.

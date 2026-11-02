@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Pont réseau : sert l'interface web et pilote les DSP (USB, Ethernet, RS-232/485, émulateur, DSP virtuel)",
+  "description": "The t.racks Studio bridge: serves the web interface and drives the DSPs (USB, Ethernet, RS-232/485, virtual DSP)",
   "bin": {
-    "dsp-studio": "./src/main.ts"
+    "t.racks-studio": "./src/main.ts"
   },
   "scripts": {
     "start": "node src/main.ts"

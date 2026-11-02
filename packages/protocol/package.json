@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "The DSP 206 and DSP 408 protocol: frames, settings, commands, presets, .prs and .unt files, virtual DSP",
   "exports": { ".": "./src/index.ts" },
   "license": "MIT"
 }

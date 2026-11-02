@@ -1,8 +1,8 @@
 # Essais sur un vrai appareil
 
 t.racks Studio a été vérifié sur le vrai firmware v1.04, exécuté dans [l’émulateur](../emulator/README.md) :
-commandes, presets, fichiers, verrouillage, compteur PTS, mémoire système, et 26 parcours complets
-dans le navigateur. Quelques points ne peuvent se vérifier qu’avec un boîtier : le son et les
+commandes, presets, fichiers, verrouillage, compteur PTS, mémoire système, et 29 vérifications de bout
+en bout dans le navigateur. Quelques points ne peuvent se vérifier qu’avec un boîtier : le son et les
 vumètres, l’USB, le module Ethernet lui-même, un bus RS-485 avec plusieurs appareils, la façade et
 les vrais redémarrages. Cette page dit quoi essayer, et comment enregistrer les échanges si quelque
 chose ne se passe pas comme prévu.

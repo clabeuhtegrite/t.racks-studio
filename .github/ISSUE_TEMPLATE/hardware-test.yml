@@ -1,0 +1,71 @@
+name: Hardware test report
+description: You tried t.racks Studio on a real DSP 206 or DSP 408. Thank you!
+title: "Hardware test: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every command has been checked against the firmware running in an emulator; sound, meters, USB, the Ethernet module and the front panel can only be checked on a real unit. You can write in English, French or German.
+
+        Before you start: back up the device (Presets > Whole device > Back up the device), turn the amplifiers down, and close the Windows editor. The [hardware test guide](https://github.com/clabeuhtegrite/t.racks-studio/blob/main/docs/essais-materiel.md) (in French) gives the expected result of each check.
+  - type: dropdown
+    id: model
+    attributes:
+      label: Device
+      options:
+        - DSP 206
+        - DSP 408
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+      description: Device > General > Information.
+      placeholder: V1.04
+    validations:
+      required: true
+  - type: checkboxes
+    id: links
+    attributes:
+      label: Connections tried
+      options:
+        - label: Ethernet
+        - label: USB, through the bridge
+        - label: USB, browser mode (Chrome or Edge)
+        - label: RS-232
+        - label: RS-485, several devices on one line
+  - type: input
+    id: bridge
+    attributes:
+      label: Computer that runs the bridge
+      placeholder: Windows 11 / macOS 15 / Raspberry Pi 4
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works as expected
+      description: Tick what you tried and found right; describe the rest below.
+      options:
+        - label: Connection, model, version and preset names
+        - label: Meters, Clip and Limit indicators
+        - label: Live settings (volume, mute, EQ, filters, delay, polarity) heard straight away
+        - label: A change on the front panel shows after Device > General > Read again
+        - label: Store and recall presets (U01 to U20, F00), same names on the front panel
+        - label: .prs and .unt files open in the Windows editor, and the other way round
+        - label: Full backup, factory reset and restore
+        - label: Password lock
+        - label: Power-on limit (PTS)
+        - label: New IP address or ID after a restart
+        - label: Ethernet search finds the device
+        - label: Test generator (pink noise, sine, stop)
+        - label: RS-232 codes (Extend protocol) from a serial terminal
+        - label: Several screens on the same device
+  - type: textarea
+    id: differs
+    attributes:
+      label: What differed
+      description: What you did, what you expected, and what happened. Attach the frames file (Tools > Frames > Pause > Download) and, if you can, a capture of the Windows editor doing the same (Wireshark with `tcp.port == 9761`, or USBPcap). Lock and PTS passwords appear in clear in frames 2D, 2E and 2F.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else

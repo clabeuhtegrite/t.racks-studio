@@ -1,8 +1,14 @@
 {
-  "name": "dsp-studio",
+  "name": "t.racks-studio",
   "private": true,
   "version": "0.1.0",
   "description": "Unofficial web editor for the t.racks DSP 206 and DSP 408 processors (Thomann)",
+  "homepage": "https://github.com/clabeuhtegrite/t.racks-studio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clabeuhtegrite/t.racks-studio.git"
+  },
+  "bugs": "https://github.com/clabeuhtegrite/t.racks-studio/issues",
   "type": "module",
   "workspaces": [
     "packages/*",

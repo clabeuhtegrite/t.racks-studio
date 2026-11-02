@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interface web de t.racks Studio (React) : mobile, tablette et ordinateur",
+  "description": "The t.racks Studio web interface (React), for phones, tablets and computers",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
