@@ -7,6 +7,7 @@ et l'extrait sur votre machine, dans emulator/firmware/ (dossier ignoré par git
     python3 emulator/fetch_firmware.py            # les deux modèles
     python3 emulator/fetch_firmware.py 408        # un seul modèle
     python3 emulator/fetch_firmware.py --exe ~/Téléchargements/435194_update_dsp_408_v1_04_netstartverdet.exe
+    python3 emulator/fetch_firmware.py --out /data/firmware   # ailleurs que dans emulator/firmware/
 
 How it works: the updater (a Windows program) carries the firmware as Intel HEX records, each one a
 NUL-terminated ASCII string. They are collected, checked (record checksums, reset vector, the
@@ -125,7 +126,11 @@ def main():
     ap = argparse.ArgumentParser(description="Récupère le firmware officiel des DSP 206 / 408 pour l'émulateur.")
     ap.add_argument('models', nargs='*', choices=['206', '408'], help='modèles (les deux par défaut)')
     ap.add_argument('--exe', help='utiliser un fichier de mise à jour déjà téléchargé au lieu de le télécharger')
+    ap.add_argument('--out', help='dossier où ranger le firmware (emulator/firmware/ par défaut)')
     a = ap.parse_args()
+    if a.out:
+        global OUT
+        OUT = os.path.abspath(a.out)
     if a.exe:
         print(f'Extraction depuis {a.exe}')
         found = extract(a.exe)

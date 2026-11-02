@@ -1,0 +1,82 @@
+# One pod: the web interface, the bridge in sandbox mode, two DSPs running the real firmware in the
+# emulator and a demo DSP. Its state lives in memory and in /data: one replica only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracks-studio-demo
+  labels:
+    app.kubernetes.io/name: tracks-studio
+    app.kubernetes.io/component: demo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tracks-studio
+      app.kubernetes.io/component: demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tracks-studio
+        app.kubernetes.io/component: demo
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: demo
+          image: ghcr.io/clabeuhtegrite/t.racks-studio:main
+          imagePullPolicy: Always
+          args: ["demo"]
+          env:
+            - name: TZ
+              value: Europe/Paris
+            # - name: DEMO_RESET_AT        # daily reset, local time ("off" for none)
+            #   value: "04:00"
+            # - name: DEMO_IDLE_RESET      # minutes without any open screen before a reset (0: never)
+            #   value: "30"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            # a reset restarts the web server for a second or two
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            # about one core per emulated DSP while it is connected; nearly nothing two minutes after
+            # the last screen has closed (the DSPs are disconnected, the emulators pause)
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        # firmware downloaded from Thomann's site at start (3 MB) and the state of the demo;
+        # a small PersistentVolumeClaim instead keeps the firmware across restarts of the pod
+        - name: data
+          emptyDir:
+            sizeLimit: 200Mi

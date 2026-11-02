@@ -1,0 +1,14 @@
+# only what the Dockerfile copies; never the firmware or a device's memory
+**/node_modules
+**/dist
+**/__pycache__
+*.log
+.git
+.github
+.dev
+docs
+emulator/firmware
+emulator/state
+emulator/tools
+**/test
+**/e2e

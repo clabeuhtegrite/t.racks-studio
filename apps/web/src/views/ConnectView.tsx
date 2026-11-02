@@ -223,6 +223,7 @@ interface AddProps {
 }
 
 function AddTcp({ backend, onAdd, idScan, id, setId, name }: AddProps): React.JSX.Element {
+  const sandbox = useApp((s) => s.sandbox);
   const [host, setHost] = useState('');
   const [port, setPort] = useState(String(DSP_TCP_PORT));
   const [found, setFound] = useState<FoundModule[] | null>(null);
@@ -237,21 +238,28 @@ function AddTcp({ backend, onAdd, idScan, id, setId, name }: AddProps): React.JS
     <form className="form add-form" onSubmit={(e) => { e.preventDefault(); if (host.trim()) void onAdd(spec()); }}>
       <div className="row wrap">
         <Button icon="search" disabled={searching} onClick={search}>{searching ? t('Recherche sur le réseau…') : t('Rechercher sur le réseau')}</Button>
-        <label className="check">
-          <input type="checkbox" checked={sweep} onChange={(e) => setSweep(e.target.checked)} />
-          <span>{t('Sonder aussi chaque adresse du réseau local (plus long)')}</span>
-        </label>
+        {!sandbox && (
+          <label className="check">
+            <input type="checkbox" checked={sweep} onChange={(e) => setSweep(e.target.checked)} />
+            <span>{t('Sonder aussi chaque adresse du réseau local (plus long)')}</span>
+          </label>
+        )}
         {searching && <Spinner />}
       </div>
       {found && (
         <div className="found">
           {found.length === 0 && <span className="small muted">{t('Aucun module Ethernet trouvé. Vérifiez que le DSP et le pont sont sur le même réseau, ou saisissez son adresse.')}</span>}
-          {found.map((f) => (
-            <button key={f.host} type="button" className={`pick ${host.trim() === f.host ? 'is-on' : ''}`} title={f.mac || undefined}
-              onClick={() => { setHost(f.host); setPort(String(DSP_TCP_PORT)); idScan.reset(); }}>
-              {[f.host, tm(f.name)].filter(Boolean).join(' · ')}
-            </button>
-          ))}
+          {found.map((f) => {
+            // emulators listen on other ports than the module's 9761
+            const fPort = f.port ?? DSP_TCP_PORT;
+            const on = host.trim() === f.host && (Number(port) || DSP_TCP_PORT) === fPort;
+            return (
+              <button key={`${f.host}:${fPort}`} type="button" className={`pick ${on ? 'is-on' : ''}`} title={f.mac || undefined}
+                onClick={() => { setHost(f.host); setPort(String(fPort)); idScan.reset(); }}>
+                {[fPort === DSP_TCP_PORT ? f.host : `${f.host}:${fPort}`, tm(f.name)].filter(Boolean).join(' · ')}
+              </button>
+            );
+          })}
         </div>
       )}
       <div className="form-inline">

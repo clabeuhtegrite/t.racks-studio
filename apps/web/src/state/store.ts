@@ -44,6 +44,8 @@ export interface AppState {
   status: BackendStatus | 'starting';
   role: Role;
   pinRequired: boolean;
+  /** demo instance open to anyone (bridge --sandbox) */
+  sandbox: boolean;
   devices: DeviceInfo[];
   current: string | null;
   mirror: DeviceMirror | null;
@@ -75,7 +77,7 @@ function applyLang(l: Lang | ''): Lang {
 
 const initialPrefs = loadPrefs();
 let state: AppState = {
-  backend: null, mode: null, served: false, status: 'starting', role: 'viewer', pinRequired: false, devices: [], current: null, mirror: null,
+  backend: null, mode: null, served: false, status: 'starting', role: 'viewer', pinRequired: false, sandbox: false, devices: [], current: null, mirror: null,
   toasts: [], journal: [], dialog: null, busy: null, prefs: initialPrefs, lang: applyLang(initialPrefs.lang),
 };
 const listeners = new Set<() => void>();
@@ -169,7 +171,7 @@ const localized = (list: DeviceInfo[]): DeviceInfo[] => list.map((d) => ({ ...d,
 function attach(b: Backend, mode: 'bridge' | 'local'): void {
   const seen = new Map<string, string>();
   b.on('status', (st) => {
-    setState({ status: st, role: b.role, pinRequired: b.pinRequired });
+    setState({ status: st, role: b.role, pinRequired: b.pinRequired, sandbox: b.sandbox });
     logLine(mode === 'bridge' ? t('Pont : {0}', stateLabel(st)) : t('Navigateur : {0}', stateLabel(st)), st === 'offline' ? 'warn' : 'info');
   });
   b.on('devices', (list) => {
@@ -185,7 +187,7 @@ function attach(b: Backend, mode: 'bridge' | 'local'): void {
       selectDevice(pick.key);
     }
   });
-  setState({ backend: b, mode, status: b.status, role: b.role, devices: localized(b.devices), pinRequired: b.pinRequired });
+  setState({ backend: b, mode, status: b.status, role: b.role, devices: localized(b.devices), pinRequired: b.pinRequired, sandbox: b.sandbox });
 }
 
 export async function startApp(): Promise<void> {
@@ -198,7 +200,7 @@ export async function startApp(): Promise<void> {
     attach(b, 'bridge');
     try {
       await b.start();
-      setState({ role: b.role, pinRequired: b.pinRequired, status: b.status, devices: localized(b.devices) });
+      setState({ role: b.role, pinRequired: b.pinRequired, sandbox: b.sandbox, status: b.status, devices: localized(b.devices) });
       const list = b.devices;
       if (list.length && !getState().current) {
         const pick = list.find((d) => d.key === p.lastDevice) ?? list.find((d) => d.state === 'online') ?? list[0];
@@ -224,7 +226,7 @@ export async function connectBridge(address: string): Promise<void> {
   const s = getState();
   s.mirror?.stop();
   s.backend?.close();
-  setState({ backend: null, mirror: null, current: null, devices: [], status: 'starting' });
+  setState({ backend: null, mirror: null, current: null, devices: [], sandbox: false, status: 'starting' });
   await startApp();
 }
 /** "192.168.1.20", "pc.local:8081", "https://x" or "ws://x/ws" -> WebSocket address of the bridge */

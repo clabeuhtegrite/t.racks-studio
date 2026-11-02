@@ -151,6 +151,18 @@ curl -fsSL https://raw.githubusercontent.com/clabeuhtegrite/t.racks-studio/main/
 Then open http://tracks-studio.local/. The [Raspberry Pi guide](docs/raspberry-pi.md) covers the
 card, the options, a fixed address and the access codes.
 
+## A demo instance
+
+To let anyone try t.racks Studio without a DSP, the Docker image runs a demo instance: the DSP 206
+and DSP 408 firmware in the emulator and a demo DSP, open to anyone without giving access to the
+network of the server, and back to its starting state by itself:
+
+```sh
+docker run -d -p 8080:8080 -v tracks-demo:/data ghcr.io/clabeuhtegrite/t.racks-studio:main demo
+```
+
+The [demo guide](docs/demo.md) covers Docker Compose, Kubernetes, reverse proxies and the settings.
+
 ## Security
 
 Without codes, anyone on the network can change every setting: set `--pin` as soon as the network
@@ -176,6 +188,7 @@ Mostly in French for now:
 - [Architecture](docs/architecture.md) and [protocol of the DSPs](docs/protocole.md).
 - [Firmware emulator](emulator/README.md).
 - [Raspberry Pi](docs/raspberry-pi.md), in English and [in French](docs/raspberry-pi.fr.md).
+- [Demo instance](docs/demo.md), in English and [in French](docs/demo.fr.md).
 
 ## Development
 
@@ -195,6 +208,8 @@ node apps/web/e2e/flows.cjs   # 39 end-to-end checks in a browser (Playwright, b
 | `apps/web` | the interface (React) |
 | `emulator` | firmware emulator (Python) and its tests |
 | `deploy/raspberry-pi` | install script and service for a Raspberry Pi |
+| `deploy/demo` | demo instance: launcher, Docker Compose and Kubernetes files |
+| `deploy/docker` | entry point of the Docker image (`Dockerfile` at the root) |
 
 ### Translations
 

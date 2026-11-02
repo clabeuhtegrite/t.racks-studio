@@ -250,6 +250,7 @@ function TopBar(): React.JSX.Element {
   const role = useApp((s) => s.role);
   const pinRequired = useApp((s) => s.pinRequired);
   const mode = useApp((s) => s.mode);
+  const sandbox = useApp((s) => s.sandbox);
   return (
     <header className="top">
       <a className="brand" href={href('vue')} aria-label={t('t.racks Studio, accueil')}>
@@ -265,9 +266,26 @@ function TopBar(): React.JSX.Element {
       )}
       <div className="top-spacer" />
       {mode === 'local' && <Badge tone="muted" title={t('Le navigateur pilote directement le DSP')}>{t('Navigateur')}</Badge>}
+      {sandbox && <DemoBadge />}
       {(role !== 'admin' || pinRequired) && <RoleButton />}
       {mirror && config && role !== 'viewer' && <HistoryButtons />}
     </header>
+  );
+}
+
+/** A demo instance open to anyone (bridge --sandbox): what visitors are looking at. */
+function DemoBadge(): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="badge badge-accent demo-badge" aria-haspopup="dialog" title={t('Instance de démonstration')} onClick={() => setOpen(true)}>{t('Démo')}</button>
+      {open && (
+        <Modal title={t('Instance de démonstration')} onClose={() => setOpen(false)} footer={<Button kind="primary" onClick={() => setOpen(false)}>{t('Fermer')}</Button>}>
+          <p>{t('Les DSP « émulés » font tourner le vrai firmware Thomann sur ce serveur : ils répondent comme un boîtier, mais sans son (vumètres au repos). Les DSP de démo sont simulés, avec des vumètres animés.')}</p>
+          <p className="muted">{t('Ces appareils sont partagés avec les autres visiteurs et tout revient de lui-même à l’état de départ. Pour piloter vos propres DSP, installez t.racks Studio sur un ordinateur ou un Raspberry Pi de votre réseau.')}</p>
+        </Modal>
+      )}
+    </>
   );
 }
 

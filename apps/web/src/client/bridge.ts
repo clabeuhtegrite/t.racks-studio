@@ -24,6 +24,7 @@ export class BridgeBackend implements Backend {
   clientId = 0;
   role: Role = 'viewer';
   pinRequired = false;
+  sandbox = false;
   version = '';
   status: BackendStatus = 'connecting';
   devices: DeviceInfo[] = [];
@@ -97,17 +98,18 @@ export class BridgeBackend implements Backend {
     this.clientId = Number(m.id);
     this.version = String(m.version ?? '');
     this.pinRequired = !!m.pinRequired;
+    type Hello = { role: Role; devices: DeviceInfo[]; sandbox?: boolean };
+    let h: Hello;
     try {
-      const h = await this.req<{ role: Role; devices: DeviceInfo[] }>({ t: 'hello', pin: this.pin || undefined, name: this.name });
-      this.role = h.role;
-      this.devices = h.devices;
+      h = await this.req<Hello>({ t: 'hello', pin: this.pin || undefined, name: this.name });
     } catch {
       // wrong saved PIN: continue as a viewer, the app asks again
       this.pin = '';
-      const h = await this.req<{ role: Role; devices: DeviceInfo[] }>({ t: 'hello', name: this.name });
-      this.role = h.role;
-      this.devices = h.devices;
+      h = await this.req<Hello>({ t: 'hello', name: this.name });
     }
+    this.role = h.role;
+    this.devices = h.devices;
+    this.sandbox = !!h.sandbox;
     this.retryMs = 800;
     this.em.emit('devices', this.devices);
     this.setStatus('online');
