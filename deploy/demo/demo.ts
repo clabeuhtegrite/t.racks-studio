@@ -184,6 +184,8 @@ export class Demo {
   /** a screen was open since the last reset */
   private visited = false;
   private lastSeen = Date.now();
+  /** connections the bridge had counted at the last look */
+  private connections = 0;
   private dailyTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -234,6 +236,7 @@ export class Demo {
     for (const c of this.children) c.start();
     this.visited = false;
     this.lastSeen = Date.now();
+    this.connections = 0;
     const list = [
       ...emulators.map((m, i) => `DSP ${m} (real firmware, emulated on port ${EMULATOR_PORT + i})`),
       ...cfg.virtual.map((m) => `demo DSP ${m}`),
@@ -268,15 +271,27 @@ export class Demo {
     }, next.getTime() - Date.now());
   }
 
-  /** Counts the open screens (the bridge's /api/health) and resets once nobody is left for a while. */
+  /**
+   * Looks at the screens (the bridge's /api/health: open now, connections since its start) and resets
+   * once nobody has come for a while. The bridge itself disconnects the DSPs two minutes after the
+   * last screen, so the emulators rest in between.
+   */
   private async checkIdle(): Promise<void> {
     if (this.busy || this.stopped) return;
-    let clients: number;
+    let clients: number, connections: number;
     try {
       const r = await fetch(`http://127.0.0.1:${this.cfg.port}/api/health`, { signal: AbortSignal.timeout(5000) });
-      clients = Number(((await r.json()) as { clients?: unknown }).clients) || 0;
+      const h = (await r.json()) as { clients?: unknown; connections?: unknown };
+      clients = Number(h.clients) || 0;
+      connections = Number(h.connections) || 0;
     } catch { return; } // the bridge is starting
-    if (clients > 0) { this.visited = true; this.lastSeen = Date.now(); return; }
+    if (clients > 0 || connections !== this.connections) {
+      // someone is here, or came and left between two looks
+      this.visited = true;
+      this.lastSeen = Date.now();
+      this.connections = connections;
+      return;
+    }
     const idle = this.cfg.idleMinutes;
     if (this.visited && idle > 0 && Date.now() - this.lastSeen >= idle * 60_000) await this.reset(`nobody for ${idle} min`);
   }

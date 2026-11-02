@@ -164,10 +164,11 @@ docker compose -f deploy/demo/compose.yaml pull && docker compose -f deploy/demo
 
 ## Resources
 
-About 150 MB of memory. At rest the emulators are paused and the instance uses almost no processor;
-an emulated DSP takes about one core while a visitor is connected to it (the firmware runs
-instruction by instruction). The [Kubernetes deployment](../deploy/demo/kubernetes/deployment.yaml)
-asks for 0.1 core and 256 MiB, and is limited to 2 cores and 512 MiB.
+About 150 MB of memory. An emulated DSP takes about one core while it is connected (the firmware
+runs instruction by instruction). Two minutes after the last screen closes, the DSPs are
+disconnected and the emulators pause: at rest, the instance uses almost no processor. The
+[Kubernetes deployment](../deploy/demo/kubernetes/deployment.yaml) asks for 0.1 core and 256 MiB,
+and is limited to 2 cores and 512 MiB.
 
 ## The image for real DSPs
 

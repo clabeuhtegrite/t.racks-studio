@@ -58,7 +58,8 @@ spec:
             periodSeconds: 20
             failureThreshold: 6
           resources:
-            # nearly nothing at rest; about one core per emulated DSP while a visitor is connected to it
+            # about one core per emulated DSP while it is connected; nearly nothing two minutes after
+            # the last screen has closed (the DSPs are disconnected, the emulators pause)
             requests:
               cpu: 100m
               memory: 256Mi

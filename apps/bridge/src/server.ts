@@ -33,6 +33,8 @@ export interface Sandbox {
   maxDevices: number;
   /** library entries at most (2 MB each at most: 100 MB) */
   maxLibrary: number;
+  /** devices are disconnected once no screen has been open for this long, so the emulators rest */
+  idleDisconnectMs: number;
 }
 
 /** The sandbox of a bridge whose remembered devices are `devices`. */
@@ -41,7 +43,7 @@ export function sandboxOf(devices: { spec: SourceSpec; label?: string }[]): Sand
   for (const d of devices) {
     if (d.spec.kind === 'tcp') endpoints.push({ host: d.spec.host, port: d.spec.port ?? DSP_TCP_PORT, name: d.label ?? 'Module Ethernet' });
   }
-  return { endpoints, maxDevices: Math.max(8, devices.length + 2), maxLibrary: 50 };
+  return { endpoints, maxDevices: Math.max(8, devices.length + 2), maxLibrary: 50, idleDisconnectMs: 2 * 60_000 };
 }
 
 export interface ServerOptions {
@@ -100,6 +102,8 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
   const log = o.log ?? ((m: string) => console.log(m));
   const clients = new Map<number, Client>();
   let nextId = 1;
+  /** WebSocket connections since the start (a demo instance knows from it whether anyone came) */
+  let connections = 0;
   // device key -> client (and its sequence number) whose action is being applied right now
   const origin = new Map<string, { client: number; seq: number }>();
 
@@ -195,6 +199,22 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
     if (use === 'add' && !o.hub.get(sourceKey(spec)) && o.hub.devices.size >= sb.maxDevices) {
       throw new Error(`instance de démonstration : ${sb.maxDevices} appareils au plus`);
     }
+  };
+  /** On a demo instance, the devices are disconnected once nobody has had a screen open for a while. */
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  const nobodyLeft = (): void => {
+    if (!sb) return;
+    if (clients.size > 0) {
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+      return;
+    }
+    if (idleTimer) return;
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      if (clients.size > 0) return;
+      for (const d of o.hub.devices.values()) if (d.state !== 'idle') void o.hub.disconnect(d.key).catch(() => {});
+    }, sb.idleDisconnectMs);
+    idleTimer.unref();
   };
   /** The "network search" of a demo instance: its emulated DSPs, without touching the network. */
   const sandboxFound = (): FoundModule[] => (sb?.endpoints ?? []).map((e) => ({
@@ -297,8 +317,9 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
     const url = new URL(req.url ?? '/', 'http://x');
     if (url.pathname === '/api/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      // `clients`: screens open right now (a demo instance starts again from scratch once nobody is left)
-      res.end(JSON.stringify({ ok: true, version: BRIDGE_VERSION, devices: o.hub.list(), clients: clients.size }));
+      // `clients`: screens open right now, `connections`: since the start (a demo instance starts again
+      // from scratch once nobody has come for a while)
+      res.end(JSON.stringify({ ok: true, version: BRIDGE_VERSION, devices: o.hub.list(), clients: clients.size, connections }));
       return;
     }
     if (!webRoot) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end(t('interface web non compilée (npm run build)')); return; }
@@ -338,11 +359,13 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
     }
   }, HEARTBEAT_MS);
   heartbeat.unref();
-  server.on('close', () => clearInterval(heartbeat));
+  server.on('close', () => { clearInterval(heartbeat); if (idleTimer) clearTimeout(idleTimer); });
 
   wss.on('connection', (ws, req) => {
     const c: Client = { id: nextId++, ip: req.socket.remoteAddress ?? '?', ws, role: roleOf(undefined), name: '', subs: new Set(), debug: new Set() };
     clients.set(c.id, c);
+    connections++;
+    nobodyLeft();
     alive.add(ws);
     ws.on('pong', () => alive.add(ws));
     log(`client ${c.id} connecté (${req.socket.remoteAddress})`);
@@ -355,7 +378,7 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
         (e: Error) => { if (rid !== undefined) send(c, { t: 'result', rid, ok: false, error: e.message }); },
       );
     });
-    ws.on('close', () => { clients.delete(c.id); log(`client ${c.id} parti`); });
+    ws.on('close', () => { clients.delete(c.id); log(`client ${c.id} parti`); nobodyLeft(); });
     send(c, { t: 'welcome', id: c.id, version: BRIDGE_VERSION, pinRequired: !!(o.pins?.admin || o.pins?.operator) });
   });
 

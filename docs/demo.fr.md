@@ -167,10 +167,11 @@ docker compose -f deploy/demo/compose.yaml pull && docker compose -f deploy/demo
 
 ## Ressources
 
-Environ 150 Mo de mémoire. Au repos, les émulateurs sont en pause et l’instance n’utilise presque pas
-de processeur ; un DSP émulé occupe environ un cœur tant qu’un visiteur y est connecté (le firmware
-tourne instruction par instruction). Le [déploiement Kubernetes](../deploy/demo/kubernetes/deployment.yaml)
-demande 0,1 cœur et 256 Mio, et se limite à 2 cœurs et 512 Mio.
+Environ 150 Mo de mémoire. Un DSP émulé occupe environ un cœur tant qu’il est connecté (le firmware
+tourne instruction par instruction). Deux minutes après la fermeture du dernier écran, les DSP sont
+déconnectés et les émulateurs se mettent en pause : au repos, l’instance n’utilise presque pas de
+processeur. Le [déploiement Kubernetes](../deploy/demo/kubernetes/deployment.yaml) demande 0,1 cœur
+et 256 Mio, et se limite à 2 cœurs et 512 Mio.
 
 ## L’image pour de vrais DSP
 

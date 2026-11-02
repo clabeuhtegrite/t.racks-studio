@@ -264,7 +264,7 @@ describe('bridge server (demo instance open to anyone)', () => {
     hub = new Hub();
     hub.add(EMULATED, 'DSP 206 émulé', false);
     hub.add({ kind: 'demo', model: 'dsp408' }, undefined, false);
-    const sandbox = { ...sandboxOf([{ spec: EMULATED, label: 'DSP 206 émulé' }, { spec: { kind: 'demo', model: 'dsp408' } }]), maxDevices: 3, maxLibrary: 2 };
+    const sandbox = { ...sandboxOf([{ spec: EMULATED, label: 'DSP 206 émulé' }, { spec: { kind: 'demo', model: 'dsp408' } }]), maxDevices: 3, maxLibrary: 2, idleDisconnectMs: 300 };
     server = await startServer({ port: 0, host: '127.0.0.1', webDir: null, library, hub, sandbox, log: () => {} });
     const port = (server.address() as AddressInfo).port;
     url = `ws://127.0.0.1:${port}/ws`;
@@ -283,7 +283,7 @@ describe('bridge server (demo instance open to anyone)', () => {
       { spec: { kind: 'demo', model: 'dsp206' } },
     ])).toEqual({
       endpoints: [{ host: '127.0.0.1', port: 9761, name: 'DSP 206 émulé' }, { host: '127.0.0.1', port: 9761, name: 'Module Ethernet' }],
-      maxDevices: 8, maxLibrary: 50,
+      maxDevices: 8, maxLibrary: 50, idleDisconnectMs: 120_000,
     });
   });
 
@@ -335,14 +335,32 @@ describe('bridge server (demo instance open to anyone)', () => {
     c.close();
   });
 
-  it('counts the open screens', async () => {
-    const health = async (): Promise<number> => ((await (await fetch(`${base}/api/health`)).json()) as { clients: number }).clients;
+  it('counts the screens open now and since the start', async () => {
+    const health = async (): Promise<{ clients: number; connections: number }> => (await (await fetch(`${base}/api/health`)).json()) as { clients: number; connections: number };
+    const before = (await health()).connections;
     const c = new TestClient(url);
     await c.open();
     await c.wait((m) => m.t === 'welcome');
-    expect(await health()).toBe(1);
+    expect(await health()).toMatchObject({ clients: 1, connections: before + 1 });
     c.close();
-    await vi.waitFor(async () => expect(await health()).toBe(0));
+    await vi.waitFor(async () => expect(await health()).toMatchObject({ clients: 0, connections: before + 1 }));
+  });
+
+  it('disconnects the DSPs once nobody is left, so the emulators rest', async () => {
+    const KEY = 'demo:dsp408:1';
+    const a = new TestClient(url);
+    await a.open();
+    await a.req({ t: 'hello' });
+    expect(await a.req({ t: 'connect', key: KEY })).toMatchObject({ ok: true });
+    await waitOnline(hub, KEY);
+    // a screen comes and goes: the others keep their DSPs
+    const b = new TestClient(url);
+    await b.open();
+    b.close();
+    await new Promise((res) => setTimeout(res, 500));
+    expect(hub.get(KEY)!.state).toBe('online');
+    a.close();
+    await vi.waitFor(() => expect(hub.get(KEY)!.state).toBe('idle'), { timeout: 3000 });
   });
 });
 
