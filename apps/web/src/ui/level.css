@@ -66,6 +66,8 @@
 .lv-figures dt { font-size: 12px; color: var(--muted); }
 .lv-figures dd { margin: 0; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lv-status .badge { white-space: normal; line-height: 1.35; }
+.lv-badge { border: 0; cursor: pointer; }
+.lv-badge:hover { filter: brightness(1.15); }
 .lv-advice { display: flex; gap: 8px; align-items: flex-start; }
 .lv-advice svg { flex: none; color: var(--blue); margin-top: 1px; }
 .lv-inputs { display: flex; gap: 6px; flex-wrap: wrap; }

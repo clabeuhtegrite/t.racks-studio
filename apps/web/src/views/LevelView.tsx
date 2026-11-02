@@ -154,7 +154,7 @@ function NowCard({ mirror, st, config }: { mirror: DeviceMirror; st: LevelerStat
         <div><dt>{t('Corrections (1 h)')}</dt><dd>{`${st.writes} / ${budget}`}</dd></div>
       </dl>
       {advice && <p className="lv-advice"><Icon name="info" size={18} /><span><b>{t('Conseil au DJ')}</b> · {advice}</span></p>}
-      {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le signal atteint 0 dBFS. Baissez la sortie de la table de mixage.')}</Note>}
+      {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le vumètre est dans le rouge. Baissez la sortie de la table de mixage.')}</Note>}
       {st.limiting && <Note tone="warn">{t('Le limiteur d’une sortie travaille.')}</Note>}
     </Card>
   );

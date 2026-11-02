@@ -207,6 +207,23 @@ describe('automatic gain decisions', () => {
     expect(core.history.length).toBeGreaterThan(2);
   });
 
+  it('tells an output limiter from a compressor, and sees a clipping input', () => {
+    const cfg = defaultConfig('dsp206');
+    cfg.outputs[1].comp.ratio = 5; // Out2: compressor and limiter both in use
+    cfg.outputs[1].limiter.threshold = 200;
+    const core = new LevelerCore(settings({ enabled: false, meter: 'post' }));
+    const db = Array<number>(12).fill(-140);
+    db[0] = db[1] = -20;
+    core.observe(0, db, cfg, 1 << 1); // status word: the compressor of Out2 acts
+    expect(core.state(0)).toMatchObject({ limiting: false, clip: false });
+    core.observe(250, db, cfg, 1 << 9); // its limiter acts
+    expect(core.state(250).limiting).toBe(true);
+    expect(core.state(4000).limiting).toBe(false); // only the last 3 seconds count
+    db[0] = -2; // the red zone of the input meters starts at -3 dBFS
+    core.observe(4250, db, cfg, 0);
+    expect(core.state(4250).clip).toBe(true);
+  });
+
   it('turned off, the gains stay where they are', () => {
     const cfg = defaultConfig('dsp206');
     const core = new LevelerCore(settings({ meter: 'post' }));

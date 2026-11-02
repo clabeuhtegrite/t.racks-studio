@@ -16,9 +16,10 @@
 // assumed: `Leveler.checkMeter()` finds out with a short 6 dB dip.
 
 import { clamp, gainDbToRaw, gainRawToDb } from './codecs.ts';
-import type { Meters } from './commands.ts';
+import { dynamicsActive, meterZones, type Meters } from './meters.ts';
 import type { DeviceConfig } from './config.ts';
 import { linkedChannels } from './links.ts';
+import { MODELS } from './models.ts';
 import type { DeviceSession } from './session.ts';
 import type { Action } from './state.ts';
 
@@ -86,7 +87,6 @@ const MANUAL_HOLD_MS = 20_000;
 const HISTORY_EVERY_MS = 10_000;
 const HISTORY_MAX = 720; // 2 hours
 const HOUR_MS = 3_600_000;
-const CLIP_DB = -0.5;
 const GAIN_MAX_DB = 12;
 const GAIN_MIN_DB = -60;
 /** comparisons of levels ignore rounding noise */
@@ -128,7 +128,7 @@ export interface LevelerState {
   correction: number;
   /** gain changes in the last hour */
   writes: number;
-  /** an input reached 0 dBFS in the last 3 s */
+  /** a chosen input reached the red zone of its meter (clipping) in the last 3 s */
   clip: boolean;
   /** an output limiter acted in the last 3 s */
   limiting: boolean;
@@ -188,6 +188,12 @@ export function restoreLevelerSettings(v: unknown): LevelerSettings {
 
 interface Sample { t: number; l0: number | null; clip: boolean; limit: boolean }
 
+/** Is the limiter of an output acting (not its compressor), as the editors show it? */
+function limiting(status: number, cfg: DeviceConfig): boolean {
+  const inputs = MODELS[cfg.model].inputs;
+  return cfg.outputs.some((_, j) => dynamicsActive(status, cfg, inputs + j).limit);
+}
+
 const powerMean = (xs: readonly number[]): number => 10 * Math.log10(xs.reduce((a, x) => a + 10 ** (x / 10), 0) / xs.length);
 
 /**
@@ -238,8 +244,11 @@ export class LevelerCore {
 
   private channels(cfg: DeviceConfig): number[] { return this.settings.inputs.filter((i) => i < cfg.inputs.length); }
 
-  /** One meter reading (dBFS per wire channel, inputs first) with the configuration at that time. */
-  observe(now: number, db: readonly number[], cfg: DeviceConfig, limitBits = 0): void {
+  /**
+   * One meter reading (dBFS per wire channel, inputs first) with the configuration at that time;
+   * `status` is the status word of the meters (see meters.ts), for the output limiters.
+   */
+  observe(now: number, db: readonly number[], cfg: DeviceConfig, status = 0): void {
     if (this.paused) return;
     const s = this.settings;
     const chans = this.channels(cfg);
@@ -250,7 +259,8 @@ export class LevelerCore {
     for (const i of chans) {
       const c = cfg.inputs[i];
       const m = db[i] ?? -140;
-      if (m > CLIP_DB) clip = true;
+      // the red segment of the editors' bars (and of the app's meters): the input is clipping
+      if (m > meterZones(cfg.model, i).red) clip = true;
       if (c.mute) continue;
       const g = gainRawToDb(c.gain);
       const pre = s.meter === 'post' ? m - g : m;
@@ -259,7 +269,7 @@ export class LevelerCore {
     }
     let l0: number | null = levels.length ? powerMean(levels) : null;
     if (l0 !== null && l0 + this.correction < SILENCE_DB) l0 = null;
-    this.samples.push({ t: now, l0, clip, limit: limitBits !== 0 });
+    this.samples.push({ t: now, l0, clip, limit: status !== 0 && limiting(status, cfg) });
     const keep = now - Math.max(LEVELER_SPEEDS[s.speed].long, SHORT_MS) - 1000;
     let k = 0;
     while (k < this.samples.length && this.samples[k].t < keep) k++;

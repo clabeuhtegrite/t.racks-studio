@@ -12,7 +12,9 @@ import { go } from '../state/route.ts';
 import { Badge, Button, Card, Empty, Toggle } from '../ui/kit.tsx';
 import { Meter } from '../ui/Meter.tsx';
 import { Icon } from '../ui/icons.tsx';
-import { fmtIsoHz, P, presetLabel, stateLabel } from '../ui/format.ts';
+import { fmtIsoHz, fmtSigned, P, presetLabel, stateLabel } from '../ui/format.ts';
+import { statusText, statusTone, useLeveler } from '../state/leveler.ts';
+import '../ui/level.css';
 import { channelBlocks, chan, colorOf, labelOf, linkMates, responseOf } from '../ui/channels.tsx';
 import { t, tm } from '../i18n.tsx';
 
@@ -107,7 +109,7 @@ function DeviceOverview({ mirror, isCurrent }: { mirror: DeviceMirror; isCurrent
       </DeviceHead>
       {config && m ? (
         <>
-          <DeviceFacts cfg={config} />
+          <DeviceFacts cfg={config} mirror={mirror} isCurrent={isCurrent} />
           <h3 className="gv-group">{t('Entrées')}</h3>
           <div className="gv-grid">
             {config.inputs.map((c, i) => <ChannelTile key={i} mirror={mirror} cfg={config} ch={i} c={c} linked={linkMates(config, i).length > 0} canOperate={canOperate} isCurrent={isCurrent} />)}
@@ -151,8 +153,9 @@ function DeviceHead({ info, mirror, isCurrent, children }: { info: DeviceInfo | 
   );
 }
 
-/** Settings that matter for the whole device: test generator, links, delay unit. */
-function DeviceFacts({ cfg }: { cfg: DeviceConfig }): React.JSX.Element | null {
+/** Settings that matter for the whole device: automatic gain, test generator, links, delay unit. */
+function DeviceFacts({ cfg, mirror, isCurrent }: { cfg: DeviceConfig; mirror: DeviceMirror; isCurrent: boolean }): React.JSX.Element | null {
+  const lv = useLeveler(mirror);
   const m = MODELS[cfg.model];
   const all = Array.from({ length: m.inputs + m.outputs }, (_, i) => i);
   const groups: string[] = [];
@@ -165,9 +168,18 @@ function DeviceFacts({ cfg }: { cfg: DeviceConfig }): React.JSX.Element | null {
     groups.push([ch, ...mates].map((x) => labelOf(cfg, x)).join(' + '));
   }
   const tone = cfg.toneSource === 1 ? t('bruit rose') : cfg.toneSource === 2 ? t('bruit blanc') : cfg.toneSource === 3 ? t('sinus à {0}', fmtIsoHz(GEQ_FREQS[cfg.toneFreq])) : '';
-  if (!tone && !groups.length) return null;
+  const auto = lv?.settings.enabled ? lv : null;
+  if (!tone && !groups.length && !auto) return null;
   return (
     <div className="gv-facts">
+      {auto && (
+        <button
+          type="button" className={`badge badge-${statusTone(auto.status)} lv-badge`} title={`${statusText(auto.status)} · ${t('ouvrir le gain automatique')}`}
+          onClick={() => { if (!isCurrent) selectDevice(mirror.key); go('niveau'); }}
+        >
+          <Icon name="gauge" size={13} />{t('Gain auto : {0}', `${fmtSigned(auto.correction)} dB`)}
+        </button>
+      )}
       {tone && <Badge tone="warn" title={t('Le générateur remplace les entrées : Appareil > Générateur pour l’arrêter')}><Icon name="warning" size={13} />{t('Générateur actif : {0}', tone)}</Badge>}
       {groups.map((g) => <Badge key={g} tone="muted" title={t('Canaux liés : chaque réglage s’applique au groupe')}><Icon name="link" size={13} />{g}</Badge>)}
     </div>

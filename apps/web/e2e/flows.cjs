@@ -1,7 +1,8 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 32 vérifications
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 36 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
-// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale).
+// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale,
+// gain automatique et écran DJ).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
 //   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
@@ -266,6 +267,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   ok('vue globale : mute d’un canal depuis sa tuile', (await tile.getAttribute('class')).includes('is-muted'));
   await tile.getByRole('button', { name: 'Mute' }).click();
   await wait(500);
+
+  // 16. automatic gain: turned on from the computer, followed by the phone's DJ screen, badge in the overview
+  await A.evaluate(() => { location.hash = '#/niveau'; });
+  await wait(1500);
+  await A.getByRole('button', { name: 'Gain automatique désactivé' }).click();
+  await wait(800);
+  ok('gain auto : activé depuis la page Gain auto', await A.getByRole('button', { name: 'Gain automatique activé' }).isVisible());
+  await setField(A, 'Niveau cible', '-10');
+  await wait(1000);
+  ok('gain auto : niveau cible enregistré', (await field(A, 'Niveau cible').inputValue()) === '−10,0 dBFS', await field(A, 'Niveau cible').inputValue());
+  const key = await A.evaluate(() => JSON.parse(localStorage.getItem('dsp-studio.prefs') || '{}').lastDevice);
+  await B.evaluate((k) => { location.hash = '#/dj/' + encodeURIComponent(k); }, key);
+  await wait(3000);
+  const djLine = await B.locator('.dj-foot').innerText().catch(() => '');
+  ok('écran DJ : le téléphone suit le gain auto de cet appareil', (await B.locator('.dj-main').isVisible()) && /Gain automatique\s:\s[+−]?\d/.test(djLine), djLine.split('\n')[0]);
+  if (SHOTS) await B.screenshot({ path: `${SHOTS}/flow-dj-phone.png` });
+  await A.evaluate(() => { location.hash = '#/vue'; });
+  await wait(1200);
+  ok('vue globale : badge du gain auto', (await A.locator('.lv-badge', { hasText: 'Gain auto' }).count()) === 1);
+  await A.evaluate(() => { location.hash = '#/niveau'; });
+  await wait(1000);
+  await A.getByRole('button', { name: 'Gain automatique activé' }).click();
+  await wait(600);
 
   console.log(results.join('\n'));
   console.log(errors.length ? 'ERREURS :\n' + errors.join('\n') : 'aucune erreur JavaScript');
