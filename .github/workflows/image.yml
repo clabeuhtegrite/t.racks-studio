@@ -47,15 +47,42 @@ jobs:
           docker logs demo
           [ -n "$ok" ] || { echo "::error::the demo instance does not answer"; exit 1; }
           cat health.json; echo
-          # the web interface is served, the demo DSP is listed (the emulated ones need Thomann's site)
+          # the web interface is served, the demo DSP is listed at once
           curl -fsS http://localhost:8080/ | grep -q 't.racks Studio'
           node -e '
             const h = require("./health.json");
             if (!h.ok || !h.devices.some((d) => d.spec.kind === "demo")) process.exit(1);
             console.log(h.devices.map((d) => d.label).join(", "));
           '
+          # the emulated DSPs come in once the firmware is downloaded from Thomann's site, in the
+          # background: only a warning without them, as the site may be out of the runner's reach
+          emulated() { curl -fsS http://localhost:8080/api/health | node -e '
+            let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+              process.exit(JSON.parse(s).devices.filter((d) => d.spec.kind === "tcp").length === 2 ? 0 : 1);
+            });'; }
+          ok=''
+          for _ in $(seq 1 45); do
+            if emulated; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs demo 2>&1 | grep -E '^\[(demo|firmware)\]' || true
+          [ -n "$ok" ] && echo "emulated DSP 206 and DSP 408 listed" || echo "::warning::no emulated DSP after 90 s (firmware download)"
           docker run --rm t.racks-studio:test --help | head -n 3
           docker run --rm t.racks-studio:test demo --help | head -n 2
+
+      - name: Try the demo instance with a download that hangs
+        run: |
+          # Thomann's site at an address that never answers: the interface must not wait for it
+          docker run -d --name hanging --read-only --cap-drop ALL -v hanging-data:/data \
+            --add-host fast-images.static-thomann.de:10.255.255.1 t.racks-studio:test demo
+          ok=''
+          for _ in $(seq 1 10); do
+            if docker exec hanging node -e 'fetch("http://127.0.0.1:8080/api/health").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs hanging
+          [ -n "$ok" ] || { echo "::error::the demo instance waits for the firmware download"; exit 1; }
+          docker rm -f hanging
 
       - name: Log in to the registry
         if: github.event_name != 'pull_request'

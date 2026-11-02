@@ -23,7 +23,9 @@
 // demo changes the Host header (see `node apps/bridge/src/main.ts --help`).
 //
 // The firmware belongs to Thomann and is never part of the image: it is downloaded from Thomann's
-// site at the first start (emulator/fetch_firmware.py) and kept in DEMO_DIR/firmware.
+// site at the first start (emulator/fetch_firmware.py) and kept in DEMO_DIR/firmware. The download
+// runs in the background: the interface answers at once with the demo DSP, and the emulated DSPs
+// come in as soon as no screen is open. A failed download is tried again later, less and less often.
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -123,6 +125,11 @@ export function seedDevices(emulators: Model[], virtual: Model[]): SeedDevice[] 
 }
 
 const firmwareFile = (dir: string, m: Model): string => join(dir, 'firmware', `dsp${m}-v0104p.bin`);
+/** a download of the firmware gives up after 3 min; after a failure, the next try comes 10 min later,
+ *  then 20, 40... and at most every 4 hours */
+const FETCH_TIMEOUT_MS = 3 * 60_000;
+const FETCH_RETRY_MS = 10 * 60_000;
+const FETCH_RETRY_MAX_MS = 4 * 60 * 60_000;
 
 // ------------------------------------------------------------------------------------ processes
 
@@ -194,31 +201,70 @@ export class Demo {
   private connections = 0;
   private dailyTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimer: ReturnType<typeof setInterval> | null = null;
+  /** Python and unicorn are there (null: not checked yet) */
+  private runtime: boolean | null = null;
+  /** the download of the firmware while it runs, and the next try after a failure */
+  private fetcher: ChildProcess | null = null;
+  private fetchTimer: ReturnType<typeof setTimeout> | null = null;
+  private fetchDelay = FETCH_RETRY_MS;
+  /** a reset that waits for the last screen to close (its reason) */
+  private pending: string | null = null;
 
   constructor(cfg: DemoConfig) { this.cfg = cfg; }
 
   private emulatorReady(): boolean {
-    const r = spawnSync(this.cfg.python, ['-c', 'import unicorn'], { stdio: 'ignore' });
-    return r.status === 0;
+    if (this.runtime === null) {
+      this.runtime = spawnSync(this.cfg.python, ['-c', 'import unicorn'], { stdio: 'ignore' }).status === 0;
+      if (!this.runtime && this.cfg.emulators.length) {
+        log(`the firmware emulator needs Python 3 with unicorn (${this.cfg.python} -m pip install unicorn): demo DSPs only`);
+      }
+    }
+    return this.runtime;
   }
 
-  /** The models whose firmware is here, downloading the missing ones from Thomann's site. */
+  /** The models whose firmware is here. */
   private emulatorModels(): Model[] {
-    const want = this.cfg.emulators;
-    if (!want.length) return [];
-    if (!this.emulatorReady()) {
-      log(`the firmware emulator needs Python 3 with unicorn (${this.cfg.python} -m pip install unicorn): demo DSPs only`);
-      return [];
+    if (!this.cfg.emulators.length || !this.emulatorReady()) return [];
+    return this.cfg.emulators.filter((m) => existsSync(firmwareFile(this.cfg.dir, m)));
+  }
+
+  /**
+   * Downloads the missing firmware from Thomann's site in the background, then starts again with the
+   * emulated DSPs once no screen is open. The bridge answers meanwhile: a slow or blocked download
+   * never keeps the instance from starting (nor a probe of Kubernetes from finding it alive).
+   */
+  private fetchMissing(): void {
+    if (this.fetcher || this.fetchTimer || this.stopped || !this.cfg.emulators.length || !this.emulatorReady()) return;
+    const missing = [...new Set(this.cfg.emulators)].filter((m) => !existsSync(firmwareFile(this.cfg.dir, m)));
+    if (!missing.length) return;
+    log(`downloading the official firmware of the DSP ${missing.join(' and ')} from Thomann's site`);
+    const p = spawn(this.cfg.python, [join(ROOT, 'emulator/fetch_firmware.py'), '--out', join(this.cfg.dir, 'firmware'), ...missing], {
+      cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONUNBUFFERED: '1' },
+    });
+    this.fetcher = p;
+    for (const stream of [p.stdout, p.stderr]) {
+      if (stream) createInterface({ input: stream }).on('line', (line) => console.log(`[firmware] ${line}`));
     }
-    const missing = [...new Set(want)].filter((m) => !existsSync(firmwareFile(this.cfg.dir, m)));
-    if (missing.length) {
-      log(`downloading the official firmware of the DSP ${missing.join(' and ')} from Thomann's site (once)`);
-      const r = spawnSync(this.cfg.python, [join(ROOT, 'emulator/fetch_firmware.py'), '--out', join(this.cfg.dir, 'firmware'), ...missing], {
-        cwd: ROOT, stdio: 'inherit', env: { ...process.env, PYTHONUNBUFFERED: '1' }, timeout: 180_000,
-      });
-      if (r.status !== 0) log('the firmware could not be downloaded: those DSPs are left out until the next reset');
-    }
-    return want.filter((m) => existsSync(firmwareFile(this.cfg.dir, m)));
+    const timer = setTimeout(() => p.kill('SIGKILL'), FETCH_TIMEOUT_MS);
+    const done = (): void => {
+      clearTimeout(timer);
+      if (this.fetcher !== p) return;
+      this.fetcher = null;
+      if (this.stopped) return;
+      const got = missing.filter((m) => existsSync(firmwareFile(this.cfg.dir, m)));
+      if (got.length < missing.length) {
+        log(`the firmware could not be downloaded: no emulated DSP for now, next try in ${this.fetchDelay / 60_000} min`);
+        this.fetchTimer = setTimeout(() => { this.fetchTimer = null; this.fetchMissing(); }, this.fetchDelay);
+        this.fetchDelay = Math.min(this.fetchDelay * 2, FETCH_RETRY_MAX_MS);
+      }
+      if (got.length) {
+        // nobody loses what they are doing: the reset waits for the last screen to close
+        this.pending = `firmware of the DSP ${got.join(' and ')} downloaded`;
+        void this.checkIdle();
+      }
+    };
+    p.on('exit', done);
+    p.on('error', (e) => { log(`firmware download: ${e.message}`); done(); });
   }
 
   /** Starts the emulators and the bridge from a clean state. */
@@ -227,6 +273,7 @@ export class Demo {
     const run = join(cfg.dir, 'run');
     await rm(run, { recursive: true, force: true });
     await mkdir(join(run, 'bridge'), { recursive: true });
+    this.pending = null; // this start takes the firmware that is here
     const emulators = this.emulatorModels();
     const devices = seedDevices(emulators, cfg.virtual);
     await writeFile(join(run, 'bridge', 'bridge.json'), JSON.stringify({ devices }, null, 1));
@@ -248,6 +295,7 @@ export class Demo {
       ...cfg.virtual.map((m) => `demo DSP ${m}`),
     ];
     log(`ready on port ${cfg.port}: ${list.join(', ') || 'no DSP'}`);
+    this.fetchMissing();
   }
 
   private async stopChildren(): Promise<void> {
@@ -279,8 +327,8 @@ export class Demo {
 
   /**
    * Looks at the screens (the bridge's /api/health: open now, connections since its start) and resets
-   * once nobody has come for a while. The bridge itself disconnects the DSPs two minutes after the
-   * last screen, so the emulators rest in between.
+   * once nobody has come for a while, or as soon as no screen is open for a waiting reset. The bridge
+   * itself disconnects the DSPs two minutes after the last screen, so the emulators rest in between.
    */
   private async checkIdle(): Promise<void> {
     if (this.busy || this.stopped) return;
@@ -291,6 +339,10 @@ export class Demo {
       clients = Number(h.clients) || 0;
       connections = Number(h.connections) || 0;
     } catch { return; } // the bridge is starting
+    if (this.pending && clients === 0) {
+      await this.reset(this.pending);
+      return;
+    }
     if (clients > 0 || connections !== this.connections) {
       // someone is here, or came and left between two looks
       this.visited = true;
@@ -317,6 +369,8 @@ export class Demo {
     this.stopped = true;
     if (this.dailyTimer) clearTimeout(this.dailyTimer);
     if (this.idleTimer) clearInterval(this.idleTimer);
+    if (this.fetchTimer) clearTimeout(this.fetchTimer);
+    this.fetcher?.kill('SIGKILL');
     await this.stopChildren();
   }
 }

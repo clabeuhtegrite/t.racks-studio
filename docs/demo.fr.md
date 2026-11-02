@@ -35,9 +35,10 @@ Le conteneur tourne sans privilège (utilisateur `node`, uid 1000), fonctionne a
 fichiers en lecture seule et n’écrit que dans `/data`.
 
 **Le firmware appartient à Thomann** et ne fait pas partie de l’image. Au premier démarrage, le
-conteneur le télécharge depuis le site de Thomann (`fast-images.static-thomann.de`, en HTTPS) et le
-garde dans `/data/firmware`. Sans cet accès, seul le DSP de démo est proposé. Ne publiez pas d’image
-ni de volume qui le contient.
+conteneur le télécharge en arrière-plan depuis le site de Thomann (`fast-images.static-thomann.de`,
+en HTTPS) et le garde dans `/data/firmware`. Sans cet accès, seul le DSP de démo est proposé : un
+téléchargement qui échoue est retenté 10 minutes plus tard, puis de plus en plus rarement (au plus
+toutes les 4 heures). Ne publiez pas d’image ni de volume qui le contient.
 
 ## Avec Docker
 
@@ -52,8 +53,10 @@ ou, avec [le fichier Compose](../deploy/demo/compose.yaml) du dépôt :
 docker compose -f deploy/demo/compose.yaml up -d
 ```
 
-Ouvrez ensuite http://localhost:8080/ (ou l’adresse du serveur). Le premier démarrage prend environ
-une minute : le firmware est téléchargé, puis chaque DSP émulé s’initialise comme un boîtier neuf.
+Ouvrez ensuite http://localhost:8080/ (ou l’adresse du serveur). L’interface répond tout de suite. Au
+premier démarrage, les DSP émulés arrivent environ une minute plus tard, une fois le firmware
+téléchargé et dès qu’aucun écran n’est ouvert (la démo redémarre pour les ajouter : personne ne perd
+ce qu’il est en train de faire) ; d’ici là, seul le DSP de démo est proposé.
 
 L’image existe pour amd64 et arm64 (un Raspberry Pi 4 ou 5 avec un système 64 bits). Ses tags :
 `main` suit la branche principale, `x.y.z` une version publiée, `sha-xxxxxxx` un commit précis.
