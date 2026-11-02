@@ -52,6 +52,8 @@ export interface Backend {
   readonly clientId: number;
   readonly role: Role;
   readonly pinRequired: boolean;
+  /** a demo instance open to anyone: emulated DSPs only, shared by every visitor (bridge --sandbox) */
+  readonly sandbox: boolean;
   readonly version: string;
   readonly status: BackendStatus;
   readonly devices: DeviceInfo[];

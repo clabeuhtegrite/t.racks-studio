@@ -374,6 +374,9 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .badge-warn { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
 .badge-error { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
 .badge-accent { background: var(--accent-soft); color: var(--accent); }
+/* top bar of a demo instance: opens the explanation */
+.demo-badge { border: 0; cursor: pointer; font-family: inherit; line-height: inherit; }
+.demo-badge:hover { text-decoration: underline; }
 
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 64px 20px; color: var(--muted); }
 .empty h2 { color: var(--text); font-size: 18px; }

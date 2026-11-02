@@ -4,6 +4,7 @@
     python3 emulator/server.py 206                 # DSP 206 émulé sur le port 9761
     python3 emulator/server.py 408 --port 9762     # un DSP 408 en même temps
     npm start                                      # puis Connexion > Ethernet : localhost, port 9761 ou 9762
+    python3 emulator/server.py 206 --pause-when-idle   # au repos tant que personne n'est connecté
 
 Le vrai firmware Thomann tourne dans l'émulateur (voir README.md). Ce programme joue le rôle du
 module Ethernet du boîtier : il relaie les octets entre la connexion TCP et le port série du
@@ -22,6 +23,7 @@ DISCOVERY_PORT = 30303
 BYTE_TIME = INSTR_PER_SECOND * 10 / 115200   # one byte at 115200 bauds 8N1, in instructions
 FIFO = 16          # UART1 receive FIFO of the NUC1xx
 CHUNK = 20_000     # instructions between two looks at the network (0.4 ms of device time)
+IDLE_GRACE = 3.0   # seconds the firmware keeps running once the last client has left (pending writes)
 
 
 def hexs(b):
@@ -40,6 +42,9 @@ def main():
     ap.add_argument('--state', help='dossier de la mémoire de l’appareil (sinon emulator/state/<firmware>)')
     ap.add_argument('--reset', action='store_true', help='repartir d’un appareil neuf (efface la mémoire)')
     ap.add_argument('--trace', action='store_true', help='affiche chaque trame échangée')
+    ap.add_argument('--pause-when-idle', action='store_true',
+                    help='met le firmware en pause tant qu’aucun client n’est connecté : le processeur se repose '
+                         '(l’horloge de l’appareil s’arrête pendant ce temps)')
     a = ap.parse_args()
 
     fw = a.firmware or os.path.join(HERE, 'firmware', f'dsp{a.model}-v0104{"p" if a.variant == "P" else ""}.bin')
@@ -85,10 +90,17 @@ def main():
 
     client, inbuf, credit, reader = None, bytearray(), 0.0, FrameReader()
     t0, i0, saved_at = time.monotonic(), unit.instructions, time.monotonic()
+    idle_since, paused = time.monotonic(), False
     try:
         while True:
             socks = [srv] + ([client] if client else []) + ([udp] if udp else [])
-            for s in select.select(socks, [], [], 0)[0]:
+            # nobody connected for a while: the firmware waits, and so does the processor
+            sleeping = a.pause_when_idle and client is None and time.monotonic() - idle_since > IDLE_GRACE
+            if sleeping and not paused:
+                unit.save()
+                paused = True
+                print('Aucun client : firmware en pause.', flush=True)
+            for s in select.select(socks, [], [], 1.0 if sleeping else 0)[0]:
                 if s is srv:
                     conn, addr = srv.accept()
                     conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -96,6 +108,9 @@ def main():
                         print('Nouvelle connexion : la précédente est fermée (le boîtier n’en accepte qu’une).')
                         client.close()
                     client, inbuf = conn, bytearray()
+                    if paused:
+                        paused = False
+                        print('Le firmware reprend.', flush=True)
                     print(f'Connecté : {addr[0]}', flush=True)
                 elif s is client:
                     try:
@@ -106,6 +121,7 @@ def main():
                         print('Déconnecté.', flush=True)
                         client.close()
                         client, inbuf = None, bytearray()
+                        idle_since = time.monotonic()
                     else:
                         if a.trace:
                             print(f'  PC → DSP  {hexs(data)}')
@@ -117,6 +133,10 @@ def main():
                             udp.sendto(announce, addr)
                     except OSError:
                         pass
+
+            if sleeping and client is None:
+                t0, i0 = time.monotonic(), unit.instructions   # a pause is no delay to catch up
+                continue
 
             # host -> firmware at the line rate, never more than the UART FIFO holds
             credit = min(credit + CHUNK / BYTE_TIME, FIFO)

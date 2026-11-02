@@ -1,0 +1,30 @@
+# HTTPS access. The interface keeps a WebSocket open on /ws: Traefik (k3s) needs nothing more;
+# with ingress-nginx, add the two timeout annotations below.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tracks-studio-demo
+  labels:
+    app.kubernetes.io/name: tracks-studio
+    app.kubernetes.io/component: demo
+  annotations:
+    # cert-manager.io/cluster-issuer: letsencrypt          # your certificate issuer
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  # ingressClassName: traefik                               # the cluster's default class otherwise
+  rules:
+    - host: demo.example.org                                # your host name
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tracks-studio-demo
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - demo.example.org                                  # the same host name
+      secretName: tracks-studio-demo-tls

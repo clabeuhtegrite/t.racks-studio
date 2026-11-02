@@ -31,7 +31,8 @@ export interface DeviceInfo {
   presetName: string;
 }
 
-export interface FoundModule { host: string; name: string; mac: string; via: 'udp' | 'tcp' }
+/** An Ethernet module found on the network; `port` only when it is not the usual 9761 (emulators). */
+export interface FoundModule { host: string; port?: number; name: string; mac: string; via: 'udp' | 'tcp' }
 
 /** "Ethernet 192.168.1.101", "Démo DSP 408 · ID 3"... (French: the interfaces translate it). */
 export function describeSource(spec: SourceSpec): string {

@@ -157,6 +157,19 @@ curl -fsSL https://raw.githubusercontent.com/clabeuhtegrite/t.racks-studio/main/
 Öffnen Sie dann http://tracks-studio.local/. Die [Raspberry-Pi-Anleitung](docs/raspberry-pi.md)
 (auf Englisch) beschreibt die Speicherkarte, die Optionen, eine feste Adresse und die Zugangscodes.
 
+## Eine Demo-Instanz
+
+Damit jeder t.racks Studio ohne DSP ausprobieren kann, betreibt das Docker-Image eine Demo-Instanz:
+die Firmware von DSP 206 und DSP 408 im Emulator und ein Demo-DSP, offen für alle, ohne Zugriff auf
+das Netzwerk des Servers, und sie kehrt von selbst in ihren Ausgangszustand zurück:
+
+```sh
+docker run -d -p 8080:8080 -v tracks-demo:/data ghcr.io/clabeuhtegrite/t.racks-studio:main demo
+```
+
+Die [Demo-Anleitung](docs/demo.md) (auf Englisch) beschreibt Docker Compose, Kubernetes, Reverse
+Proxys und die Einstellungen.
+
 ## Sicherheit
 
 Ohne Codes kann jeder im Netzwerk jede Einstellung ändern: Setzen Sie `--pin`, sobald nicht nur Sie
@@ -182,6 +195,7 @@ Vorerst überwiegend auf Französisch:
 - [Architektur](docs/architecture.md) und [Protokoll der DSPs](docs/protocole.md).
 - [Firmware-Emulator](emulator/README.md).
 - [Raspberry Pi](docs/raspberry-pi.md), auf Englisch und [auf Französisch](docs/raspberry-pi.fr.md).
+- [Demo-Instanz](docs/demo.md), auf Englisch und [auf Französisch](docs/demo.fr.md).
 
 ## Entwicklung
 
@@ -201,6 +215,8 @@ node apps/web/e2e/flows.cjs   # 39 End-to-End-Prüfungen im Browser (Playwright,
 | `apps/web` | die Oberfläche (React) |
 | `emulator` | Firmware-Emulator (Python) und seine Tests |
 | `deploy/raspberry-pi` | Installationsskript und Dienst für einen Raspberry Pi |
+| `deploy/demo` | Demo-Instanz: Startprogramm, Docker-Compose- und Kubernetes-Dateien |
+| `deploy/docker` | Einstiegspunkt des Docker-Images (`Dockerfile` im Hauptverzeichnis) |
 
 ### Übersetzungen
 

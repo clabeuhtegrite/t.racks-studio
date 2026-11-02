@@ -1,0 +1,30 @@
+# Demo instance of t.racks Studio with Docker Compose (guide: docs/demo.md):
+#
+#   docker compose -f deploy/demo/compose.yaml up -d        then http://localhost:8080/
+#
+# Put it behind your reverse proxy for HTTPS (examples in docs/demo.md). Update:
+#   docker compose -f deploy/demo/compose.yaml pull && docker compose -f deploy/demo/compose.yaml up -d
+
+services:
+  demo:
+    image: ghcr.io/clabeuhtegrite/t.racks-studio:main
+    command: demo
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Europe/Paris
+      # DEMO_RESET_AT: "04:00"     # daily reset, local time ("off" for none)
+      # DEMO_IDLE_RESET: "30"      # minutes without any open screen before a reset (0: never)
+      # DEMO_EMULATORS: "206,408"  # DSPs running the real firmware ("none": demo DSPs only)
+      # DEMO_VIRTUAL: "408"        # demo DSPs with moving meters
+    volumes:
+      # keeps the firmware downloaded from Thomann's site; the demo itself restarts from scratch
+      - demo-data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+
+volumes:
+  demo-data:

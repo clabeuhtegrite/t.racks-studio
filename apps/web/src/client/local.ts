@@ -127,6 +127,7 @@ export class LocalBackend implements Backend {
   readonly clientId = 1;
   readonly role: Role = 'admin';
   readonly pinRequired = false;
+  readonly sandbox = false;
   readonly version = APP_VERSION;
   status: BackendStatus = 'online';
   readonly library = new LocalLibrary();

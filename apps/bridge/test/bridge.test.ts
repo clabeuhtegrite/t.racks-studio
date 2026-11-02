@@ -9,7 +9,7 @@ import WebSocket from 'ws';
 import { GAIN_RAW_0DB } from '@dsp-studio/protocol';
 import { Hub } from '../src/hub.ts';
 import { Library } from '../src/library.ts';
-import { originAllowed, startServer } from '../src/server.ts';
+import { originAllowed, sandboxOf, startServer } from '../src/server.ts';
 import { parseArgs } from '../src/main.ts';
 
 type Msg = Record<string, unknown> & { t: string };
@@ -249,12 +249,144 @@ describe('bridge server (PIN roles)', () => {
   });
 });
 
+describe('bridge server (demo instance open to anyone)', () => {
+  let dir: string;
+  let hub: Hub;
+  let url: string;
+  let base: string;
+  let server: Awaited<ReturnType<typeof startServer>>;
+  const EMULATED = { kind: 'tcp', host: '127.0.0.1', port: 19761 } as const;
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'dsp-bridge-'));
+    const library = new Library(join(dir, 'lib'));
+    await library.init();
+    hub = new Hub();
+    hub.add(EMULATED, 'DSP 206 émulé', false);
+    hub.add({ kind: 'demo', model: 'dsp408' }, undefined, false);
+    const sandbox = { ...sandboxOf([{ spec: EMULATED, label: 'DSP 206 émulé' }, { spec: { kind: 'demo', model: 'dsp408' } }]), maxDevices: 3, maxLibrary: 2 };
+    server = await startServer({ port: 0, host: '127.0.0.1', webDir: null, library, hub, sandbox, log: () => {} });
+    const port = (server.address() as AddressInfo).port;
+    url = `ws://127.0.0.1:${port}/ws`;
+    base = `http://127.0.0.1:${port}`;
+  });
+  afterAll(async () => {
+    server.close();
+    await hub.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('takes its emulated DSPs from the remembered devices', () => {
+    expect(sandboxOf([
+      { spec: { kind: 'tcp', host: '127.0.0.1', port: 9761 }, label: 'DSP 206 émulé' },
+      { spec: { kind: 'tcp', host: '127.0.0.1' } },
+      { spec: { kind: 'demo', model: 'dsp206' } },
+    ])).toEqual({
+      endpoints: [{ host: '127.0.0.1', port: 9761, name: 'DSP 206 émulé' }, { host: '127.0.0.1', port: 9761, name: 'Module Ethernet' }],
+      maxDevices: 8, maxLibrary: 50,
+    });
+  });
+
+  it('says so, and searches the network without touching it', async () => {
+    const c = new TestClient(url);
+    await c.open();
+    expect((await c.req({ t: 'hello' })).value).toMatchObject({ role: 'admin', sandbox: true });
+    expect((await c.req({ t: 'discover', sweep: true })).value).toEqual([{ host: '127.0.0.1', port: 19761, name: 'DSP 206 émulé', mac: '', via: 'tcp' }]);
+    expect((await c.req({ t: 'ports' })).value).toEqual({ usb: [], serial: [] });
+    c.close();
+  });
+
+  it('reaches its emulated DSPs and demo DSPs, nothing else', async () => {
+    const c = new TestClient(url);
+    await c.open();
+    await c.req({ t: 'hello' });
+    const lan = 'instance de démonstration : seuls ses DSP émulés sont accessibles (Rechercher sur le réseau les affiche)';
+    expect(await c.req({ t: 'add', spec: { kind: 'tcp', host: '192.168.1.101' } })).toMatchObject({ ok: false, error: lan });
+    expect(await c.req({ t: 'add', spec: { kind: 'tcp', host: '127.0.0.1', port: 8080 } })).toMatchObject({ ok: false, error: lan });
+    expect(await c.req({ t: 'probe', spec: { kind: 'tcp', host: '10.0.0.1' } })).toMatchObject({ ok: false, error: lan });
+    const local = 'instance de démonstration : seuls ses DSP émulés et les DSP de démonstration sont accessibles';
+    expect(await c.req({ t: 'add', spec: { kind: 'serial', path: '/dev/ttyUSB0' } })).toMatchObject({ ok: false, error: local });
+    expect(await c.req({ t: 'probe', spec: { kind: 'usb', path: '/dev/hidraw0' } })).toMatchObject({ ok: false, error: local });
+    // the emulator takes one connection at a time: no second device on its address
+    const taken = 'cet appareil est déjà dans la liste des appareils mémorisés';
+    expect(await c.req({ t: 'add', spec: { ...EMULATED, deviceId: 2 } })).toMatchObject({ ok: false, error: taken });
+    expect(await c.req({ t: 'probe', spec: EMULATED })).toMatchObject({ ok: false, error: taken });
+    // demo DSPs, up to the limit of the instance
+    expect(await c.req({ t: 'add', spec: { kind: 'demo', model: 'dsp206' } })).toMatchObject({ ok: true });
+    expect(await c.req({ t: 'add', spec: { kind: 'demo', model: 'dsp206', deviceId: 2 } })).toMatchObject({ ok: false, error: 'instance de démonstration : 3 appareils au plus' });
+    // removed, the emulated DSP comes back through the network search
+    const key = hub.list().find((d) => d.spec.kind === 'tcp')!.key;
+    expect(await c.req({ t: 'remove', key })).toMatchObject({ ok: true });
+    expect(await c.req({ t: 'add', spec: EMULATED, label: 'DSP 206 émulé' })).toMatchObject({ ok: true });
+    c.close();
+  });
+
+  it('keeps the library small', async () => {
+    const c = new TestClient(url);
+    await c.open();
+    await c.req({ t: 'hello' });
+    const entry = { kind: 'preset', model: 'dsp206', name: 'Salle', data: { x: 1 } };
+    const first = await c.req({ t: 'library.save', entry });
+    expect(await c.req({ t: 'library.save', entry })).toMatchObject({ ok: true });
+    expect(await c.req({ t: 'library.save', entry })).toMatchObject({ ok: false, error: 'bibliothèque pleine sur cette instance de démonstration' });
+    // an entry already there can still be saved again
+    const id = (first.value as { id: string }).id;
+    expect(await c.req({ t: 'library.save', entry: { ...entry, id, name: 'Salle B' } })).toMatchObject({ ok: true });
+    c.close();
+  });
+
+  it('counts the open screens', async () => {
+    const health = async (): Promise<number> => ((await (await fetch(`${base}/api/health`)).json()) as { clients: number }).clients;
+    const c = new TestClient(url);
+    await c.open();
+    await c.wait((m) => m.t === 'welcome');
+    expect(await health()).toBe(1);
+    c.close();
+    await vi.waitFor(async () => expect(await health()).toBe(0));
+  });
+});
+
+describe('bridge server (heartbeat)', () => {
+  it('drops a screen that no longer answers', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const dir = await mkdtemp(join(tmpdir(), 'dsp-bridge-'));
+    const library = new Library(join(dir, 'lib'));
+    const hub = new Hub();
+    const server = await startServer({ port: 0, host: '127.0.0.1', webDir: null, library, hub, log: () => {} });
+    try {
+      const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/ws`;
+      const live = new TestClient(url);
+      const gone = new WebSocket(url, { autoPong: false });
+      await Promise.all([live.open(), new Promise((res) => gone.once('open', res))]);
+      const dropped = new Promise((res) => gone.once('close', res));
+      vi.advanceTimersByTime(30_000); // ping
+      await new Promise((res) => setTimeout(res, 200)); // the answers come back
+      vi.advanceTimersByTime(30_000); // no answer since the last ping: dropped
+      await dropped;
+      expect(live.ws.readyState).toBe(WebSocket.OPEN);
+      live.close();
+    } finally {
+      vi.useRealTimers();
+      server.close();
+      await hub.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('command line', () => {
   it('parses the server options, PINs also from the environment', () => {
     const a = parseArgs(['--port', '9090', '--pin', '1234', '--operator-pin', '5678', '--data', '/tmp/tracks-test', '--quiet']);
     expect(a).toMatchObject({ port: 9090, pin: '1234', operatorPin: '5678', data: '/tmp/tracks-test', quiet: true });
     process.env.DSP_STUDIO_PIN = '9999';
     try { expect(parseArgs([]).pin).toBe('9999'); } finally { delete process.env.DSP_STUDIO_PIN; }
+  });
+
+  it('opens a demo instance to anyone with --sandbox or DSP_STUDIO_SANDBOX', () => {
+    expect(parseArgs([]).sandbox).toBe(false);
+    expect(parseArgs(['--sandbox']).sandbox).toBe(true);
+    process.env.DSP_STUDIO_SANDBOX = '1';
+    try { expect(parseArgs([]).sandbox).toBe(true); } finally { delete process.env.DSP_STUDIO_SANDBOX; }
   });
 
   it('refuses devices on the command line: they are connected from the interface', () => {

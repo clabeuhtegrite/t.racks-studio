@@ -8,7 +8,9 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { t } from '@dsp-studio/i18n';
-import { callSession, canApply, canCall, validateAction, validateSource, type Action, type Role, type SessionSnapshot } from '@dsp-studio/protocol';
+import {
+  callSession, canApply, canCall, DSP_TCP_PORT, sourceKey, validateAction, validateSource, type Action, type FoundModule, type Role, type SessionSnapshot, type SourceSpec,
+} from '@dsp-studio/protocol';
 import { discover, probeIds } from './discovery.ts';
 import { Hub } from './hub.ts';
 import type { Levelers } from './leveler.ts';
@@ -17,6 +19,30 @@ import { listSerial, listUsb, serialTransport, tcpTransport, usbTransport } from
 
 export const BRIDGE_VERSION = '0.1.0';
 export type { Role };
+const HEARTBEAT_MS = 30_000;
+
+/**
+ * Demo instance open to anyone (--sandbox): visitors may only use the Ethernet devices remembered
+ * when the bridge started (the emulated DSPs of the demo) and demo DSPs. Nothing else of the
+ * server's network is reachable: no other address, no network search, no USB or serial port.
+ */
+export interface Sandbox {
+  /** Ethernet devices the visitors may use (the network search lists them) */
+  endpoints: { host: string; port: number; name: string }[];
+  /** devices in the list at most (each demo DSP takes processor time) */
+  maxDevices: number;
+  /** library entries at most (2 MB each at most: 100 MB) */
+  maxLibrary: number;
+}
+
+/** The sandbox of a bridge whose remembered devices are `devices`. */
+export function sandboxOf(devices: { spec: SourceSpec; label?: string }[]): Sandbox {
+  const endpoints: Sandbox['endpoints'] = [];
+  for (const d of devices) {
+    if (d.spec.kind === 'tcp') endpoints.push({ host: d.spec.host, port: d.spec.port ?? DSP_TCP_PORT, name: d.label ?? 'Module Ethernet' });
+  }
+  return { endpoints, maxDevices: Math.max(8, devices.length + 2), maxLibrary: 50 };
+}
 
 export interface ServerOptions {
   port: number;
@@ -31,6 +57,8 @@ export interface ServerOptions {
   tls?: { cert: Buffer | string; key: Buffer | string };
   /** extra web origins allowed to connect (e.g. the app hosted on GitHub Pages), '*' = any */
   allowOrigins?: string[];
+  /** demo instance open to anyone: see Sandbox */
+  sandbox?: Sandbox;
   onDevicesChanged?: () => void;
   log?: (msg: string) => void;
 }
@@ -149,16 +177,42 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
   const needAdmin = (c: Client): void => { if (c.role !== 'admin') throw new Error('action réservée à l’administrateur'); };
   const needOperator = (c: Client): void => { if (c.role === 'viewer') throw new Error('action non autorisée pour ce rôle'); };
 
+  // ----------------------------------------------------------------- demo instance (sandbox)
+  const sb = o.sandbox;
+  /** Refuses, on a demo instance, any device but its emulated DSPs and demo DSPs. */
+  const sandboxed = (spec: SourceSpec, use: 'add' | 'probe'): void => {
+    if (!sb) return;
+    if (spec.kind === 'tcp') {
+      const port = spec.port ?? DSP_TCP_PORT;
+      if (!sb.endpoints.some((e) => e.host === spec.host && e.port === port)) throw new Error('instance de démonstration : seuls ses DSP émulés sont accessibles (Rechercher sur le réseau les affiche)');
+      // an Ethernet module (and the emulator) takes one connection at a time: one device per address
+      const key = sourceKey(spec);
+      const busy = [...o.hub.devices.values()].some((d) => d.spec.kind === 'tcp' && d.spec.host === spec.host && (d.spec.port ?? DSP_TCP_PORT) === port && (use === 'probe' || d.key !== key));
+      if (busy) throw new Error('cet appareil est déjà dans la liste des appareils mémorisés');
+    } else if (spec.kind !== 'demo') {
+      throw new Error('instance de démonstration : seuls ses DSP émulés et les DSP de démonstration sont accessibles');
+    }
+    if (use === 'add' && !o.hub.get(sourceKey(spec)) && o.hub.devices.size >= sb.maxDevices) {
+      throw new Error(`instance de démonstration : ${sb.maxDevices} appareils au plus`);
+    }
+  };
+  /** The "network search" of a demo instance: its emulated DSPs, without touching the network. */
+  const sandboxFound = (): FoundModule[] => (sb?.endpoints ?? []).map((e) => ({
+    host: e.host, port: e.port === DSP_TCP_PORT ? undefined : e.port, name: e.name, mac: '', via: 'tcp',
+  }));
+
   async function handle(c: Client, m: Record<string, unknown>): Promise<unknown> {
     switch (m.t) {
       case 'hello':
         checkPin(c, c.ip, m.pin);
         c.name = String(m.name ?? '').slice(0, 40);
-        return { version: BRIDGE_VERSION, role: c.role, devices: o.hub.list(), pinRequired: !!(o.pins?.admin || o.pins?.operator) };
+        return { version: BRIDGE_VERSION, role: c.role, devices: o.hub.list(), pinRequired: !!(o.pins?.admin || o.pins?.operator), sandbox: !!sb };
       case 'devices': return o.hub.list();
       case 'add': {
         needAdmin(c);
-        const d = o.hub.add(validateSource(m.spec), typeof m.label === 'string' ? m.label.slice(0, 60) : undefined);
+        const spec = validateSource(m.spec);
+        sandboxed(spec, 'add');
+        const d = o.hub.add(spec, typeof m.label === 'string' ? m.label.slice(0, 60) : undefined);
         return d.info();
       }
       case 'remove': needAdmin(c); await o.hub.remove(String(m.key)); return true;
@@ -211,18 +265,27 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
           default: throw new Error('requête inconnue');
         }
       }
-      case 'discover': needAdmin(c); return discover({ sweep: !!m.sweep });
-      case 'ports': return { usb: await listUsb(), serial: await listSerial() };
+      case 'discover': needAdmin(c); return sb ? sandboxFound() : discover({ sweep: !!m.sweep });
+      case 'ports': return sb ? { usb: [], serial: [] } : { usb: await listUsb(), serial: await listSerial() };
       case 'probe': {
         needAdmin(c);
         const spec = validateSource(m.spec);
+        sandboxed(spec, 'probe');
         const t = spec.kind === 'tcp' ? await tcpTransport(spec.host, spec.port) : spec.kind === 'usb' ? await usbTransport(spec.path) : spec.kind === 'serial' ? await serialTransport(spec.path, spec.baud) : null;
         if (!t) return [];
         try { return await probeIds(t, Number(m.max ?? 16)); } finally { await t.close(); }
       }
       case 'library.list': return o.library.list();
       case 'library.get': return o.library.get(String(m.id));
-      case 'library.save': needAdmin(c); return o.library.save(m.entry as Parameters<Library['save']>[0]);
+      case 'library.save': {
+        needAdmin(c);
+        if (sb) {
+          const id = (m.entry as { id?: unknown } | null)?.id;
+          const list = await o.library.list();
+          if (list.length >= sb.maxLibrary && !list.some((e) => e.id === id)) throw new Error('bibliothèque pleine sur cette instance de démonstration');
+        }
+        return o.library.save(m.entry as Parameters<Library['save']>[0]);
+      }
       case 'library.remove': needAdmin(c); await o.library.remove(String(m.id)); return true;
       default: throw new Error('requête inconnue');
     }
@@ -234,7 +297,8 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
     const url = new URL(req.url ?? '/', 'http://x');
     if (url.pathname === '/api/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, version: BRIDGE_VERSION, devices: o.hub.list() }));
+      // `clients`: screens open right now (a demo instance starts again from scratch once nobody is left)
+      res.end(JSON.stringify({ ok: true, version: BRIDGE_VERSION, devices: o.hub.list(), clients: clients.size }));
       return;
     }
     if (!webRoot) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end(t('interface web non compilée (npm run build)')); return; }
@@ -263,9 +327,24 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
       return ok;
     },
   });
+  // A ping every 30 s: a screen gone without closing its connection (a phone out of reach) is
+  // dropped after a minute, and reverse proxies that close quiet connections keep this one open.
+  const alive = new WeakSet<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (!alive.has(ws)) { ws.terminate(); continue; }
+      alive.delete(ws);
+      ws.ping();
+    }
+  }, HEARTBEAT_MS);
+  heartbeat.unref();
+  server.on('close', () => clearInterval(heartbeat));
+
   wss.on('connection', (ws, req) => {
     const c: Client = { id: nextId++, ip: req.socket.remoteAddress ?? '?', ws, role: roleOf(undefined), name: '', subs: new Set(), debug: new Set() };
     clients.set(c.id, c);
+    alive.add(ws);
+    ws.on('pong', () => alive.add(ws));
     log(`client ${c.id} connecté (${req.socket.remoteAddress})`);
     ws.on('message', (raw) => {
       let m: Record<string, unknown>;

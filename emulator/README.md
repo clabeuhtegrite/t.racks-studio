@@ -25,7 +25,9 @@ Sans accès direct au site, téléchargez la mise à jour depuis la page du prod
 python3 emulator/fetch_firmware.py --exe chemin/vers/435194_update_dsp_408_v1_04_netstartverdet.exe
 ```
 
-Le programme de mise à jour n’est jamais exécuté : il est seulement lu pour en extraire le firmware.
+`--out dossier` range le firmware ailleurs que dans `emulator/firmware/` (l’instance de démo le
+garde dans son dossier de données). Le programme de mise à jour n’est jamais exécuté : il est
+seulement lu pour en extraire le firmware.
 Chaque mise à jour contient deux versions, `V0104P` et `V0104` ; les deux fonctionnent dans
 l’émulateur.
 
@@ -57,6 +59,7 @@ et ajoutez `localhost`, port 9762.
 | `--firmware fichier.bin` | une autre image de firmware |
 | `--state dossier` | où garder la mémoire de l’appareil (par défaut `emulator/state/<firmware>/`) |
 | `--reset` | repartir d’un appareil neuf |
+| `--pause-when-idle` | met le firmware en pause tant que personne n’est connecté : le processeur se repose (un cœur occupé sinon), mais l’horloge de l’appareil s’arrête pendant ce temps |
 | `--trace` | affiche chaque trame échangée |
 
 Le premier lancement d’un appareil neuf dure environ 35 s (le firmware initialise sa mémoire puis

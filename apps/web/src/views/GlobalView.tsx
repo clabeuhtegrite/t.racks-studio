@@ -144,7 +144,7 @@ function DeviceHead({ info, mirror, isCurrent, children }: { info: DeviceInfo | 
     <header className="gv-head">
       <span className={`dot dot-${state}`} />
       <div className="gv-name">
-        <h2>{info ? info.label : mirror.key}</h2>
+        <h2>{info ? tm(info.label) : mirror.key}</h2>
         <span className="muted small">
           {deviceLine(info, state)}
         </span>
@@ -351,7 +351,7 @@ function DeviceLine({ info }: { info: DeviceInfo }): React.JSX.Element {
       <header className="gv-head">
         <span className={`dot dot-${state}`} />
         <div className="gv-name">
-          <h2>{info.label}</h2>
+          <h2>{tm(info.label)}</h2>
           <span className="muted small">{deviceLine(info, state)}</span>
           {state === 'offline' && info.error && <span className="small text-error">{errorText(info.error)}</span>}
         </div>

@@ -1,0 +1,14 @@
+# Demo instance of t.racks Studio on Kubernetes (k3s, ...). Guide: docs/demo.md
+#
+#   1. set your host name in ingress.yaml (and your certificate issuer)
+#   2. kubectl apply -k deploy/demo/kubernetes
+#
+# Update to the latest image: kubectl -n tracks-studio rollout restart deployment/tracks-studio-demo
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tracks-studio
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml

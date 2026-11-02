@@ -19,6 +19,8 @@ const EXTRA = [
   'Module Ethernet', 'Envoi', 'Série', 'USB', 'limite', 'adresse IP',
   // automatic gain settings (protocol/src/leveler.ts, step())
   'niveau cible invalide', 'tolérance invalide', 'correction maximale invalide', 'nombre de corrections invalide',
+  // names of the emulated DSPs of a demo instance (deploy/demo/demo.ts)
+  'DSP {0} émulé',
 ];
 const IGNORE = new Set(['dropped']);
 

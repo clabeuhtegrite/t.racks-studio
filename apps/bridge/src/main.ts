@@ -14,7 +14,7 @@ import { locale, pickLang, setLang, t, tm } from '@dsp-studio/i18n';
 import { Hub, type SourceSpec } from './hub.ts';
 import { Levelers } from './leveler.ts';
 import { Library } from './library.ts';
-import { BRIDGE_VERSION, startServer } from './server.ts';
+import { BRIDGE_VERSION, sandboxOf, startServer } from './server.ts';
 
 // messages in the language of the system (LANG=de_DE.UTF-8...), English by default
 setLang(pickLang([process.env.LC_ALL, process.env.LC_MESSAGES, process.env.LANG, Intl.DateTimeFormat().resolvedOptions().locale]));
@@ -38,12 +38,17 @@ Options :
   --cert fichier --key fichier
                               HTTPS (application installable, USB et série du navigateur)
   --allow-origin url          autorise une interface hébergée ailleurs (répétable, * = toutes)
+  --sandbox                   instance de démonstration ouverte à tous : seuls les appareils
+                              mémorisés au démarrage et les DSP de démo sont accessibles,
+                              ou variable DSP_STUDIO_SANDBOX=1
   --quiet                     moins de messages
   -h, --help                  cette aide`, BRIDGE_VERSION);
 
 interface Args {
   port: number; host: string; web: string | null; data: string; pin?: string; operatorPin?: string;
   cert?: string; key?: string; allowOrigins: string[]; quiet: boolean;
+  /** demo instance open to anyone (see Sandbox in server.ts) */
+  sandbox: boolean;
 }
 
 function fail(msg: string): never {
@@ -58,6 +63,7 @@ export function parseArgs(argv: string[]): Args {
     port: Number(process.env.PORT) || 8080, host: '0.0.0.0', web: existsSync(defWeb) ? defWeb : null,
     data: process.env.DSP_STUDIO_DATA || join(os.homedir(), '.dsp-studio'), allowOrigins: [], quiet: false,
     pin: process.env.DSP_STUDIO_PIN || undefined, operatorPin: process.env.DSP_STUDIO_OPERATOR_PIN || undefined,
+    sandbox: /^(1|true|yes|on)$/i.test(process.env.DSP_STUDIO_SANDBOX ?? ''),
   };
   const value = (i: number, name: string): string => {
     const v = argv[i + 1];
@@ -79,6 +85,7 @@ export function parseArgs(argv: string[]): Args {
       case '--key': a.key = value(i, k); i++; break;
       case '--allow-origin': a.allowOrigins.push(value(i, k).replace(/\/+$/, '')); i++; break;
       case '--quiet': a.quiet = true; break;
+      case '--sandbox': a.sandbox = true; break;
       case '--demo': case '--tcp': case '--usb': case '--serial':
         fail(t('{0} n’existe plus : les DSP s’ajoutent et se connectent depuis l’interface (Connexion).', k));
       // falls through
@@ -128,6 +135,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   // the remembered devices are listed, not connected: connections are opened from the interface
   const saved = await loadSaved(stateFile);
   for (const d of saved.devices) hub.add(d.spec, d.label, false);
+  // a demo instance only reaches the devices it was given at start (its emulated DSPs)
+  const sandbox = args.sandbox ? sandboxOf(saved.devices) : undefined;
   // automatic gain of each device, running even with no screen open
   const levelers = new Levelers(hub, join(args.data, 'leveler.json'), log);
   await levelers.init();
@@ -152,7 +161,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const tls = args.cert && args.key ? { cert: await readFile(args.cert), key: await readFile(args.key) } : undefined;
   const server = await startServer({
     port: args.port, host: args.host, webDir: args.web, library, hub, levelers, tls, allowOrigins: args.allowOrigins,
-    pins: { admin: args.pin, operator: args.operatorPin }, onDevicesChanged: persist, log,
+    pins: { admin: args.pin, operator: args.operatorPin }, sandbox, onDevicesChanged: persist, log,
   }).catch((e: NodeJS.ErrnoException) => {
     if (e.code === 'EADDRINUSE') fail(t('le port {0} est déjà utilisé (essayez --port 8081)', args.port));
     if (e.code === 'EACCES') fail(t('le port {0} demande des droits supplémentaires (voir docs/raspberry-pi.md)', args.port));
@@ -170,12 +179,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   console.log('\n' + t('t.racks Studio {0} prêt. Ouvrez l’interface sur :', BRIDGE_VERSION));
   for (const u of localUrls(args.port, args.host, !!tls)) console.log(`  ${u}`);
   if (!args.web) console.log('  ' + t('(interface web non compilée : lancez « npm run build », l’API reste disponible)'));
-  if (!args.pin && !args.operatorPin) console.log('  ' + t('Aucun code défini : toute personne du réseau peut tout régler (--pin pour protéger).'));
+  if (sandbox) console.log('  ' + t('Instance de démonstration : seuls les appareils mémorisés et les DSP de démo sont accessibles.'));
+  else if (!args.pin && !args.operatorPin) console.log('  ' + t('Aucun code défini : toute personne du réseau peut tout régler (--pin pour protéger).'));
   console.log('  ' + t('Données : {0}', args.data));
   if (hub.devices.size === 0) console.log('  ' + t('Aucun appareil mémorisé : ajoutez-en depuis l’interface (Connexion).'));
   else {
     console.log('  ' + t('Appareils mémorisés, à connecter depuis l’interface :'));
-    for (const d of hub.devices.values()) console.log(`    ${d.label}`);
+    for (const d of hub.devices.values()) console.log(`    ${tm(d.label)}`);
   }
   console.log('');
 
