@@ -70,8 +70,11 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 - Druckbares Einstellungsblatt (oder PDF).
 - Helles und dunkles Farbschema, als App auf Smartphone und Tablet installierbar (über HTTPS).
 - Automatischer Pegelausgleich für Vinyl-Sets: die Bridge gleicht den Pegel von Platte zu Platte
-  behutsam an (Ziel, Toleranz, Grenzen, Pause bei Breaks), mit einer DJ-Vollbildanzeige, die sagt,
-  wann der Gain am Mischpult nachzuregeln ist, und dem Verlauf der letzten zwei Stunden.
+  behutsam an (Ziel, Toleranz, Grenzen), beurteilt jede Platte nach ihren lauten Passagen, wartet
+  Breaks ab und drückt nie in einen Limiter. Eine DJ-Vollbildanzeige sagt, wann der Gain am
+  Mischpult nachzuregeln ist, und pausiert den Ausgleich für 5 Minuten (Scratchen, Mikrofon); die
+  Bilanz des Abends bleibt über einen Neustart erhalten, mit der Zahl der Schreibvorgänge im
+  DSP-Speicher.
 - Läuft auf einem Raspberry Pi am Netzwerk des Veranstaltungsorts.
 
 ![Die Übersicht: Pegel, Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, mit Kompressor und Limiter, wenn sie greifen](docs/screenshots/de/overview.png)

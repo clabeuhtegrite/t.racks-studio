@@ -1,8 +1,9 @@
 // Automatic gain of a device (see packages/protocol/src/leveler.ts) for the Gain auto page, the DJ
-// screen and the overview: its state, its requests, the level history and the advice given to the DJ.
+// screen and the overview: its state, its requests, the history of the night and the advice given
+// to the DJ.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { gainRawToDb, type DeviceConfig, type LevelerPoint, type LevelerState, type LevelerStatus } from '@dsp-studio/protocol';
+import { gainRawToDb, LEVELER_HISTORY_MS, type DeviceConfig, type LevelerPoint, type LevelerState, type LevelerStatus } from '@dsp-studio/protocol';
 import type { DeviceMirror } from '../client/mirror.ts';
 import type { LevelerOp } from '../client/types.ts';
 import { errorText, toast, useMirror } from './store.ts';
@@ -28,15 +29,25 @@ export async function levelerRequest<T = LevelerState>(mirror: DeviceMirror, op:
   }
 }
 
-/** Level history of the last two hours, read again every 10 s while it is shown. */
+/** History of the last 12 hours, completed every 10 s while it is shown (only the new points travel). */
 export function useLevelerHistory(mirror: DeviceMirror | null): LevelerPoint[] {
   const [points, setPoints] = useState<LevelerPoint[]>([]);
   useEffect(() => {
     setPoints([]);
     if (!mirror) return;
     let alive = true;
+    let have: LevelerPoint[] = [];
     const load = (): void => {
-      mirror.backend.leveler<LevelerPoint[]>(mirror.key, 'history').then((p) => { if (alive && Array.isArray(p)) setPoints(p); }, () => {});
+      const since = have.length ? have[have.length - 1].t : undefined;
+      mirror.backend.leveler<LevelerPoint[]>(mirror.key, 'history', since).then((p) => {
+        if (!alive || !Array.isArray(p)) return;
+        if (since === undefined) have = p;
+        else if (p.length) {
+          const from = p[p.length - 1].t - LEVELER_HISTORY_MS;
+          have = [...have.filter((q) => q.t > from && q.t < p[0].t), ...p];
+        } else return;
+        setPoints(have);
+      }, () => {});
     };
     load();
     const id = setInterval(load, 10_000);
@@ -98,19 +109,39 @@ export function useLiveLevel(mirror: DeviceMirror | null, st: LevelerState | nul
 }
 
 /**
- * What the DJ should do with the gain of the mixer. Only when the level is out of the zone both
- * over the last seconds and over the decision window (so a breakdown, or a gain the DJ has just
- * moved, gives no advice), and only when the automatic gain cannot do it itself. The number is the
- * smaller of the two gaps: following it never goes past the zone.
+ * What the DJ should do with the gain of the mixer, judged like the automatic gain judges it: too
+ * loud when the last seconds and the average both are; too quiet only when even the loud parts of
+ * the record are (an intro or a quiet passage gives no advice, just "quiet"), never during a
+ * breakdown, and never "up" while the output limiters work. Only when the automatic gain cannot do
+ * it itself (off, paused, at its limit). The number is the smallest gap: following it never goes
+ * past the zone.
  */
-export type Advice = { kind: 'none' } | { kind: 'ok' } | { kind: 'auto' } | { kind: 'up' | 'down'; db: number };
+export type Advice = { kind: 'none' | 'ok' | 'quiet' | 'auto' | 'break' | 'limit' } | { kind: 'up' | 'down'; db: number };
 export function adviceOf(st: LevelerState | null): Advice {
-  if (!st || st.status === 'offline' || st.status === 'checking' || st.level === null || st.average === null) return { kind: 'none' };
-  const { target, tolerance, enabled } = st.settings;
-  const now = st.level - target, avg = st.average - target;
-  if (Math.abs(now) <= tolerance || Math.abs(avg) <= tolerance || Math.sign(now) !== Math.sign(avg)) return { kind: 'ok' };
-  if (enabled && st.status !== 'limit' && st.status !== 'budget') return { kind: 'auto' };
-  return { kind: avg < 0 ? 'up' : 'down', db: Math.max(1, Math.round(Math.min(Math.abs(now), Math.abs(avg)))) };
+  if (!st || st.status === 'offline' || st.status === 'checking' || st.level === null) return { kind: 'none' };
+  if (st.breakdown) return { kind: 'break' };
+  if (st.average === null) return { kind: 'none' };
+  // it is moving the gain right now (it judges on its own windows, a little longer than these)
+  if (st.status === 'raising' || st.status === 'lowering') return { kind: 'auto' };
+  const { target, tolerance: tol, enabled } = st.settings;
+  const now = st.level - target, avg = st.average - target, loud = (st.loud ?? st.average) - target;
+  const high = now > tol && avg > tol;
+  const low = now < -tol && avg < -tol && loud < -tol;
+  if (!high && !low) return { kind: now < -tol ? 'quiet' : 'ok' };
+  if (low && st.limiting) return { kind: 'limit' };
+  if (enabled && st.status !== 'limit' && st.status !== 'budget' && st.status !== 'paused') return { kind: 'auto' };
+  const gap = high ? Math.min(now, avg) : Math.min(-now, -avg, -loud);
+  return { kind: high ? 'down' : 'up', db: Math.max(1, Math.round(gap)) };
+}
+
+/** 4:05 */
+export const fmtCountdown = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+
+/** 3 h 05 min, 12 min */
+export function fmtDuration(ms: number): string {
+  const min = Math.round(ms / 60_000);
+  if (min < 60) return t('{0} min', min);
+  return t('{0} h {1} min', Math.floor(min / 60), String(min % 60).padStart(2, '0'));
 }
 
 /** Where a level stands compared with the zone around the target. */
@@ -141,7 +172,9 @@ export function statusText(s: LevelerStatus): string {
     case 'lowering': return t('Baisse doucement le gain');
     case 'limit': return t('Correction au maximum : le disque reste hors de la zone');
     case 'silence': return t('Silence : en pause');
-    case 'break': return t('Break : en pause, pour ne pas le pousser');
+    case 'break': return t('Break : attend la reprise, pour ne pas le pousser');
+    case 'protect': return t('Saturation ou limiteur : ne monte plus');
+    case 'paused': return t('En pause à la demande');
     case 'manual': return t('Gain réglé à la main : reprise dans un instant');
     case 'tone': return t('Générateur de test actif : en pause');
     case 'muted': return t('Entrées coupées : en pause');
@@ -154,6 +187,6 @@ export function statusText(s: LevelerStatus): string {
 export function statusTone(s: LevelerStatus): 'ok' | 'warn' | 'muted' | 'accent' {
   if (s === 'raising' || s === 'lowering' || s === 'checking') return 'accent';
   if (s === 'ok') return 'ok';
-  if (s === 'limit' || s === 'budget') return 'warn';
+  if (s === 'limit' || s === 'budget' || s === 'protect') return 'warn';
   return 'muted';
 }

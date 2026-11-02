@@ -1,15 +1,18 @@
 // DJ screen, for a tablet or a phone in the booth: says in big letters whether the level of the
 // record is right and, when the automatic gain cannot fix it, what to do with the gain of the
-// mixer; shows the level against the target zone. Full screen when the browser allows it, and the
-// screen stays on where the browser allows that (HTTPS or the computer itself).
+// mixer; shows the level against the target zone, and lets the DJ pause the automatic gain for a
+// few minutes (scratching, a microphone, a live act). Full screen when the browser allows it, and
+// the screen stays on where the browser allows that (HTTPS or the computer itself).
 
 import { useEffect, useState } from 'react';
 import { connectDevice, selectDevice, useApp, useDevice } from '../state/store.ts';
-import { adviceOf, statusText, useLeveler, useLiveLevel } from '../state/leveler.ts';
+import type { LevelerState } from '@dsp-studio/protocol';
+import { adviceOf, fmtCountdown, statusText, useLeveler, useLiveLevel } from '../state/leveler.ts';
 import { go, useRoute } from '../state/route.ts';
 import { Badge, Button } from '../ui/kit.tsx';
 import { Icon } from '../ui/icons.tsx';
 import { LevelMeter } from '../ui/LevelMeter.tsx';
+import { LevelPause } from '../ui/LevelPause.tsx';
 import { fmtSigned, stateLabel } from '../ui/format.ts';
 import { t, tm } from '../i18n.tsx';
 import '../ui/level.css';
@@ -56,6 +59,13 @@ function useWakeLock(): void {
       void lock?.release();
     };
   }, []);
+}
+
+/** The line about the automatic gain at the bottom of the screen. */
+function autoLine(st: LevelerState): string {
+  if (!st.settings.enabled) return t('Gain automatique désactivé : conseils seulement');
+  const what = st.pause > 0 ? t('En pause, reprise dans {0}', fmtCountdown(st.pause)) : statusText(st.status);
+  return t('Gain automatique : {0} — {1}', `${fmtSigned(st.correction)} dB`, what);
 }
 
 function useFullscreen(): { on: boolean; toggle: (() => void) | null } {
@@ -106,8 +116,11 @@ export function DjView(): React.JSX.Element {
   else if (st.clip) hero = { tone: 'clip', icon: 'warning', main: t('Ça sature'), sub: t('Baissez la sortie de la table de mixage') };
   else if (advice.kind === 'up') hero = { tone: 'move', icon: 'up', main: t('Montez le gain'), sub: t('d’environ {0} dB', advice.db) };
   else if (advice.kind === 'down') hero = { tone: 'move', icon: 'down', main: t('Baissez le gain'), sub: t('d’environ {0} dB', advice.db) };
+  else if (advice.kind === 'break') hero = { tone: 'ok', icon: 'wait', main: t('Break en cours'), sub: t('Rien à toucher : le niveau revient avec la musique') };
+  else if (advice.kind === 'limit') hero = { tone: 'move', icon: 'warning', main: t('Ne montez pas le gain'), sub: t('Les limiteurs travaillent déjà') };
   else if (advice.kind === 'auto') hero = { tone: 'auto', icon: 'auto', main: t('Correction en cours'), sub: t('Le gain automatique s’en occupe : rien à toucher') };
   else if (advice.kind === 'ok') hero = { tone: 'ok', icon: 'check', main: t('Bon niveau'), sub: t('Rien à toucher') };
+  else if (advice.kind === 'quiet') hero = { tone: 'ok', icon: 'check', main: t('Passage calme'), sub: t('Rien à toucher : le reste du disque est au bon niveau') };
   else hero = { tone: 'none', icon: 'wait', main: t('En attente de musique') };
 
   const name = mirror ? tm(mirror.info?.label ?? '') : '';
@@ -145,15 +158,14 @@ export function DjView(): React.JSX.Element {
 
       {st && st.status !== 'offline' && (
         <footer className="dj-foot">
-          <p className="dj-line">
-            <Icon name="wave" />
-            <span>
-              {st.settings.enabled
-                ? t('Gain automatique : {0} — {1}', `${fmtSigned(st.correction)} dB`, statusText(st.status))
-                : t('Gain automatique désactivé : conseils seulement')}
-            </span>
-          </p>
-          {st.limiting && <p className="dj-line dj-warn"><Icon name="warning" /><span>{t('Le limiteur d’une sortie travaille.')}</span></p>}
+          <div className="dj-foot-text">
+            <p className="dj-line">
+              <Icon name="wave" />
+              <span>{autoLine(st)}</span>
+            </p>
+            {st.limiting && <p className="dj-line dj-warn"><Icon name="warning" /><span>{t('Le limiteur d’une sortie travaille.')}</span></p>}
+          </div>
+          {mirror && role !== 'viewer' && <LevelPause mirror={mirror} st={st} countdown={false} />}
         </footer>
       )}
     </div>

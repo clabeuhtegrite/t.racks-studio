@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { gainDbToRaw, gainRawToDb } from '../src/codecs.ts';
 import { defaultConfig, type DeviceConfig } from '../src/config.ts';
 import {
-  Leveler, LevelerCore, LEVELER_DEFAULTS, mergeLevelerSettings, restoreLevelerSettings, type LevelerSettings,
+  currentNight, Leveler, LevelerCore, LEVELER_DEFAULTS, LEVELER_HISTORY_MS, mergeLevelerSettings, restoreLevelerPoint,
+  restoreLevelerSettings, restoreLevelerTotals, summarizeNight, type LevelerPoint, type LevelerSettings,
 } from '../src/leveler.ts';
 import { masksFromLeaders } from '../src/links.ts';
 import { DeviceSession } from '../src/session.ts';
@@ -18,7 +19,10 @@ type Hw = 'pre' | 'post';
  * Plays a source (level of the mixer, dBFS, null = silence) into the inputs for `seconds`, one meter
  * reading every 250 ms, and applies the edits the core asks for, like the session would.
  */
-function play(core: LevelerCore, cfg: DeviceConfig, from: number, seconds: number, src: (t: number) => number | null, hw: Hw = 'post') {
+function play(
+  core: LevelerCore, cfg: DeviceConfig, from: number, seconds: number, src: (t: number) => number | null, hw: Hw = 'post',
+  status: (t: number) => number = () => 0,
+) {
   let writes = 0;
   const statuses = new Set<string>();
   let t = from;
@@ -26,7 +30,7 @@ function play(core: LevelerCore, cfg: DeviceConfig, from: number, seconds: numbe
     const db = Array<number>(12).fill(-140);
     const s = src(t);
     for (let i = 0; i < cfg.inputs.length; i++) db[i] = s === null ? -140 : hw === 'post' ? s + gainRawToDb(cfg.inputs[i].gain) : s;
-    core.observe(t, db, cfg, 0);
+    core.observe(t, db, cfg, status(t));
     const next = core.decide(t, cfg);
     statuses.add(core.status);
     if (next !== null) {
@@ -106,16 +110,19 @@ describe('automatic gain decisions', () => {
     expect(gainOf(cfg, 0)).toBe(2);
   });
 
-  it('respects the budget of changes per hour', () => {
+  it('respects the budget of steps per hour, counting steps and not edits', () => {
     const cfg = defaultConfig('dsp206');
-    const core = new LevelerCore(settings({ meter: 'post', budget: 20 }));
+    const core = new LevelerCore(settings({ meter: 'post', budget: 5 }));
     const r = play(core, cfg, 0, 200, () => -32);
-    expect(r.writes).toBe(20);
-    expect(core.correction).toBe(5);
+    // InA and InB are not linked: two edits per step, but each gain is written once per step
+    expect(r.writes).toBe(10);
+    expect(core.correction).toBe(2.5);
     expect(core.status).toBe('budget');
+    expect(core.writesInLastHour(r.t)).toBe(5);
+    expect(core.totals).toEqual({ steps: 5, since: expect.any(Number) });
     // an hour later it goes on
     play(core, cfg, 3_700_000, 60, () => -32);
-    expect(core.correction).toBe(6);
+    expect(core.correction).toBe(5);
   });
 
   it('sends one edit per link group', () => {
@@ -203,7 +210,8 @@ describe('automatic gain decisions', () => {
     const st = core.state(r.t);
     expect(st.status).toBe('off');
     expect(st.level).toBe(-20);
-    expect(st.source).toBe(-20);
+    expect(st.average).toBe(-20);
+    expect(st.loud).toBe(-20);
     expect(core.history.length).toBeGreaterThan(2);
   });
 
@@ -224,6 +232,119 @@ describe('automatic gain decisions', () => {
     expect(core.state(4250).clip).toBe(true);
   });
 
+  it('waits for the music to come back after a long breakdown', () => {
+    const cfg = defaultConfig('dsp206');
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    // 90 s of breakdown, 12 dB down: longer than the old 40 s hold
+    const song = (t: number): number => (t >= 60_000 && t < 150_000 ? -26 : -14);
+    const r = play(core, cfg, 0, 210, song);
+    expect(r.writes).toBe(0);
+    expect(r.statuses).toContain('break');
+    expect(core.state(r.t).breakdown).toBe(false); // the music came back
+  });
+
+  it('raises a quieter record that follows a sudden drop once the wait runs out', () => {
+    const cfg = defaultConfig('dsp206');
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    const song = (t: number): number => (t < 60_000 ? -14 : -23);
+    let r = play(core, cfg, 0, 150, song);
+    expect(r.writes).toBe(0); // it could still be a breakdown
+    expect(core.state(r.t).breakdown).toBe(true);
+    r = play(core, cfg, r.t, 120, song);
+    expect(core.correction).toBeGreaterThan(2);
+    expect(core.state(r.t).breakdown).toBe(false);
+  });
+
+  it('does not push a quiet intro or a quiet passage', () => {
+    const cfg = defaultConfig('dsp206');
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    // 30 s at -17.5 (3.5 dB under the target, below the zone) between loud parts at the target
+    const song = (t: number): number => (t >= 60_000 && t < 90_000 ? -17.5 : -14);
+    const r = play(core, cfg, 0, 150, song);
+    expect(r.writes).toBe(0);
+    expect(core.state(r.t).breakdown).toBe(false);
+  });
+
+  it('never raises while an output limiter acts, and takes back its own boost when it lasts', () => {
+    const cfg = defaultConfig('dsp206');
+    cfg.outputs[1].limiter.threshold = 200; // Out2 has a limiter
+    const limiter = 1 << 9; // status word: the limiter of Out2 acts
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    let r = play(core, cfg, 0, 120, () => -20, 'post', () => limiter);
+    expect(r.writes).toBe(0);
+    expect(core.status).toBe('protect');
+    // a quiet record raised, then the limiter starts working for good: the boost goes away
+    const other = new LevelerCore(settings({ meter: 'post' }));
+    const cfg2 = defaultConfig('dsp206');
+    cfg2.outputs[1].limiter.threshold = 200;
+    r = play(other, cfg2, 0, 120, () => -20);
+    expect(other.correction).toBe(5);
+    r = play(other, cfg2, r.t, 60, () => -20, 'post', () => limiter);
+    expect(other.correction).toBe(0);
+    expect(gainOf(cfg2, 0)).toBe(0);
+    // the limiter only now and then: nothing taken back, but no more raising
+    const third = new LevelerCore(settings({ meter: 'post' }));
+    const cfg3 = defaultConfig('dsp206');
+    cfg3.outputs[1].limiter.threshold = 200;
+    r = play(third, cfg3, 0, 45, () => -20);
+    const c = third.correction;
+    expect(c).toBeGreaterThan(0);
+    expect(c).toBeLessThan(4); // still below the zone
+    play(third, cfg3, r.t, 60, () => -20, 'post', (t) => (Math.floor(t / 250) % 8 === 0 ? limiter : 0));
+    expect(third.correction).toBe(c);
+    expect(third.status).toBe('protect');
+  });
+
+  it('pauses when the DJ asks, then listens again before correcting', () => {
+    const cfg = defaultConfig('dsp206');
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    core.pause(300_000, 0);
+    let r = play(core, cfg, 0, 290, () => -20);
+    expect(r.writes).toBe(0);
+    expect(core.status).toBe('paused');
+    expect(core.state(r.t).pause).toBe(10);
+    r = play(core, cfg, r.t, 20, () => -20);
+    expect(r.writes).toBe(0); // the readings of the pause do not count: it listens again
+    expect(core.status).toBe('waiting');
+    r = play(core, cfg, r.t, 90, () => -20);
+    expect(core.correction).toBe(5);
+    // resumed early
+    const early = new LevelerCore(settings({ meter: 'post' }));
+    early.pause(300_000, 0);
+    r = play(early, cfg, 0, 30, () => -20);
+    early.pause(0, r.t);
+    expect(early.state(r.t).pause).toBe(0);
+    play(early, defaultConfig('dsp206'), r.t, 100, () => -20);
+    expect(early.correction).toBe(5);
+  });
+
+  it('writes a history point every 10 s: level, correction, zone, steps, clipping and limiting', () => {
+    const cfg = defaultConfig('dsp206');
+    const core = new LevelerCore(settings({ meter: 'post' }));
+    play(core, cfg, 0, 120, () => -20);
+    const h = core.history;
+    expect(h.length).toBe(12);
+    expect(h.reduce((a, p) => a + p.steps, 0)).toBe(10);
+    expect(h[0]).toMatchObject({ t: 0, zone: null, steps: 0, clip: false, limit: false });
+    expect(h.some((p) => p.zone === -1)).toBe(true);
+    expect(h.at(-1)).toMatchObject({ level: -15, correction: 5, zone: 0 });
+    expect(core.totals.steps).toBe(10);
+  });
+
+  it('keeps 12 hours of history, also from storage', () => {
+    const point = (t: number): LevelerPoint => ({ t, level: -14, correction: 0, zone: 0, steps: 0, clip: false, limit: false });
+    const core = new LevelerCore(settings());
+    const now = 20 * 3_600_000;
+    core.restoreHistory([point(now - 1000), point(now - LEVELER_HISTORY_MS - 1000), point(now - 3_600_000), point(now + 5000)], now);
+    expect(core.history.map((p) => p.t)).toEqual([now - 3_600_000, now - 1000]);
+    expect(restoreLevelerPoint({ t: 5, level: null, correction: 1, zone: 3, steps: -1, clip: 1 })).toEqual(
+      { t: 5, level: null, correction: 1, zone: null, steps: 0, clip: false, limit: false },
+    );
+    expect(restoreLevelerPoint({ t: 'x', level: 1, correction: 0 })).toBeNull();
+    expect(restoreLevelerTotals({ steps: 12, since: 3 })).toEqual({ steps: 12, since: 3 });
+    expect(restoreLevelerTotals({ steps: -1, since: 3 })).toBeNull();
+  });
+
   it('turned off, the gains stay where they are', () => {
     const cfg = defaultConfig('dsp206');
     const core = new LevelerCore(settings({ meter: 'post' }));
@@ -232,6 +353,33 @@ describe('automatic gain decisions', () => {
     expect(core.correction).toBe(0);
     expect(gainOf(cfg, 0)).toBe(5);
     expect(core.state(r.t).level).toBe(-15);
+  });
+});
+
+describe('summary of the night', () => {
+  const H = 3_600_000;
+  const pt = (t: number, level: number | null, p: Partial<LevelerPoint> = {}): LevelerPoint =>
+    ({ t, level, correction: 0, zone: level === null ? null : 0, steps: 0, clip: false, limit: false, ...p });
+
+  it('starts after the last 3 hours without music, and leaves out the silence around it', () => {
+    const pts = [pt(0, -14), pt(10_000, null), pt(4 * H, null), pt(4 * H + 10_000, -14), pt(5 * H, -13), pt(5 * H + 10_000, null)];
+    expect(currentNight(pts).map((p) => p.t)).toEqual([4 * H + 10_000, 5 * H, 5 * H + 10_000]);
+    // over: the silence after the last record goes too
+    const over = [...pts, pt(9 * H, null)];
+    expect(currentNight(over).map((p) => p.t)).toEqual([4 * H + 10_000, 5 * H]);
+    expect(currentNight([pt(0, null)])).toEqual([]);
+  });
+
+  it('adds up the time in the zone, the steps, the corrections, the clipping and the limiting', () => {
+    const s = summarizeNight([
+      pt(0, -14, { steps: 1, correction: 0.5 }), pt(10_000, -20, { zone: -1, clip: true }), pt(20_000, -9, { zone: 1, limit: true, correction: -1 }),
+      pt(30_000, -26, { zone: null, steps: 2, correction: 2 }), pt(40_000, null),
+    ])!;
+    expect(s).toEqual({
+      from: 0, to: 40_000, music: 40_000, inZone: 10_000, low: 10_000, high: 10_000,
+      steps: 3, minCorrection: -1, maxCorrection: 2, clip: 10_000, limit: 10_000,
+    });
+    expect(summarizeNight([])).toBeNull();
   });
 });
 

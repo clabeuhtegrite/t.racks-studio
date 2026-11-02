@@ -1,8 +1,9 @@
-// Level and automatic correction over the last two hours: two panels on the same time axis (the
-// level with the target zone, then the correction), a crosshair giving the figures of the moment
-// under the pointer, the finger or the arrow keys, and the same figures as a table.
+// Level and automatic correction during the night (up to 12 hours): two panels on the same time axis
+// (the level with the target zone, then the correction), a crosshair giving the figures of the
+// moment under the pointer, the finger or the arrow keys, and the same figures as a table, a minute
+// per row.
 
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { LevelerPoint, LevelerSettings } from '@dsp-studio/protocol';
 import { fmtNumber, fmtSigned } from './format.ts';
 import { locale, t } from '../i18n.tsx';
@@ -11,7 +12,9 @@ import './level.css';
 /** two points further apart than this are not joined (device off, bridge restarted) */
 const GAP_MS = 25_000;
 const MIN_SPAN_MS = 10 * 60_000;
-const TICK_MINUTES = [1, 2, 5, 10, 15, 30, 60];
+const TICK_MINUTES = [1, 2, 5, 10, 15, 30, 60, 120, 180, 240];
+/** Page up / Page down: 10 minutes of points */
+const PAGE = 60;
 
 const timeFmt = (seconds: boolean): Intl.DateTimeFormat =>
   new Intl.DateTimeFormat(locale(), seconds ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
@@ -75,7 +78,7 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
   const corrTicks: number[] = [];
   for (let v = -cMax; v <= cMax; v += cStep) corrTicks.push(v);
   const span = (t1 - t0) / 60_000;
-  const minutes = TICK_MINUTES.find((m) => span / m <= Math.max(2, Math.floor(W / 84))) ?? 60;
+  const minutes = TICK_MINUTES.find((m) => span / m <= Math.max(2, Math.floor(W / 84))) ?? TICK_MINUTES[TICK_MINUTES.length - 1];
   const timeTicks: number[] = [];
   for (let tm = Math.ceil(t0 / (minutes * 60_000)) * minutes * 60_000; tm <= t1; tm += minutes * 60_000) timeTicks.push(tm);
   const short = timeFmt(false), long = timeFmt(true);
@@ -93,7 +96,7 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
     const last = pts.length - 1;
     const cur = sel ?? last;
     const next = e.key === 'ArrowLeft' ? cur - 1 : e.key === 'ArrowRight' ? cur + 1 : e.key === 'Home' ? 0 : e.key === 'End' ? last
-      : e.key === 'PageUp' ? cur - 30 : e.key === 'PageDown' ? cur + 30 : null;
+      : e.key === 'PageUp' ? cur - PAGE : e.key === 'PageDown' ? cur + PAGE : null;
     if (e.key === 'Escape') { setSel(null); return; }
     if (next === null) return;
     e.preventDefault();
@@ -154,10 +157,27 @@ export function LevelHistory(p: { points: LevelerPoint[]; settings: LevelerSetti
   );
 }
 
-/** The same figures as a table, newest first. */
+interface Minute { t: number; level: number | null; correction: number }
+
+/** One row per minute: the mean level of the music in it, the correction at its end. */
+function byMinute(points: readonly LevelerPoint[]): Minute[] {
+  const out: Minute[] = [];
+  let cur: { t: number; power: number; n: number; correction: number } | null = null;
+  const close = (): void => { if (cur) out.push({ t: cur.t, level: cur.n ? 10 * Math.log10(cur.power / cur.n) : null, correction: cur.correction }); };
+  for (const q of points) {
+    const m = Math.floor(q.t / 60_000) * 60_000;
+    if (!cur || cur.t !== m) { close(); cur = { t: m, power: 0, n: 0, correction: q.correction }; }
+    if (q.level !== null) { cur.power += 10 ** (q.level / 10); cur.n++; }
+    cur.correction = q.correction;
+  }
+  close();
+  return out;
+}
+
+/** The same figures as a table, a minute per row, newest first. */
 export function LevelTable(p: { points: LevelerPoint[] }): React.JSX.Element {
-  const fmt = timeFmt(true);
-  const rows = [...p.points].reverse();
+  const fmt = timeFmt(false);
+  const rows = useMemo(() => byMinute(p.points).reverse(), [p.points]);
   return (
     <div className="table-wrap lvh-table">
       <table className="table table-tight">

@@ -42,6 +42,7 @@ const PATHS = {
   edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
   play: 'M7 5l12 7-12 7z',
   stop: 'M6 6h12v12H6z',
+  pause: 'M9 5v14M15 5v14',
   wave: 'M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0',
   usb: 'M12 3v14M12 3l-2 3h4zM8 9v3l4 3M16 8v2l-4 3M12 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
   ethernet: 'M5 4h14v10H5zM9 14v3h6v-3M8 7v3M11 7v3M13 7v3M16 7v3',

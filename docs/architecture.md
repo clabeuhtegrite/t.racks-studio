@@ -84,21 +84,32 @@ gain automatique (`leveler.ts`) tourne donc dans le pont, même sans écran ouve
 gain des entrées où arrive la table de mixage :
 
 - il lit les vumètres des entrées choisies (4 fois par seconde) et en déduit le niveau qu’aurait la
-  musique sans sa correction ; il ne décide que sur des moyennes (15 à 60 s selon la vitesse), en
-  laissant de côté le silence et les passages calmes ;
-- il corrige par pas de 0,5 dB, hors d’une zone autour de la cible, entre les limites choisies ;
-  une chute brutale du niveau (un break) suspend la remontée ;
+  musique sans sa correction, en laissant de côté le silence ;
+- il corrige par pas de 0,5 dB, hors d’une zone autour de la cible, entre les limites choisies. Il
+  baisse quand la moyenne (5 à 20 s selon la vitesse) et les 3 dernières secondes sont au-dessus
+  de la zone ; il ne monte que si les passages forts du disque (les 40 % de blocs de 3 s les plus
+  forts, sur 20 à 60 s) sont eux aussi en dessous : une intro ou un passage calme ne fait rien
+  monter ;
+- un break (la moyenne tombe 6 dB sous celle des 15 à 60 dernières secondes) suspend la remontée
+  jusqu’à ce que la musique revienne à 3 dB près, ou au plus 1 min 30 à 3 min ;
+- il ne monte pas quand une entrée sature ou qu’un limiteur de sortie agit, et rend sa propre
+  remontée si cela dure (la moitié des 10 dernières secondes) ;
 - chaque pas passe par la session comme une modification ordinaire : tous les écrans la voient ;
   un gain changé par quelqu’un d’autre devient la nouvelle référence après une pause ;
 - le firmware écrit chaque modification dans sa mémoire (EEPROM) aussitôt : le nombre de pas par
-  heure est donc limité ;
+  heure est donc limité. Un pas écrit une fois le gain de chaque entrée suivie, liées ou non :
+  la limite compte des pas, et le total depuis la mise en service est gardé ;
+- le DJ peut le mettre en pause 5 minutes (scratch, micro, live) depuis l’écran DJ ;
+- il garde un point toutes les 10 s pendant 12 heures (niveau, correction, zone, saturation,
+  limiteurs) : c’est le bilan de la soirée, qui commence après 3 heures sans musique ;
 - on ne sait pas encore si les vumètres d’entrée du boîtier mesurent avant ou après le gain
   d’entrée. Tant que ce n’est pas vérifié, il suppose « avant », le cas sans danger (au pire, la
   correction ne va qu’à moitié) ; la vérification baisse le gain de 6 dB pendant 2 s et regarde si
   les vumètres suivent.
 
 L’écran DJ (`#/dj`) montre le niveau par rapport à la zone et ne conseille de toucher au gain de la
-table que quand le gain automatique ne peut pas le faire lui-même.
+table que quand le gain automatique ne peut pas le faire lui-même ; jamais de monter pendant un
+break ni quand les limiteurs travaillent.
 
 ## Le pont (`apps/bridge`)
 
@@ -110,7 +121,7 @@ table que quand le gain automatique ne peut pas le faire lui-même.
 | `server.ts` | HTTP (interface compilée) et WebSocket : abonnements, actions, appels, bibliothèque, codes |
 | `discovery.ts` | recherche Ethernet (diffusion UDP 30303 comme le logiciel Windows, puis essai du port 9761 sur le réseau local) |
 | `library.ts` | bibliothèque partagée : presets, sauvegardes d’appareil, scènes (fichiers JSON dans `<data>/library`) |
-| `leveler.ts` | un gain automatique par appareil, branché sur sa session tant qu’il est en ligne ; réglages et gains de référence dans `<data>/leveler.json` |
+| `leveler.ts` | un gain automatique par appareil, branché sur sa session tant qu’il est en ligne ; réglages, gains de référence et total des pas écrits dans `<data>/leveler.json` ; historique de la soirée ajouté une fois par minute à `<data>/leveler-history/<appareil>.jsonl`, relu au démarrage |
 
 Tous les écrans abonnés à un appareil partagent sa session. Quand un écran envoie une action, le
 pont l’applique, puis la diffuse aux autres écrans, qui la rejouent sur leur copie : tout le monde

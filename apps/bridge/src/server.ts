@@ -197,13 +197,14 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
         return await callSession(s, method, Array.isArray(m.args) ? m.args : []);
       }
       case 'leveler': {
-        // automatic gain: anyone sees it, an operator switches it on and off, the admin sets it up
+        // automatic gain: anyone sees it, an operator switches it on and off or pauses it, the admin sets it up
         const lv = o.levelers?.get(String(deviceOf(m.key).key));
         if (!lv) throw new Error('requête inconnue');
         switch (m.op) {
           case 'state': return lv.state();
-          case 'history': return lv.history();
+          case 'history': return lv.history(typeof m.value === 'number' ? m.value : undefined);
           case 'enable': needOperator(c); return lv.enable(m.value === true);
+          case 'pause': needOperator(c); return lv.pause(m.value);
           case 'set': needAdmin(c); return lv.update(m.value);
           case 'target': needAdmin(c); return lv.takeTarget();
           case 'check': needAdmin(c); return await lv.checkMeter();

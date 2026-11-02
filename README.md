@@ -66,8 +66,10 @@ in French).
 - Printable settings sheet (or PDF).
 - Light and dark themes, app installable on phones and tablets (over HTTPS).
 - Automatic gain for vinyl DJ sets: the bridge gently evens out the level from one record to the
-  next (target, tolerance, limits, pause on breakdowns), with a full-screen DJ screen that says when
-  to touch the mixer gain and a two-hour history.
+  next (target, tolerance, limits), judging each record on its loud parts, waiting out breakdowns
+  and never pushing into a limiter. A full-screen DJ screen says when to touch the mixer gain and
+  pauses the automatic gain for 5 minutes (scratching, a microphone); the summary of the night is
+  kept across restarts, with the count of writes to the DSP’s memory.
 - Runs on a Raspberry Pi wired to the venue network.
 
 ![The overview: levels, volumes, mutes and active processing of every channel, with the compressor and limiter at work](docs/screenshots/en/overview.png)

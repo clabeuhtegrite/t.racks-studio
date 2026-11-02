@@ -188,6 +188,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     force.unref();
     server.close();
     await hub.close();
+    levelers.close();
     await levelers.flush();
     process.exit(0);
   };
