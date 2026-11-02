@@ -7,3 +7,4 @@ emulator/firmware/
 emulator/state/
 emulator/__pycache__/
 **/__pycache__/
+.dev/

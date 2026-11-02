@@ -1,12 +1,14 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
-// même pont, 26 vérifications (synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
+// même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 29 vérifications
+// (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
 // presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil).
 //
-//   npm start -- --demo                       # ou le pont relié à deux DSP émulés (9761 et 9762)
-//   node apps/web/e2e/flows.cjs [adresse] [--appareil2 texte] [--lent n] [--captures dossier]
+//   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
+//   node apps/web/e2e/flows.cjs [adresse] [--appareils liste] [--lent n] [--captures dossier]
 //
-// --appareil2 : texte du second appareil dans le sélecteur (« DSP 408 » par défaut ; « 9762 »
-// avec les émulateurs) ; --lent : multiplie les attentes (2 ou 3 avec l'émulateur).
+// --appareils : appareils à ajouter, « demo206,demo408 » par défaut, ou
+// « tcp:localhost:9761,tcp:localhost:9762 » pour deux DSP émulés (le premier doit être un 206) ;
+// --lent : multiplie les attentes (2 ou 3 avec l'émulateur).
 // Il faut Playwright et son Chromium : npm i --no-save playwright && npx playwright install chromium
 // Les parcours modifient l'appareil (U01, verrouillage) : jamais sur un DSP en service.
 const fs = require('fs');
@@ -16,7 +18,8 @@ const { chromium } = require('playwright');
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : def; };
-const SECOND = opt('--appareil2', 'DSP 408');
+const DEVICES = opt('--appareils', 'demo206,demo408').split(',');
+const SECOND = DEVICES[1].startsWith('demo') ? `DSP ${DEVICES[1].slice(4)}` : DEVICES[1].split(':').pop();
 const FACTOR = Number(opt('--lent', '1'));
 const SHOTS = opt('--captures', '');
 const BASE = args[0] || 'http://localhost:8080/';
@@ -26,8 +29,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
 
 (async () => {
   const browser = await chromium.launch();
-  const ctxA = await browser.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true });
-  const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const ctxA = await browser.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true, locale: 'fr-FR' });
+  const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR' });
   const A = await ctxA.newPage();
   const B = await ctxB.newPage();
   const errors = [];
@@ -35,13 +38,47 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
     p.on('pageerror', (e) => errors.push(`${n}: ${e.message}`));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(`${n}: ${m.text()}`); });
   }
-  await A.goto(BASE + '#/console');
+  await A.goto(BASE + '#/connexion');
   await B.goto(BASE + '#/console');
-  await wait(2500);
+  await wait(1500);
 
-  // pick the 206 on both
   const field = (p, name) => p.getByRole('textbox', { name, exact: true });
   const setField = async (p, name, text) => { const f = field(p, name); await f.click(); await f.fill(text); await f.press('Enter'); };
+
+  // 0. devices are added from the connection screen (never from the command line)
+  for (const d of DEVICES) {
+    await A.evaluate(() => { location.hash = '#/connexion'; });
+    await wait(400);
+    if (d.startsWith('demo')) {
+      await A.getByRole('tab', { name: /Démo/ }).click();
+      await A.getByRole('radio', { name: new RegExp(`DSP ${d.slice(4)}`) }).click();
+      await A.getByRole('button', { name: new RegExp(`Ajouter un DSP ${d.slice(4)} de démonstration`) }).click();
+    } else {
+      const [, host, port] = d.split(':');
+      await A.getByRole('tab', { name: /Ethernet/ }).click();
+      await field(A, 'Adresse IP du DSP').fill(host);
+      await field(A, 'Port TCP').fill(port);
+      await A.locator('form').getByRole('button', { name: 'Ajouter', exact: true }).click();
+    }
+    await wait(2500);
+  }
+  ok('appareils ajoutés depuis l’écran Connexion', (await A.locator('.devpick-label').innerText()).length > 0);
+  // the first one (206) on the computer; the phone took the first device that appeared
+  await A.locator('.devpick-btn').click();
+  await A.locator('.pop-item').first().click();
+  await A.evaluate(() => { location.hash = '#/console'; });
+  await wait(1500);
+  ok('le téléphone voit l’appareil ajouté sur l’ordinateur', (await B.locator('.strip').count()) === 8, String(await B.locator('.strip').count()));
+
+  // 0b. disconnect, then connect again from the interface
+  await A.evaluate(() => { location.hash = '#/connexion'; });
+  await wait(500);
+  await A.locator('.dev').first().getByRole('button', { name: 'Se déconnecter' }).click();
+  await wait(1200);
+  ok('se déconnecter : l’autre écran le voit', await B.getByText('Appareil non connecté').isVisible());
+  await A.locator('.dev').first().getByRole('button', { name: 'Se connecter' }).click();
+  await wait(2500 + 1000 * (FACTOR - 1));
+  ok('se connecter depuis l’interface : la console revient', (await B.locator('.strip').count()) === 8 && (await A.locator('.strip').count()) === 8);
 
   // 1. gain sync between screens
   await setField(A, 'Volume InA', '-6');
@@ -206,14 +243,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await A.evaluate(() => { location.hash = '#/console'; });
   await wait(2500);
   ok('DSP 408 : 12 tranches', (await A.locator('.strip').count()) === 12, String(await A.locator('.strip').count()));
-
-  // 15. add a demo device from the connection screen
-  await A.evaluate(() => { location.hash = '#/connexion'; });
-  await wait(500);
-  await A.getByRole('tab', { name: /Démo/ }).click();
-  await A.getByRole('button', { name: /Ajouter un DSP 408 de démonstration/ }).click();
-  await wait(2500);
-  ok('appareil ajouté depuis l’écran Connexion', (await A.locator('.devpick-label').innerText()).length > 0);
 
   console.log(results.join('\n'));
   console.log(errors.length ? 'ERREURS :\n' + errors.join('\n') : 'aucune erreur JavaScript');

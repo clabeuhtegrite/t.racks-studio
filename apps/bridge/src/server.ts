@@ -142,6 +142,7 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
     return s;
   };
   const needAdmin = (c: Client): void => { if (c.role !== 'admin') throw new Error('action réservée à l’administrateur'); };
+  const needOperator = (c: Client): void => { if (c.role === 'viewer') throw new Error('action non autorisée pour ce rôle'); };
 
   async function handle(c: Client, m: Record<string, unknown>): Promise<unknown> {
     switch (m.t) {
@@ -162,7 +163,8 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
         o.hub.emit('devices', o.hub.list());
         return true;
       }
-      case 'reconnect': needAdmin(c); { const d = deviceOf(m.key); await d.stop(); void d.start(); } return true;
+      case 'connect': needOperator(c); o.hub.connect(String(deviceOf(m.key).key)); return true;
+      case 'disconnect': needOperator(c); await o.hub.disconnect(String(deviceOf(m.key).key)); return true;
       case 'subscribe': {
         const key = String(m.key);
         const d = deviceOf(key);

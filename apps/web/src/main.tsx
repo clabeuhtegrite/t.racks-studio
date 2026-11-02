@@ -3,12 +3,18 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App.tsx';
-import { startApp } from './state/store.ts';
+import { startApp, useApp } from './state/store.ts';
 import './styles.css';
+
+/** The whole app is drawn again when the language changes (texts are translated while drawing). */
+function Root(): React.JSX.Element {
+  const lang = useApp((s) => s.lang);
+  return <App key={lang} />;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Root />
   </StrictMode>,
 );
 void startApp();

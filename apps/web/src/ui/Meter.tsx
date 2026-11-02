@@ -1,3 +1,4 @@
+import { t } from '../i18n.tsx';
 // Level meter (dBFS) with clip LED, and the limiter LED of the outputs.
 
 const MIN_DB = -60;
@@ -12,8 +13,8 @@ export function Meter(p: { db: number | null | undefined; limit?: boolean; verti
     <div className={`meter ${p.vertical === false ? 'meter-h' : 'meter-v'} ${p.compact ? 'meter-compact' : ''}`} role="meter" aria-label={p.label}
       aria-valuemin={MIN_DB} aria-valuemax={0} aria-valuenow={Math.round(Math.max(MIN_DB, db))}>
       <div className="meter-leds">
-        <span className={`led led-red ${clip ? 'is-on' : ''}`} title="Écrêtage" />
-        {p.limit !== undefined && <span className={`led led-amber ${p.limit ? 'is-on' : ''}`} title="Limiteur actif" />}
+        <span className={`led led-red ${clip ? 'is-on' : ''}`} title={t('Écrêtage')} />
+        {p.limit !== undefined && <span className={`led led-amber ${p.limit ? 'is-on' : ''}`} title={t('Limiteur actif')} />}
       </div>
       <div className="meter-bar">
         <div className="meter-fill" style={p.vertical === false ? { transform: `scaleX(${pos})` } : { transform: `scaleY(${pos})` }} />

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dsp-studio/i18n": "0.1.0",
     "@dsp-studio/protocol": "0.1.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

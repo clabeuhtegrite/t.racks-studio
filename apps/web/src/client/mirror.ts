@@ -11,6 +11,7 @@ import {
   type Action, type DeviceConfig, type DeviceInfo, type SessionSnapshot,
 } from '@dsp-studio/protocol';
 import type { Backend } from './types.ts';
+import { t } from '../i18n.tsx';
 
 export interface UndoEntry { key: string; action: Action; inverse: Action[]; redo: Action[]; at: number }
 export interface FrameLine { dir: 'tx' | 'rx'; hex: string; at: number }
@@ -114,6 +115,8 @@ export class DeviceMirror {
         const was = this.info?.state;
         this.info = i;
         if (i && was !== 'online' && i.state === 'online') void this.resubscribe();
+        // not connected any more: the screens show it instead of settings that can no longer be sent
+        if (i && (i.state === 'idle' || i.state === 'offline')) { this.snap = null; this.config = null; }
         this.bump();
       }),
       b.on('status', (s) => { if (s === 'online') void this.resubscribe(); else this.bump(); }),
@@ -247,7 +250,7 @@ export class DeviceMirror {
   async recallAB(slot: 'A' | 'B'): Promise<void> {
     const target = this.ab[slot];
     if (!target) return;
-    await this.call('pushConfig', target, `Comparaison ${slot}`);
+    await this.call('pushConfig', target, t('Comparaison {0}', slot));
     this.ab = { ...this.ab, active: slot };
     this.bump();
   }

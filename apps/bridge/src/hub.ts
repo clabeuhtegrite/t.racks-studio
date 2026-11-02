@@ -1,5 +1,7 @@
-// The device hub: every DSP the bridge drives (several at once), with automatic reconnection.
-// Each device has one DeviceSession; all web clients share it, so they always see the same state.
+// The device hub: every DSP the bridge knows (several at once). Devices are remembered and connected
+// from the interface; once connected, a device that goes away is reconnected automatically until it
+// is disconnected. Each device has one DeviceSession, shared by all web clients, so they always see
+// the same state.
 
 import { EventEmitter } from 'node:events';
 import {
@@ -27,10 +29,11 @@ export class Device extends EventEmitter {
   readonly spec: SourceSpec;
   session: DeviceSession | null = null;
   sim: VirtualDsp | null = null;
-  state: DeviceInfo['state'] = 'offline';
+  state: DeviceInfo['state'] = 'idle';
   error: string | null = null;
   private retry: ReturnType<typeof setTimeout> | null = null;
-  private stopped = false;
+  private stopped = true;
+  private opening = false;
   private retryMs = 2000;
 
   constructor(spec: SourceSpec, label?: string) {
@@ -53,9 +56,12 @@ export class Device extends EventEmitter {
     this.emit('info', this.info());
   }
 
+  /** Connects (or retries at once when a retry is pending); does nothing when already connected. */
   async start(): Promise<void> {
     this.stopped = false;
     if (this.retry) { clearTimeout(this.retry); this.retry = null; }
+    if (this.session || this.opening) return;
+    this.opening = true;
     this.setState('connecting');
     try {
       const { transport, sim } = await open(this.spec);
@@ -82,9 +88,10 @@ export class Device extends EventEmitter {
       const s = this.session;
       this.session = null; // before close(): the 'closed' status must not schedule a second retry
       try { await s?.close(); } catch { /* ignore */ }
-      this.setState('offline', msg);
-      this.schedule();
-    }
+      if (this.stopped) this.setState('idle'); // disconnected while connecting
+      else { this.setState('offline', msg); this.schedule(); }
+    } finally { this.opening = false; }
+    if (this.stopped && this.session) await this.stop(); // disconnected while connecting
   }
 
   private schedule(): void {
@@ -100,7 +107,7 @@ export class Device extends EventEmitter {
     const s = this.session;
     this.session = null;
     if (s) await s.close();
-    this.setState('offline');
+    this.setState('idle');
   }
 
   snapshot(): SessionSnapshot | null { return this.session?.snap ?? null; }
@@ -111,16 +118,26 @@ export class Hub extends EventEmitter {
 
   list(): DeviceInfo[] { return [...this.devices.values()].map((d) => d.info()); }
 
-  add(spec: SourceSpec, label?: string): Device {
+  /** Adds a device (or returns the known one with that key), connecting it unless `connect` is false. */
+  add(spec: SourceSpec, label?: string, connect = true): Device {
     const key = specKey(spec);
     const existing = this.devices.get(key);
-    if (existing) return existing;
+    if (existing) { if (connect) void existing.start(); return existing; }
     const d = new Device(spec, label);
     this.devices.set(key, d);
     d.on('info', () => this.emit('devices', this.list()));
     for (const ev of ['snapshot', 'action', 'meters', 'frame'] as const) d.on(ev, (v) => this.emit(ev, d.key, v));
     this.emit('devices', this.list());
-    void d.start();
+    if (connect) void d.start();
+    return d;
+  }
+
+  connect(key: string): void { this.need(key).start().catch(() => { /* reported in the device state */ }); }
+  async disconnect(key: string): Promise<void> { await this.need(key).stop(); }
+
+  private need(key: string): Device {
+    const d = this.devices.get(key);
+    if (!d) throw new Error('appareil inconnu');
     return d;
   }
 

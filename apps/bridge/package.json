@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Pont réseau : relie l'interface web aux DSP (USB, Ethernet, RS-232/485, émulateur, DSP virtuel)",
-  "bin": { "dsp-studio": "./src/main.ts" },
+  "description": "Pont réseau : sert l'interface web et pilote les DSP (USB, Ethernet, RS-232/485, émulateur, DSP virtuel)",
+  "bin": {
+    "dsp-studio": "./src/main.ts"
+  },
   "scripts": {
-    "start": "node src/main.ts",
-    "demo": "node src/main.ts --demo 206 --demo 408"
+    "start": "node src/main.ts"
   },
   "dependencies": {
+    "@dsp-studio/i18n": "0.1.0",
     "@dsp-studio/protocol": "0.1.0",
     "ws": "^8.18.0"
   },

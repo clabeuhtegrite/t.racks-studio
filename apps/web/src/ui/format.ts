@@ -6,6 +6,7 @@ import {
   DELAY_RAW_MAX, delayRawToUnit, delayUnitToRaw, eqGainDbToRaw, eqGainRawToDb, freqHzToRaw, freqRawToHz, gainDbToRaw,
   gainRawToDb, qRawToValue, qValueToRaw, RATIOS, RATIO_MAX, thrDbToRaw, thrRawToDb, timeMsToRaw, timeRawToMs, type DelayUnit,
 } from '@dsp-studio/protocol';
+import { t } from '../i18n.tsx';
 
 const MINUS = '−';
 const comma = (s: string): string => s.replace('.', ',');
@@ -19,7 +20,7 @@ export function fmtSigned(v: number, digits = 1): string {
   if (Number(s.replace(',', '.')) === 0) return s;
   return (v < 0 ? MINUS : '+') + s;
 }
-export const fmtDb = (db: number, digits = 1): string => (db <= -140 ? `${MINUS}∞ dB` : `${fmtSigned(db, digits)} dB`);
+export const fmtDb = (db: number, digits = 1): string => (db <= -140 ? t('{0}∞ dB', MINUS) : `${fmtSigned(db, digits)} dB`);
 export function fmtHz(hz: number): string {
   if (hz >= 1000) return `${comma((hz / 1000).toFixed(hz >= 10000 ? 1 : 2))} kHz`;
   return `${comma(hz.toFixed(hz < 100 ? 1 : 0))} Hz`;
@@ -86,7 +87,7 @@ export const P = {
   hold: { min: 9, max: 998, def: 99, step: 10, fmt: (r) => fmtMs(timeRawToMs(r)), parse: num(timeMsToRaw, 9, 998), edit: (r) => String(timeRawToMs(r)) },
   knee: { min: 0, max: 12, def: 0, fmt: (r) => `${r} dB`, parse: num((v) => v, 0, 12), edit: (r) => String(r) },
   ratio: {
-    min: 0, max: RATIO_MAX, def: 0, fmt: (r) => (r >= RATIO_MAX ? 'Limite (∞:1)' : `${comma(RATIOS[r].toFixed(1))}:1`),
+    min: 0, max: RATIO_MAX, def: 0, fmt: (r) => (r >= RATIO_MAX ? t('Limite (∞:1)') : `${comma(RATIOS[r].toFixed(1))}:1`),
     parse: (t) => {
       if (/lim|inf|∞/i.test(t)) return RATIO_MAX;
       const v = parseNumber(t.split(':')[0]);
@@ -95,7 +96,7 @@ export const P = {
       RATIOS.forEach((x, i) => { if (Math.abs(x - v) < Math.abs(RATIOS[best] - v)) best = i; });
       return best;
     },
-    edit: (r) => (r >= RATIO_MAX ? 'Limite' : comma(RATIOS[r].toFixed(1))),
+    edit: (r) => (r >= RATIO_MAX ? t('Limite') : comma(RATIOS[r].toFixed(1))),
   },
 } satisfies Record<string, Param>;
 
@@ -120,4 +121,4 @@ export function channelColor(nin: number, ch: number): string {
 export const presetLabel = (n: number): string => (n === 0 ? 'F00' : `U${String(n).padStart(2, '0')}`);
 
 export const stateLabel = (s: string): string =>
-  s === 'online' ? 'en ligne' : s === 'connecting' ? 'connexion…' : s === 'locked' ? 'verrouillé' : 'hors ligne';
+  s === 'online' ? t('en ligne') : s === 'connecting' ? t('connexion…') : s === 'locked' ? t('verrouillé') : s === 'idle' ? t('non connecté') : t('hors ligne');

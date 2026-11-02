@@ -1,6 +1,6 @@
 // End-to-end tests of the bridge: real HTTP / WebSocket server, demo devices, several clients.
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -250,17 +250,35 @@ describe('bridge server (PIN roles)', () => {
 });
 
 describe('command line', () => {
-  it('parses device options', () => {
-    const a = parseArgs(['--demo', '408#3', '--tcp', '192.168.1.50:9000#2', '--serial', '/dev/ttyUSB0@57600', '--usb', '--port', '9090', '--no-save']);
-    expect(a.port).toBe(9090);
-    expect(a.save).toBe(false);
-    expect(a.specs).toEqual([
-      { kind: 'demo', model: 'dsp408', deviceId: 3 },
-      { kind: 'tcp', host: '192.168.1.50', port: 9000, deviceId: 2 },
-      { kind: 'serial', path: '/dev/ttyUSB0', baud: 57600, deviceId: undefined },
-      { kind: 'usb', path: undefined, deviceId: undefined },
-    ]);
-    expect(parseArgs(['--demo']).specs.map((s) => s.kind === 'demo' && s.model)).toEqual(['dsp206', 'dsp408']);
-    expect(parseArgs(['--tcp', 'dsp.local']).specs[0]).toEqual({ kind: 'tcp', host: 'dsp.local', port: undefined, deviceId: undefined });
+  it('parses the server options, PINs also from the environment', () => {
+    const a = parseArgs(['--port', '9090', '--pin', '1234', '--operator-pin', '5678', '--data', '/tmp/tracks-test', '--quiet']);
+    expect(a).toMatchObject({ port: 9090, pin: '1234', operatorPin: '5678', data: '/tmp/tracks-test', quiet: true });
+    process.env.DSP_STUDIO_PIN = '9999';
+    try { expect(parseArgs([]).pin).toBe('9999'); } finally { delete process.env.DSP_STUDIO_PIN; }
+  });
+
+  it('refuses devices on the command line: they are connected from the interface', () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(((code: number) => { throw new Error(`exit ${code}`); }) as never);
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      for (const opt of ['--demo', '--tcp', '--usb', '--serial']) expect(() => parseArgs([opt, 'x'])).toThrow('exit 2');
+      expect(String(err.mock.calls[0][0])).toContain('--demo');
+    } finally { exit.mockRestore(); err.mockRestore(); }
+  });
+});
+
+describe('remembered devices', () => {
+  it('are listed without being connected, then connected and disconnected on request', async () => {
+    const hub = new Hub();
+    const d = hub.add({ kind: 'demo', model: 'dsp206' }, 'Façade', false);
+    expect(d.info()).toMatchObject({ label: 'Façade', state: 'idle' });
+    hub.connect(d.key);
+    await vi.waitFor(() => expect(d.state).toBe('online'), { timeout: 5000 });
+    hub.connect(d.key); // already connected: nothing happens
+    expect(d.state).toBe('online');
+    await hub.disconnect(d.key);
+    expect(d.info()).toMatchObject({ state: 'idle', error: null });
+    expect(d.session).toBeNull();
+    await hub.close();
   });
 });

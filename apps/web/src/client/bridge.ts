@@ -3,6 +3,7 @@
 
 import type { Action, DeviceInfo, FoundModule, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
 import { Emitter, type Backend, type BackendEvents, type BackendStatus, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
+import { t } from '../i18n.tsx';
 
 interface Pending { res: (v: unknown) => void; rej: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
 
@@ -14,7 +15,7 @@ export class BridgeError extends Error {
 export function defaultBridgeUrl(): string {
   const l = window.location;
   const path = l.pathname.replace(/[^/]*$/, '');
-  return `${l.protocol === 'https:' ? 'wss' : 'ws'}://${l.host}${path}ws`;
+  return t('{0}://{1}{2}ws', l.protocol === 'https:' ? 'wss' : 'ws', l.host, path);
 }
 
 export class BridgeBackend implements Backend {
@@ -59,7 +60,7 @@ export class BridgeBackend implements Backend {
     return new Promise((res, rej) => {
       this.started = { res, rej };
       this.open();
-      setTimeout(() => { if (this.started) { this.started.rej(new BridgeError('le pont ne répond pas')); this.started = null; } }, 6000);
+      setTimeout(() => { if (this.started) { this.started.rej(new BridgeError(t('le pont ne répond pas'))); this.started = null; } }, 6000);
     });
   }
 
@@ -83,7 +84,7 @@ export class BridgeBackend implements Backend {
     ws.onclose = () => {
       if (this.ws !== ws) return;
       this.ws = null;
-      for (const p of this.pending.values()) { clearTimeout(p.timer); p.rej(new BridgeError('liaison avec le pont perdue')); }
+      for (const p of this.pending.values()) { clearTimeout(p.timer); p.rej(new BridgeError(t('liaison avec le pont perdue'))); }
       this.pending.clear();
       this.setStatus('offline');
       if (this.closed) return;
@@ -135,10 +136,10 @@ export class BridgeBackend implements Backend {
 
   private req<T = unknown>(msg: Record<string, unknown>, timeoutMs = 20000): Promise<T> {
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.reject(new BridgeError('pont non connecté'));
+    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.reject(new BridgeError(t('pont non connecté')));
     const rid = ++this.rid;
     return new Promise<T>((res, rej) => {
-      const timer = setTimeout(() => { this.pending.delete(rid); rej(new BridgeError('le pont ne répond pas')); }, timeoutMs);
+      const timer = setTimeout(() => { this.pending.delete(rid); rej(new BridgeError(t('le pont ne répond pas'))); }, timeoutMs);
       this.pending.set(rid, { res: res as (v: unknown) => void, rej, timer });
       ws.send(JSON.stringify({ ...msg, rid }));
     });
@@ -167,7 +168,8 @@ export class BridgeBackend implements Backend {
   addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo> { return this.req({ t: 'add', spec, label }); }
   async removeDevice(key: string): Promise<void> { await this.req({ t: 'remove', key }); }
   async renameDevice(key: string, label: string): Promise<void> { await this.req({ t: 'rename', key, label }); }
-  async reconnectDevice(key: string): Promise<void> { await this.req({ t: 'reconnect', key }); }
+  async connectDevice(key: string): Promise<void> { await this.req({ t: 'connect', key }); }
+  async disconnectDevice(key: string): Promise<void> { await this.req({ t: 'disconnect', key }); }
   discover(sweep: boolean): Promise<FoundModule[]> { return this.req({ t: 'discover', sweep }, sweep ? 60000 : 10000); }
   ports(): Promise<PortsInfo> { return this.req({ t: 'ports' }); }
   probe(spec: SourceSpec, max = 16): Promise<{ id: number; version: string }[]> { return this.req({ t: 'probe', spec, max }, 60000); }

@@ -3,6 +3,7 @@
 
 import { useId } from 'react';
 import { compressorCurve } from '@dsp-studio/protocol';
+import { t } from '../i18n.tsx';
 
 export function TransferGraph(p: {
   kind: 'gate' | 'comp' | 'limit'; thrDb: number; ratio?: number; kneeDb?: number; levelDb?: number | null; color: string; size?: number; label: string;
@@ -39,7 +40,7 @@ export function TransferGraph(p: {
           <text x={pad - 4} y={Y(g) + 3} className="g-label" textAnchor="end">{g}</text>
         </g>
       ))}
-      <g clipPath={`url(#${clip})`}>
+      <g clipPath={t('url(#{0})', clip)}>
         <line x1={X(lo)} y1={Y(lo)} x2={X(hi)} y2={Y(hi)} className="g-line g-zero" strokeDasharray="4 4" />
         <line x1={X(p.thrDb)} x2={X(p.thrDb)} y1={8} y2={S - pad} stroke={p.color} strokeDasharray="2 4" opacity={0.6} />
         <path d={d} fill="none" stroke={p.color} strokeWidth={2.2} />

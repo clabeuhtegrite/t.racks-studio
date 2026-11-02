@@ -13,6 +13,7 @@ import { Icon } from '../ui/icons.tsx';
 import { P } from '../ui/format.ts';
 import { allChannels, chan, colorOf, labelOf, linkMates, responseOf } from '../ui/channels.tsx';
 import { ResponseGraph, type GraphCurve } from '../ui/ResponseGraph.tsx';
+import { t } from '../i18n.tsx';
 
 const GAIN_TICKS = [0, 40, 80, 160, 220, 280, 340, 400];
 
@@ -28,26 +29,26 @@ export function ConsoleView(): React.JSX.Element {
   return (
     <div className="page page-wide">
       <div className="page-head">
-        <h1>Console</h1>
+        <h1>{t('Console')}</h1>
         <div className="row">
-          <Toggle on={curves} onChange={setCurves} icon="eq" small>Courbes</Toggle>
+          <Toggle on={curves} onChange={setCurves} icon="eq" small>{t('Courbes')}</Toggle>
           <Button small icon={allOutMuted ? 'speaker' : 'mute'} kind={allOutMuted ? 'plain' : 'danger'} disabled={!canOperate}
-            title="Coupe ou rétablit toutes les sorties d’un coup"
+            title={t('Coupe ou rétablit toutes les sorties d’un coup')}
             onClick={() => outs.forEach((ch) => { if (chan(config, ch).mute === allOutMuted) mirror.apply({ t: 'mute', ch, on: !allOutMuted }); })}>
-            {allOutMuted ? 'Rétablir les sorties' : 'Couper les sorties'}
+            {allOutMuted ? t('Rétablir les sorties') : t('Couper les sorties')}
           </Button>
         </div>
       </div>
       {curves && <OverlayCurves config={config} />}
       <div className="console">
         <div className="strip-group">
-          <h2 className="strip-group-title">Entrées</h2>
+          <h2 className="strip-group-title">{t('Entrées')}</h2>
           <div className="strips">
             {config.inputs.map((c, i) => <Strip key={i} ch={i} c={c} {...stripInfo(config, i)} mirror={mirror} canEdit={canEdit} canOperate={canOperate} />)}
           </div>
         </div>
         <div className="strip-group">
-          <h2 className="strip-group-title">Sorties</h2>
+          <h2 className="strip-group-title">{t('Sorties')}</h2>
           <div className="strips">
             {config.outputs.map((c, j) => <Strip key={j} ch={m.inputs + j} c={c} {...stripInfo(config, m.inputs + j)} mirror={mirror} canEdit={canEdit} canOperate={canOperate} />)}
           </div>
@@ -66,13 +67,13 @@ function OverlayCurves({ config }: { config: DeviceConfig }): React.JSX.Element 
     return { id: String(ch), color: colorOf(config, ch), values: mode === 'mag' ? r.mag : r.phase, width: 2 };
   });
   return (
-    <Card title="Réponse des canaux" actions={
-      <div className="seg seg-sm" role="radiogroup" aria-label="Affichage">
-        <button type="button" className={mode === 'mag' ? 'is-on' : ''} onClick={() => setMode('mag')}>Amplitude</button>
-        <button type="button" className={mode === 'phase' ? 'is-on' : ''} onClick={() => setMode('phase')}>Phase</button>
+    <Card title={t('Réponse des canaux')} actions={
+      <div className="seg seg-sm" role="radiogroup" aria-label={t('Affichage')}>
+        <button type="button" className={mode === 'mag' ? 'is-on' : ''} onClick={() => setMode('mag')}>{t('Amplitude')}</button>
+        <button type="button" className={mode === 'phase' ? 'is-on' : ''} onClick={() => setMode('phase')}>{t('Phase')}</button>
       </div>
     }>
-      <ResponseGraph freqs={freqs} curves={curves} mode={mode} height={230} label="Courbes de réponse des canaux affichés" />
+      <ResponseGraph freqs={freqs} curves={curves} mode={mode} height={230} label={t('Courbes de réponse des canaux affichés')} />
       <div className="chips chips-small">
         {allChannels(config).map((ch) => (
           <button key={ch} type="button" aria-pressed={shown.includes(ch)} className={`chip ${shown.includes(ch) ? 'is-on' : ''}`} style={{ ['--ch' as string]: colorOf(config, ch) }}
@@ -99,29 +100,29 @@ const Strip = memo(function Strip(p: {
   const { ch, c, mirror, label, color } = p;
   const input = p.route === null;
   const rename = async (): Promise<void> => {
-    const v = await promptDialog({ title: `Nom de ${label}`, label: 'Nom (8 caractères)', value: c.name, maxLength: 8, ok: 'Renommer' });
+    const v = await promptDialog({ title: t('Nom de {0}', label), label: t('Nom (8 caractères)'), value: c.name, maxLength: 8, ok: t('Renommer') });
     if (v !== null) mirror.apply({ t: 'name', ch, name: v });
   };
   return (
     <div className={`strip ${c.mute ? 'is-muted' : ''}`} style={{ ['--ch' as string]: color }}>
-      <button type="button" className="strip-head" onClick={() => go('canal', ch)} title="Ouvrir le canal">
+      <button type="button" className="strip-head" onClick={() => go('canal', ch)} title={t('Ouvrir le canal')}>
         <span className="strip-id">{label}{p.linked && <Icon name="link" size={12} />}</span>
         <span className="strip-name">{c.name && c.name !== label ? c.name : ' '}</span>
       </button>
-      {p.canEdit ? <button type="button" className="strip-rename" onClick={rename} title="Renommer"><Icon name="edit" size={14} /></button> : null}
+      {p.canEdit ? <button type="button" className="strip-rename" onClick={rename} title={t('Renommer')}><Icon name="edit" size={14} /></button> : null}
       <div className="strip-body">
         <StripMeter ch={ch} output={!input} nin={p.nin} />
         <Slider
           vertical value={c.gain} min={P.gain.min} max={P.gain.max} def={P.gain.def} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })}
-          disabled={!p.canOperate} label={`Volume ${label}`} valueText={P.gain.fmt} color={color} ticks={GAIN_TICKS} className="fader"
+          disabled={!p.canOperate} label={t('Volume {0}', label)} valueText={P.gain.fmt} color={color} ticks={GAIN_TICKS} className="fader"
         />
       </div>
-      <ValueField value={c.gain} param={P.gain} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })} disabled={!p.canOperate} label={`Volume ${label}`} />
+      <ValueField value={c.gain} param={P.gain} onChange={(raw) => mirror.apply({ t: 'gain', ch, raw })} disabled={!p.canOperate} label={t('Volume {0}', label)} />
       <div className="strip-btns">
-        <Toggle on={c.mute} onChange={(on) => mirror.apply({ t: 'mute', ch, on })} tone="red" disabled={!p.canOperate} small title="Mute">Mute</Toggle>
-        <Toggle on={!!c.phase} onChange={(inv) => mirror.apply({ t: 'phase', ch, inv })} tone="amber" disabled={!p.canEdit} small title={c.phase ? 'Polarité inversée' : 'Polarité normale'}>Ø</Toggle>
+        <Toggle on={c.mute} onChange={(on) => mirror.apply({ t: 'mute', ch, on })} tone="red" disabled={!p.canOperate} small title={t('Mute')}>{t('Mute')}</Toggle>
+        <Toggle on={!!c.phase} onChange={(inv) => mirror.apply({ t: 'phase', ch, inv })} tone="amber" disabled={!p.canEdit} small title={c.phase ? t('Polarité inversée') : t('Polarité normale')}>{t('Ø')}</Toggle>
       </div>
-      {!input && <div className="strip-route" title="Entrées envoyées sur cette sortie">{p.route ? `← ${p.route}` : 'aucune entrée'}</div>}
+      {!input && <div className="strip-route" title={t('Entrées envoyées sur cette sortie')}>{p.route ? `← ${p.route}` : t('aucune entrée')}</div>}
     </div>
   );
 });
@@ -130,5 +131,5 @@ function StripMeter({ ch, output, nin }: { ch: number; output: boolean; nin: num
   const meters = useMeters();
   const db = meters?.db[ch];
   const limit = output ? !!(meters && (meters.status >> (ch - nin)) & 1) : undefined;
-  return <Meter db={db} limit={limit} label={`Niveau ${ch}`} />;
+  return <Meter db={db} limit={limit} label={t('Niveau {0}', ch)} />;
 }

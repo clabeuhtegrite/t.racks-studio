@@ -63,7 +63,10 @@ export interface Backend {
   addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo>;
   removeDevice(key: string): Promise<void>;
   renameDevice(key: string, label: string): Promise<void>;
-  reconnectDevice(key: string): Promise<void>;
+  /** opens the connection to a remembered device (or retries at once) */
+  connectDevice(key: string): Promise<void>;
+  /** closes it; the device stays in the list */
+  disconnectDevice(key: string): Promise<void>;
   discover(sweep: boolean): Promise<FoundModule[]>;
   ports(): Promise<PortsInfo>;
   probe(spec: SourceSpec, max?: number): Promise<{ id: number; version: string }[]>;

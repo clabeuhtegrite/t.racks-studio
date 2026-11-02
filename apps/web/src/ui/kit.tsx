@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import type { Param } from './format.ts';
 import { Slider } from './Slider.tsx';
+import { t } from '../i18n.tsx';
 
 export function Button(p: {
   children?: ReactNode; onClick?: () => void; icon?: IconName; kind?: 'primary' | 'ghost' | 'danger' | 'plain';
@@ -187,7 +188,7 @@ export function Modal(p: { title: string; children: ReactNode; onClose: () => vo
       <div className={`modal ${p.wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref}>
         <header className="modal-head">
           <h2 id={id}>{p.title}</h2>
-          <button type="button" className="modal-x" aria-label="Fermer" onClick={p.onClose}><Icon name="close" /></button>
+          <button type="button" className="modal-x" aria-label={t('Fermer')} onClick={p.onClose}><Icon name="close" /></button>
         </header>
         <div className="modal-body">{p.children}</div>
         {p.footer && <footer className="modal-foot">{p.footer}</footer>}

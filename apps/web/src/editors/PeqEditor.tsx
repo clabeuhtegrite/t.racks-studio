@@ -13,6 +13,7 @@ import { Button, Card, ParamRow, Select, Segmented, Toggle, ValueField } from '.
 import { fmtDb, fmtHz, P } from '../ui/format.ts';
 import { allChannels, chan, colorOf, labelOf, responseOf } from '../ui/channels.tsx';
 import { ResponseGraph, type GraphCurve, type GraphHandle, type GraphMarker } from '../ui/ResponseGraph.tsx';
+import { t, tx } from '../i18n.tsx';
 
 export const PEQ_TYPE_SHORT = ['Cloche', 'Plateau grave', 'Plateau aigu', 'Passe-bas 6', 'Passe-bas 12', 'Passe-haut 6', 'Passe-haut 12', 'Passe-tout 1', 'Passe-tout 2'];
 export const PEQ_TYPE_LABELS = ['Cloche (Peak)', 'Plateau grave (Low Shelf)', 'Plateau aigu (High Shelf)', 'Passe-bas 6 dB', 'Passe-bas 12 dB', 'Passe-haut 6 dB', 'Passe-haut 12 dB', 'Passe-tout 1er ordre', 'Passe-tout 2e ordre'];
@@ -55,7 +56,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
   const handles: GraphHandle[] = c.peq.map((pb, k) => ({
     id: k, f: freqRawToHz(pb.freq), db: eqGainRawToDb(pb.gain), label: String(k + 1), color, bypass: pb.bypass || c.peqBypass,
     fixedY: !peqTypeHasGain(pb.type), selected: k === band,
-    info: `${fmtHz(freqRawToHz(pb.freq))}${peqTypeHasGain(pb.type) ? ' · ' + fmtDb(eqGainRawToDb(pb.gain)) : ''}${peqTypeHasQ(pb.type) ? ' · Q ' + qRawToValue(pb.q).toFixed(2).replace('.', ',') : ''}`,
+    info: `${fmtHz(freqRawToHz(pb.freq))}${peqTypeHasGain(pb.type) ? ' · ' + fmtDb(eqGainRawToDb(pb.gain)) : ''}${peqTypeHasQ(pb.type) ? t(' · Q ') + qRawToValue(pb.q).toFixed(2).replace('.', ',') : ''}`,
   }));
   const markers: GraphMarker[] = [];
   if (c.hpf.slope) markers.push({ id: 'hp', f: freqRawToHz(c.hpf.freq), label: 'HP', color });
@@ -78,22 +79,22 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
   const sameKind = allChannels(cfg).filter((x) => x !== ch);
   return (
     <Card
-      title="Égaliseur paramétrique" className="card-eq"
-      subtitle={hints ? 'Glissez un point pour régler fréquence et gain, molette ou touches + / − pour la largeur (Q), flèches au clavier.' : undefined}
+      title={t('Égaliseur paramétrique')} className="card-eq"
+      subtitle={hints ? t('Glissez un point pour régler fréquence et gain, molette ou touches + / − pour la largeur (Q), flèches au clavier.') : undefined}
       actions={<>
-        <Segmented small label="Affichage" value={mode} onChange={setMode} options={[{ value: 'mag', label: 'Amplitude' }, { value: 'phase', label: 'Phase' }]} />
-        <Toggle small on={showAll} onChange={setShowAll} title="Affiche les réglages de toutes les bandes sur la courbe">Tous les paramètres</Toggle>
-        <Toggle small tone="amber" on={c.peqBypass} onChange={(on) => mirror.apply({ t: 'peqBypass', ch, on })} disabled={disabled} title="Contourne tout l’égaliseur de ce canal">Bypass EQ</Toggle>
+        <Segmented small label={t('Affichage')} value={mode} onChange={setMode} options={[{ value: 'mag', label: t('Amplitude') }, { value: 'phase', label: t('Phase') }]} />
+        <Toggle small on={showAll} onChange={setShowAll} title={t('Affiche les réglages de toutes les bandes sur la courbe')}>{t('Tous les paramètres')}</Toggle>
+        <Toggle small tone="amber" on={c.peqBypass} onChange={(on) => mirror.apply({ t: 'peqBypass', ch, on })} disabled={disabled} title={t('Contourne tout l’égaliseur de ce canal')}>{t('Bypass EQ')}</Toggle>
         <Button small icon="refresh" disabled={disabled} onClick={async () => {
-          if (await confirmDialog({ title: 'Réinitialiser l’égaliseur', message: `Remettre les ${c.peq.length} bandes de ${labelOf(cfg, ch)} à plat (0 dB, fréquences et largeurs d’origine) ?`, ok: 'Réinitialiser', danger: true })) {
+          if (await confirmDialog({ title: t('Réinitialiser l’égaliseur'), message: t('Remettre les {0} bandes de {1} à plat (0 dB, fréquences et largeurs d’origine) ?', c.peq.length, labelOf(cfg, ch)), ok: t('Réinitialiser'), danger: true })) {
             mirror.apply({ t: 'peqReset', ch });
           }
-        }}>Réinitialiser</Button>
+        }}>{t('Réinitialiser')}</Button>
       </>}
     >
       <ResponseGraph
         freqs={freqs} curves={curves} mode={mode} handles={handles} markers={markers} showLabels={showAll} disabled={disabled}
-        label={`Courbe de ${labelOf(cfg, ch)}`} height={300} onKeyDown={onKey} onSelect={setSel}
+        label={t('Courbe de {0}', labelOf(cfg, ch))} height={300} onKeyDown={onKey} onSelect={setSel}
         onHandle={(k, f, db) => {
           const cur = chan(mirror.config ?? cfg, ch).peq[k];
           setBand(k, { freq: freqHzToRaw(f), ...(peqTypeHasGain(cur.type) ? { gain: eqGainDbToRaw(db) } : {}) });
@@ -106,7 +107,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
         }}
       />
       <div className="overlay-pick">
-        <span className="muted small">Superposer :</span>
+        <span className="muted small">{t('Superposer :')}</span>
         <div className="chips chips-small">
           {sameKind.map((o) => (
             <button key={o} type="button" aria-pressed={overlay.includes(o)} className={`chip ${overlay.includes(o) ? 'is-on' : ''}`} style={{ ['--ch' as string]: colorOf(cfg, o) }}
@@ -118,7 +119,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
       </div>
 
       <div className="bands">
-        <div className="band-tabs" role="tablist" aria-label="Bande">
+        <div className="band-tabs" role="tablist" aria-label={t('Bande')}>
           {c.peq.map((pb, k) => (
             <button key={k} type="button" role="tab" aria-selected={k === band} className={`band-tab ${k === band ? 'is-on' : ''} ${pb.bypass ? 'is-byp' : ''} ${pb.gain !== 120 && peqTypeHasGain(pb.type) ? 'is-active' : ''}`} onClick={() => setSel(k)}>
               {k + 1}
@@ -127,31 +128,31 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
         </div>
         <div className="band-edit">
           <div className="band-edit-top">
-            <Select label="Type de filtre" value={b.type} disabled={disabled} onChange={(type) => setBand(band, { type })}
+            <Select label={t('Type de filtre')} value={b.type} disabled={disabled} onChange={(type) => setBand(band, { type })}
               options={PEQ_TYPES.map((_, i) => ({ value: i, label: PEQ_TYPE_LABELS[i] }))} />
-            <Toggle small tone="amber" on={b.bypass} onChange={(bypass) => setBand(band, { bypass })} disabled={disabled}>Bypass bande {band + 1}</Toggle>
+            <Toggle small tone="amber" on={b.bypass} onChange={(bypass) => setBand(band, { bypass })} disabled={disabled}>{tx('Bypass bande {0}', band + 1)}</Toggle>
           </div>
-          <ParamRow label="Fréquence" param={P.freq} value={b.freq} onChange={(freq) => setBand(band, { freq })} disabled={disabled} color={color} />
-          <ParamRow label="Gain" param={P.eqGain} value={b.gain} onChange={(gain) => setBand(band, { gain })} disabled={disabled || !peqTypeHasGain(b.type)} color={color} origin={120} />
-          <ParamRow label="Largeur (Q)" param={P.q} value={b.q} onChange={(q) => setBand(band, { q })} disabled={disabled || !peqTypeHasQ(b.type)} color={color} />
+          <ParamRow label={t('Fréquence')} param={P.freq} value={b.freq} onChange={(freq) => setBand(band, { freq })} disabled={disabled} color={color} />
+          <ParamRow label={t('Gain')} param={P.eqGain} value={b.gain} onChange={(gain) => setBand(band, { gain })} disabled={disabled || !peqTypeHasGain(b.type)} color={color} origin={120} />
+          <ParamRow label={t('Largeur (Q)')} param={P.q} value={b.q} onChange={(q) => setBand(band, { q })} disabled={disabled || !peqTypeHasQ(b.type)} color={color} />
         </div>
       </div>
 
       <div className="table-wrap band-table">
         <table className="table">
-          <thead><tr><th>Bande</th><th>Type</th><th>Fréquence</th><th>Q</th><th>Gain</th><th>Bypass</th></tr></thead>
+          <thead><tr><th>{t('Bande')}</th><th>{t('Type')}</th><th>{t('Fréquence')}</th><th>Q</th><th>{t('Gain')}</th><th>{t('Bypass')}</th></tr></thead>
           <tbody>
             {c.peq.map((pb, k) => (
               <tr key={k} className={k === band ? 'is-sel' : ''} onClick={() => setSel(k)}>
                 <td><strong>{k + 1}</strong></td>
                 <td>
-                  <Select label={`Type bande ${k + 1}`} value={pb.type} disabled={disabled} onChange={(type) => setBand(k, { type })}
+                  <Select label={t('Type bande {0}', k + 1)} value={pb.type} disabled={disabled} onChange={(type) => setBand(k, { type })}
                     options={PEQ_TYPES.map((t, i) => ({ value: i, label: PEQ_TYPE_SHORT[i] ?? t }))} className="select-sm" />
                 </td>
-                <td><ValueField value={pb.freq} param={P.freq} onChange={(freq) => setBand(k, { freq })} disabled={disabled} label={`Fréquence bande ${k + 1}`} /></td>
-                <td><ValueField value={pb.q} param={P.q} onChange={(q) => setBand(k, { q })} disabled={disabled || !peqTypeHasQ(pb.type)} label={`Q bande ${k + 1}`} /></td>
-                <td><ValueField value={pb.gain} param={P.eqGain} onChange={(gain) => setBand(k, { gain })} disabled={disabled || !peqTypeHasGain(pb.type)} label={`Gain bande ${k + 1}`} /></td>
-                <td><Toggle small tone="amber" on={pb.bypass} onChange={(bypass) => setBand(k, { bypass })} disabled={disabled}>Byp</Toggle></td>
+                <td><ValueField value={pb.freq} param={P.freq} onChange={(freq) => setBand(k, { freq })} disabled={disabled} label={t('Fréquence bande {0}', k + 1)} /></td>
+                <td><ValueField value={pb.q} param={P.q} onChange={(q) => setBand(k, { q })} disabled={disabled || !peqTypeHasQ(pb.type)} label={t('Q bande {0}', k + 1)} /></td>
+                <td><ValueField value={pb.gain} param={P.eqGain} onChange={(gain) => setBand(k, { gain })} disabled={disabled || !peqTypeHasGain(pb.type)} label={t('Gain bande {0}', k + 1)} /></td>
+                <td><Toggle small tone="amber" on={pb.bypass} onChange={(bypass) => setBand(k, { bypass })} disabled={disabled}>{t('Byp')}</Toggle></td>
               </tr>
             ))}
           </tbody>

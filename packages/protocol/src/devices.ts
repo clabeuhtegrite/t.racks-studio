@@ -18,7 +18,8 @@ export type SourceSpec =
   | { kind: 'webhid'; name?: string; serial?: string; deviceId?: number }
   | { kind: 'webserial'; name?: string; baud?: number; deviceId?: number };
 
-export type DeviceState = 'connecting' | 'online' | 'offline' | 'locked';
+/** idle = remembered but not connected (connections are opened from the interface) */
+export type DeviceState = 'idle' | 'connecting' | 'online' | 'offline' | 'locked';
 
 export interface DeviceInfo {
   key: string;

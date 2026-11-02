@@ -5,6 +5,7 @@ import {
 } from '@dsp-studio/protocol';
 import { channelColor } from './format.ts';
 import { Icon } from './icons.tsx';
+import { t } from '../i18n.tsx';
 
 export const isIn = (cfg: DeviceConfig, ch: number): boolean => ch < MODELS[cfg.model].inputs;
 export function chan(cfg: DeviceConfig, ch: number): AnyChannel {
@@ -53,7 +54,7 @@ export function ChannelChips(p: {
   const m = MODELS[p.cfg.model];
   const list = allChannels(p.cfg).filter((ch) => (p.only === 'in' ? ch < m.inputs : p.only === 'out' ? ch >= m.inputs : true));
   return (
-    <div className="chips" role="tablist" aria-label={p.label ?? 'Canal'}>
+    <div className="chips" role="tablist" aria-label={p.label ?? t('Canal')}>
       {list.map((ch) => {
         const c = chan(p.cfg, ch);
         const linked = linkMates(p.cfg, ch).length > 0;
@@ -67,7 +68,7 @@ export function ChannelChips(p: {
           >
             <span className="chip-id">{labelOf(p.cfg, ch)}{linked && <Icon name="link" size={12} />}</span>
             <span className="chip-name">{c.name && c.name !== labelOf(p.cfg, ch) ? c.name : ' '}</span>
-            {c.mute && <span className="chip-mute">M</span>}
+            {c.mute && <span className="chip-mute">{t('M')}</span>}
           </button>
         );
       })}
