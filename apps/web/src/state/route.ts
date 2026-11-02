@@ -5,11 +5,11 @@ import { useSyncExternalStore } from 'react';
 
 export type ViewId =
   | 'vue' | 'console' | 'canal' | 'geq' | 'dynamique' | 'delais' | 'matrice' | 'presets' | 'appareil' | 'outils'
-  | 'connexion' | 'bibliotheque' | 'fiche';
+  | 'connexion' | 'bibliotheque' | 'fiche' | 'niveau' | 'dj';
 
 export interface Route { view: ViewId; arg: string; sub: string }
 
-const VIEWS: ViewId[] = ['vue', 'console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'presets', 'appareil', 'outils', 'connexion', 'bibliotheque', 'fiche'];
+const VIEWS: ViewId[] = ['vue', 'console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'presets', 'appareil', 'outils', 'connexion', 'bibliotheque', 'fiche', 'niveau', 'dj'];
 
 function parse(): Route {
   const parts = window.location.hash.replace(/^#\/?/, '').split('/');

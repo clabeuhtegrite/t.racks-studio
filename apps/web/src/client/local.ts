@@ -3,15 +3,17 @@
 // from a static web host), and offers the same operations as the bridge.
 
 import {
-  callSession, DeviceSession, describeSource, probeIds, sourceKey, validateAction, VirtualDsp,
-  type Action, type DeviceInfo, type DeviceState, type FoundModule, type Role, type SessionSnapshot, type SourceSpec, type Transport,
+  callSession, DeviceSession, describeSource, Leveler, probeIds, restoreLevelerSettings, sourceKey, validateAction, VirtualDsp,
+  type Action, type DeviceInfo, type DeviceState, type FoundModule, type LevelerSettings, type LevelerState, type Role, type SessionSnapshot, type SourceSpec, type Transport,
 } from '@dsp-studio/protocol';
-import { Emitter, APP_VERSION, type Backend, type BackendEvents, type BackendStatus, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
+import { Emitter, APP_VERSION, type Backend, type BackendEvents, type BackendStatus, type LevelerOp, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
 import { DSP_HID_FILTER, grantedHidDevices, hasWebHid, hasWebSerial, serialPortName, webHidTransport, webSerialTransport } from './webtransports.ts';
 import { t } from '../i18n.tsx';
 
 const SAVED_KEY = 'dsp-studio.local-devices';
 const LIBRARY_KEY = 'dsp-studio.library';
+/** automatic gain of each device (settings, reference gains) */
+const LEVELER_KEY = 'dsp-studio.leveler';
 
 const clone = <T>(v: T): T => structuredClone(v);
 
@@ -136,11 +138,19 @@ export class LocalBackend implements Backend {
   private em = new Emitter<BackendEvents>();
   private origin: { key: string; seq: number } | null = null;
   private snapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // automatic gain: runs in this page while it is open (with the bridge, it runs in the bridge)
+  private levelers = new Map<string, Leveler>();
+  private levelerSaved = readJson<Record<string, { settings?: unknown; base?: unknown }>>(LEVELER_KEY, {});
 
   get devices(): DeviceInfo[] { return [...this.map.values()].map((d) => d.info()); }
   on<K extends keyof BackendEvents>(k: K, f: (v: BackendEvents[K]) => void): () => void { return this.em.on(k, f); }
 
   private changed = (): void => {
+    for (const [key, d] of this.map) {
+      const lv = this.levelers.get(key);
+      if (lv && d.session && d.state === 'online') lv.attach(d.session);
+      else if (lv?.attached) lv.detach();
+    }
     this.em.emit('devices', this.devices);
     this.persist();
   };
@@ -182,9 +192,24 @@ export class LocalBackend implements Backend {
     if (existing) { if (connect) void existing.start(); return existing; }
     const d = new LocalDevice(spec, opener, this.changed, this.forwarder(key), label);
     this.map.set(key, d);
+    this.levelers.set(key, this.newLeveler(key));
     this.changed();
     if (connect) void d.start();
     return d;
+  }
+
+  private newLeveler(key: string): Leveler {
+    const saved = this.levelerSaved[key];
+    const base = Array.isArray(saved?.base) && saved.base.every((x) => Number.isInteger(x)) ? (saved.base as number[]) : null;
+    const lv = new Leveler({
+      settings: restoreLevelerSettings(saved?.settings), base,
+      save: (settings: LevelerSettings, b: number[] | null) => {
+        this.levelerSaved[key] = { settings, base: b };
+        try { localStorage.setItem(LEVELER_KEY, JSON.stringify(this.levelerSaved)); } catch { /* private mode */ }
+      },
+    });
+    lv.onState((state) => { if (this.subs.has(key)) this.em.emit('leveler', { key, state: clone(state) }); });
+    return lv;
   }
 
   private demoOpener(spec: Extract<SourceSpec, { kind: 'demo' }>): Opener {
@@ -248,11 +273,11 @@ export class LocalBackend implements Backend {
 
   async login(): Promise<Role> { return 'admin'; }
 
-  async subscribe(key: string, debug = false): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null }> {
+  async subscribe(key: string, debug = false): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null; leveler?: LevelerState | null }> {
     const d = this.map.get(key);
     if (!d) throw new Error(t('appareil inconnu'));
     this.subs.set(key, debug);
-    return { info: d.info(), snap: d.session ? clone(d.session.snap) : null };
+    return { info: d.info(), snap: d.session ? clone(d.session.snap) : null, leveler: this.levelers.get(key)?.state() ?? null };
   }
   unsubscribe(key: string): void { this.subs.delete(key); }
 
@@ -277,6 +302,20 @@ export class LocalBackend implements Backend {
     return clone(await callSession(this.sessionOf(key), method, clone(args))) as T;
   }
 
+  async leveler<T = unknown>(key: string, op: LevelerOp, value?: unknown): Promise<T> {
+    const lv = this.levelers.get(key);
+    if (!lv) throw new Error(t('appareil inconnu'));
+    switch (op) {
+      case 'state': return clone(lv.state()) as T;
+      case 'history': return clone(lv.history()) as T;
+      case 'enable': return clone(lv.enable(value === true)) as T;
+      case 'set': return clone(lv.update(clone(value))) as T;
+      case 'target': return clone(lv.takeTarget()) as T;
+      case 'check': return clone(await lv.checkMeter()) as T;
+      default: throw new Error(t('requête inconnue'));
+    }
+  }
+
   async addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo> {
     if (spec.kind !== 'demo') throw new Error(t('dans le navigateur, branchez le DSP avec les boutons USB ou Série'));
     return this.create(spec, this.demoOpener(spec), label).info();
@@ -286,6 +325,12 @@ export class LocalBackend implements Backend {
     if (!d) return;
     this.map.delete(key);
     await d.stop();
+    this.levelers.get(key)?.detach();
+    this.levelers.delete(key);
+    if (this.levelerSaved[key]) {
+      delete this.levelerSaved[key];
+      try { localStorage.setItem(LEVELER_KEY, JSON.stringify(this.levelerSaved)); } catch { /* private mode */ }
+    }
     const dev = this.hid.get(key);
     if (dev) { this.hid.delete(key); try { await dev.forget(); } catch { /* old browsers */ } }
     this.serial.delete(key);

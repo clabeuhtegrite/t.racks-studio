@@ -1,0 +1,309 @@
+// Gain auto page: keeps the level steady from one record to the next. What the automatic gain hears
+// and does right now, its settings, the last two hours, and the way to the DJ screen.
+
+import { useEffect, useRef, useState } from 'react';
+import {
+  LEVELER_DEFAULTS, LEVELER_LIMITS, LEVELER_SPEEDS, LEVELER_STEP_DB, MODELS,
+  type DeviceConfig, type LevelerSettings, type LevelerSpeed, type LevelerState, type MeterCheck, type MeterPosition,
+} from '@dsp-studio/protocol';
+import type { DeviceMirror } from '../client/mirror.ts';
+import { confirmDialog, toast, useApp, useDevice } from '../state/store.ts';
+import { adviceOf, levelerRequest, statusText, statusTone, useLeveler, useLevelerHistory, useLiveLevel, type Advice } from '../state/leveler.ts';
+import { go } from '../state/route.ts';
+import { Badge, Button, Card, Empty, Note, ParamRow, Segmented, Spinner, Toggle } from '../ui/kit.tsx';
+import { Icon } from '../ui/icons.tsx';
+import { LevelMeter } from '../ui/LevelMeter.tsx';
+import { LevelHistory, LevelTable } from '../ui/LevelHistory.tsx';
+import { colorOf, labelOf } from '../ui/channels.tsx';
+import { fmtNumber, fmtSigned, parseNumber, type Param } from '../ui/format.ts';
+import { t, tx } from '../i18n.tsx';
+
+// ------------------------------------------------------------------------------------- params
+/** A setting in half dB on a slider (raw = half dB from the low end). */
+function halfDb([lo, hi]: readonly [number, number], def: number, show: (v: number) => string, abs = false): Param {
+  return {
+    min: 0, max: (hi - lo) * 2, def: (def - lo) * 2,
+    fmt: (r) => show(lo + r / 2),
+    parse: (text) => {
+      const v = parseNumber(text);
+      return v === null ? null : Math.round(((abs ? Math.abs(v) : v) - lo) * 2);
+    },
+    edit: (r) => fmtNumber(lo + r / 2),
+  };
+}
+const D = LEVELER_DEFAULTS, LIM = LEVELER_LIMITS;
+const TARGET = halfDb(LIM.target, D.target, (v) => `${fmtNumber(v)} dBFS`);
+const TOLERANCE = halfDb(LIM.tolerance, D.tolerance, (v) => `± ${fmtNumber(v)} dB`, true);
+const BOOST = halfDb(LIM.maxBoost, D.maxBoost, (v) => `${fmtSigned(v)} dB`, true);
+const CUT = halfDb(LIM.maxCut, D.maxCut, (v) => `${fmtSigned(-v)} dB`, true);
+const BUDGET: Param = {
+  min: LIM.budget[0], max: LIM.budget[1], def: D.budget, step: 10,
+  fmt: (r) => `${r} / h`,
+  parse: (text) => { const v = parseNumber(text); return v === null ? null : Math.round(v); },
+  edit: (r) => String(r),
+};
+const toRaw = ([lo]: readonly [number, number], v: number): number => Math.round((v - lo) * 2);
+const fromRaw = ([lo]: readonly [number, number], r: number): number => lo + r / 2;
+
+const secs = (ms: number): string => fmtNumber(ms / 1000, ms % 1000 ? 1 : 0);
+
+// ------------------------------------------------------------------------------------- texts
+export function adviceText(a: Advice): string | null {
+  switch (a.kind) {
+    case 'none': return null;
+    case 'ok': return t('Rien à toucher, le niveau est dans la zone.');
+    case 'auto': return t('Rien à toucher, le gain automatique s’en occupe.');
+    case 'up': return t('Montez le gain de la table d’environ {0} dB.', a.db);
+    case 'down': return t('Baissez le gain de la table d’environ {0} dB.', a.db);
+  }
+}
+
+function checkText(c: MeterCheck): string {
+  const drop = fmtNumber(c.drop);
+  if (c.result === 'post') return t('Les vumètres mesurent après le gain (baisse vue : {0} dB).', drop);
+  if (c.result === 'pre') return t('Les vumètres mesurent avant le gain (baisse vue : {0} dB).', drop);
+  return t('Résultat incertain (baisse vue : {0} dB) : réessayez sur une musique plus régulière.', drop);
+}
+
+const levelOrDash = (v: number | null): string => (v === null ? '—' : `${fmtNumber(v)} dBFS`);
+
+// ------------------------------------------------------------------------------------- draft
+/**
+ * Settings shown while they travel to the bridge: a slider moves at once, the change is sent
+ * 250 ms after the last move, and the value from the bridge takes over when it comes back.
+ */
+function useSettings(mirror: DeviceMirror, st: LevelerState): [LevelerSettings, (patch: Partial<LevelerSettings>) => void] {
+  const [draft, setDraft] = useState<Partial<LevelerSettings>>({});
+  const pending = useRef<Partial<LevelerSettings>>({});
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const send = useRef<() => void>(() => {});
+  send.current = () => {
+    timer.current = null;
+    const sent = pending.current;
+    pending.current = {};
+    if (!Object.keys(sent).length) return;
+    void levelerRequest(mirror, 'set', sent).finally(() => {
+      setDraft((d) => {
+        const next: Partial<LevelerSettings> = { ...d };
+        for (const k of Object.keys(sent) as (keyof LevelerSettings)[]) if (next[k] === sent[k]) delete next[k];
+        return next;
+      });
+    });
+  };
+  useEffect(() => () => { if (timer.current) { clearTimeout(timer.current); send.current(); } }, []);
+  const change = (patch: Partial<LevelerSettings>): void => {
+    setDraft((d) => ({ ...d, ...patch }));
+    pending.current = { ...pending.current, ...patch };
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => send.current(), 250);
+  };
+  return [{ ...st.settings, ...draft }, change];
+}
+
+// ------------------------------------------------------------------------------------- page
+export function LevelView(): React.JSX.Element {
+  const { mirror, config } = useDevice();
+  const st = useLeveler();
+  if (!mirror || !config) return <Empty icon="plug" title={t('Appareil non connecté')} />;
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>{t('Gain automatique')}</h1>
+          <p className="muted small">{t('Garde le même niveau d’un disque à l’autre en ajustant doucement le gain des entrées de la table de mixage.')}</p>
+        </div>
+        <div className="row">
+          <Button kind="primary" icon="turntable" onClick={() => go('dj')}>{t('Écran DJ')}</Button>
+        </div>
+      </div>
+      {!st ? (
+        <Empty icon="refresh" title={t('Lecture…')}><Spinner /></Empty>
+      ) : (
+        <LevelCards mirror={mirror} config={config} st={st} />
+      )}
+    </div>
+  );
+}
+
+function LevelCards({ mirror, config, st }: { mirror: DeviceMirror; config: DeviceConfig; st: LevelerState }): React.JSX.Element {
+  const role = useApp((s) => s.role);
+  const [settings, change] = useSettings(mirror, st);
+  const admin = role === 'admin';
+  const operate = role !== 'viewer';
+  return (
+    <div className="cards">
+      <NowCard mirror={mirror} st={st} config={config} />
+      <AutoCard mirror={mirror} config={config} st={st} settings={settings} change={change} admin={admin} operate={operate} />
+      <HistoryCard mirror={mirror} st={st} />
+      <AdvancedCard mirror={mirror} st={st} settings={settings} change={change} admin={admin} />
+    </div>
+  );
+}
+
+function NowCard({ mirror, st, config }: { mirror: DeviceMirror; st: LevelerState; config: DeviceConfig }): React.JSX.Element {
+  const live = useLiveLevel(mirror, st, config);
+  const advice = adviceText(adviceOf(st));
+  const budget = st.settings.budget;
+  return (
+    <Card title={t('En ce moment')} actions={<span className="lv-status"><Badge tone={statusTone(st.status)}>{statusText(st.status)}</Badge></span>}>
+      <LevelMeter st={st} level={live} label={t('Niveau des entrées suivies')} showState />
+      <dl className="lv-figures">
+        <div><dt>{t('Niveau sur 3 s')}</dt><dd>{levelOrDash(st.level)}</dd></div>
+        <div><dt>{t('Moyenne')}</dt><dd>{levelOrDash(st.average)}</dd></div>
+        <div><dt>{t('Correction')}</dt><dd>{`${fmtSigned(st.correction)} dB`}</dd></div>
+        <div><dt>{t('Corrections (1 h)')}</dt><dd>{`${st.writes} / ${budget}`}</dd></div>
+      </dl>
+      {advice && <p className="lv-advice"><Icon name="info" size={18} /><span><b>{t('Conseil au DJ')}</b> · {advice}</span></p>}
+      {st.clip && <Note tone="danger">{t('Saturation à l’entrée : le signal atteint 0 dBFS. Baissez la sortie de la table de mixage.')}</Note>}
+      {st.limiting && <Note tone="warn">{t('Le limiteur d’une sortie travaille.')}</Note>}
+    </Card>
+  );
+}
+
+function AutoCard(p: {
+  mirror: DeviceMirror; config: DeviceConfig; st: LevelerState; settings: LevelerSettings; change: (patch: Partial<LevelerSettings>) => void; admin: boolean; operate: boolean;
+}): React.JSX.Element {
+  const { mirror, config, st, settings, change, admin, operate } = p;
+  const local = useApp((s) => s.mode) === 'local';
+  const inputs = MODELS[config.model].inputs;
+  const offline = st.status === 'offline';
+  const toggleInput = (i: number): void => {
+    const on = settings.inputs.includes(i);
+    if (on && settings.inputs.length === 1) { toast(t('Choisissez au moins une entrée'), 'warn'); return; }
+    change({ inputs: on ? settings.inputs.filter((k) => k !== i) : [...settings.inputs, i].sort((a, b) => a - b) });
+  };
+  const takeTarget = async (): Promise<void> => {
+    const r = await levelerRequest(mirror, 'target');
+    if (r) toast(t('Niveau cible : {0}', `${fmtNumber(r.settings.target)} dBFS`), 'ok');
+  };
+  return (
+    <Card title={t('Gain automatique')} subtitle={t('Corrige par pas de {0} dB, sans jamais dépasser les limites choisies.', fmtNumber(LEVELER_STEP_DB))}>
+      <div className="row wrap">
+        <Toggle on={settings.enabled} disabled={!operate} onChange={(v) => { void levelerRequest(mirror, 'enable', v); }} icon="wave">
+          {settings.enabled ? t('Gain automatique activé') : t('Gain automatique désactivé')}
+        </Toggle>
+      </div>
+      {local && <Note>{t('Mode navigateur : le gain automatique ne tourne que tant que cette page reste ouverte. Avec le pont (Raspberry Pi), il tourne sans écran.')}</Note>}
+      {!operate && <p className="small muted">{t('Accès en lecture : un code PIN opérateur ou administrateur permet d’activer le gain automatique.')}</p>}
+      {operate && !admin && <p className="small muted">{t('Les réglages sont réservés à l’administrateur.')}</p>}
+      {settings.meter === 'unknown' && !offline && (
+        <Note tone="warn">{tx('Position des vumètres pas encore vérifiée : la correction risque de n’aller qu’à moitié. Lancez {0} pendant la musique.', <b>{t('Vérifier')}</b>)}</Note>
+      )}
+
+      <div className="field">
+        <span className="field-label">{t('Entrées suivies')}</span>
+        <div className="lv-inputs" role="group" aria-label={t('Entrées suivies')}>
+          {Array.from({ length: inputs }, (_, i) => {
+            const on = settings.inputs.includes(i);
+            const name = config.inputs[i]?.name ?? '';
+            return (
+              <button
+                key={i} type="button" role="checkbox" aria-checked={on} disabled={!admin}
+                className={`chip ${on ? 'is-on' : ''}`} style={{ ['--ch' as string]: colorOf(config, i) }} onClick={() => toggleInput(i)}
+              >
+                <span className="chip-id">{on && <Icon name="check" size={12} />}{labelOf(config, i)}</span>
+                <span className="chip-name">{name && name !== labelOf(config, i) ? name : ' '}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="field-hint">{t('Les entrées où arrive la table de mixage. Les entrées liées bougent ensemble.')}</span>
+      </div>
+
+      <ParamRow
+        label={t('Niveau cible')} param={TARGET} value={toRaw(LIM.target, settings.target)} disabled={!admin}
+        onChange={(r) => change({ target: fromRaw(LIM.target, r) })} hint={t('Niveau moyen visé après le gain d’entrée')}
+      />
+      <div className="row end">
+        <Button small icon="ruler" disabled={!admin || (st.average === null && st.level === null)} onClick={() => { void takeTarget(); }}>
+          {t('Prendre le niveau actuel')}
+        </Button>
+      </div>
+      <ParamRow
+        label={t('Zone tolérée')} param={TOLERANCE} value={toRaw(LIM.tolerance, settings.tolerance)} disabled={!admin}
+        onChange={(r) => change({ tolerance: fromRaw(LIM.tolerance, r) })} hint={t('Écart autour de la cible où rien ne bouge')}
+      />
+      <ParamRow
+        label={t('Remontée maximale')} param={BOOST} value={toRaw(LIM.maxBoost, settings.maxBoost)} disabled={!admin}
+        onChange={(r) => change({ maxBoost: fromRaw(LIM.maxBoost, r) })}
+      />
+      <ParamRow
+        label={t('Baisse maximale')} param={CUT} value={toRaw(LIM.maxCut, settings.maxCut)} disabled={!admin}
+        onChange={(r) => change({ maxCut: fromRaw(LIM.maxCut, r) })}
+      />
+    </Card>
+  );
+}
+
+function HistoryCard({ mirror, st }: { mirror: DeviceMirror; st: LevelerState }): React.JSX.Element {
+  const points = useLevelerHistory(mirror);
+  const [mode, setMode] = useState<'chart' | 'table'>('chart');
+  return (
+    <Card
+      className="span2" title={t('Deux dernières heures')}
+      subtitle={t('Niveau moyen après le gain et correction appliquée, un point toutes les 10 secondes.')}
+      actions={
+        <Segmented
+          small label={t('Affichage')} value={mode} onChange={setMode}
+          options={[{ value: 'chart', label: t('Graphique') }, { value: 'table', label: t('Tableau') }]}
+        />
+      }
+    >
+      {points.length < 2 ? (
+        <p className="muted">{t('L’historique se remplit pendant la musique, même quand le gain automatique est désactivé.')}</p>
+      ) : mode === 'chart' ? (
+        <LevelHistory points={points} settings={st.settings} label={t('Niveau et correction des deux dernières heures')} />
+      ) : (
+        <LevelTable points={points} />
+      )}
+    </Card>
+  );
+}
+
+function AdvancedCard(p: {
+  mirror: DeviceMirror; st: LevelerState; settings: LevelerSettings; change: (patch: Partial<LevelerSettings>) => void; admin: boolean;
+}): React.JSX.Element {
+  const { mirror, st, settings, change, admin } = p;
+  const sp = LEVELER_SPEEDS[settings.speed];
+  const check = async (): Promise<void> => {
+    const ok = await confirmDialog({
+      title: t('Vérifier les vumètres'),
+      message: t('Pendant la musique, le gain des entrées suivies baisse de 6 dB pendant 2 secondes, puis revient : la baisse s’entend. Mieux vaut le faire avant l’ouverture, sur un morceau de test. Continuer ?'),
+      ok: t('Vérifier'),
+    });
+    if (!ok) return;
+    const r = await levelerRequest<MeterCheck>(mirror, 'check');
+    if (r) toast(checkText(r), r.result === 'unclear' ? 'warn' : 'ok');
+  };
+  return (
+    <Card title={t('Réglages avancés')}>
+      <div className="field">
+        <span className="field-label">{t('Vitesse')}</span>
+        <Segmented<LevelerSpeed>
+          label={t('Vitesse')} value={settings.speed} disabled={!admin} onChange={(v) => change({ speed: v })}
+          options={[{ value: 'slow', label: t('Lente') }, { value: 'normal', label: t('Normale') }, { value: 'fast', label: t('Rapide') }]}
+        />
+        <span className="field-hint">
+          {t('Écoute {0} s avant d’agir, puis un pas toutes les {1} s pour monter, toutes les {2} s pour baisser.', secs(sp.long), secs(sp.up), secs(sp.down))}
+        </span>
+      </div>
+      <ParamRow
+        label={t('Limite de corrections')} param={BUDGET} value={settings.budget} disabled={!admin} onChange={(v) => change({ budget: v })}
+        hint={t('Chaque correction est écrite dans la mémoire du DSP : cette limite la ménage.')}
+      />
+      <div className="field">
+        <span className="field-label">{t('Vumètres des entrées')}</span>
+        <div className="row wrap">
+          <Segmented<MeterPosition>
+            label={t('Vumètres des entrées')} value={settings.meter} disabled={!admin} onChange={(v) => change({ meter: v })}
+            options={[{ value: 'unknown', label: t('Pas vérifié') }, { value: 'pre', label: t('Avant le gain') }, { value: 'post', label: t('Après le gain') }]}
+          />
+          <Button small icon="refresh" disabled={!admin || st.status === 'offline' || st.status === 'checking'} onClick={() => { void check(); }}>{t('Vérifier')}</Button>
+        </div>
+        <span className="field-hint">
+          {st.check ? checkText(st.check) : t('Le gain automatique doit savoir si les vumètres du DSP mesurent avant ou après le gain d’entrée. La vérification le trouve toute seule.')}
+        </span>
+      </div>
+    </Card>
+  );
+}

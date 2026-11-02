@@ -68,6 +68,9 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
   Frequenzweichen-Assistent für 2 oder 3 Wege, Delay- und Wellenlängenrechner.
 - Druckbares Einstellungsblatt (oder PDF).
 - Helles und dunkles Farbschema, als App auf Smartphone und Tablet installierbar (über HTTPS).
+- Automatischer Pegelausgleich für Vinyl-Sets: die Bridge gleicht den Pegel von Platte zu Platte
+  behutsam an (Ziel, Toleranz, Grenzen, Pause bei Breaks), mit einer DJ-Vollbildanzeige, die sagt,
+  wann der Gain am Mischpult nachzuregeln ist, und dem Verlauf der letzten zwei Stunden.
 - Läuft auf einem Raspberry Pi am Netzwerk des Veranstaltungsorts.
 
 ![Die Übersicht: Pegel, Lautstärken, Mutes und aktive Bearbeitung jedes Kanals, mit Kompressor und Limiter, wenn sie greifen](docs/screenshots/de/overview.png)

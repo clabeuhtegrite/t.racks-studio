@@ -1,8 +1,8 @@
 // Backend over the t.racks Studio bridge (WebSocket /ws). Reconnects by itself and restores the
 // subscriptions, so a phone that sleeps or changes Wi-Fi simply picks up where it was.
 
-import type { Action, DeviceInfo, FoundModule, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
-import { Emitter, type Backend, type BackendEvents, type BackendStatus, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
+import type { Action, DeviceInfo, FoundModule, LevelerState, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
+import { Emitter, type Backend, type BackendEvents, type BackendStatus, type LevelerOp, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
 import { t } from '../i18n.tsx';
 
 interface Pending { res: (v: unknown) => void; rej: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
@@ -131,6 +131,7 @@ export class BridgeBackend implements Backend {
       case 'action': this.em.emit('action', { key: String(m.key), action: m.action as Action, origin: Number(m.origin), seq: Number(m.seq) }); return;
       case 'meters': this.em.emit('meters', { key: String(m.key), db: m.db as number[], status: Number(m.status) }); return;
       case 'frame': this.em.emit('frame', { key: String(m.key), dir: m.dir as 'tx' | 'rx', hex: String(m.hex), at: Number(m.at) }); return;
+      case 'leveler': this.em.emit('leveler', { key: String(m.key), state: m.state as LevelerState }); return;
     }
   }
 
@@ -153,7 +154,7 @@ export class BridgeBackend implements Backend {
     return h.role;
   }
 
-  async subscribe(key: string, debug = false): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null }> {
+  async subscribe(key: string, debug = false): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null; leveler?: LevelerState | null }> {
     this.subs.set(key, debug);
     return this.req({ t: 'subscribe', key, debug });
   }
@@ -164,6 +165,9 @@ export class BridgeBackend implements Backend {
   async action(key: string, a: Action, seq: number): Promise<void> { await this.req({ t: 'action', key, action: a, seq }); }
   call<T = unknown>(key: string, method: string, args: unknown[] = []): Promise<T> {
     return this.req<T>({ t: 'call', key, method, args }, 240000);
+  }
+  leveler<T = unknown>(key: string, op: LevelerOp, value?: unknown): Promise<T> {
+    return this.req<T>({ t: 'leveler', key, op, value }, op === 'check' ? 30000 : 20000);
   }
   addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo> { return this.req({ t: 'add', spec, label }); }
   async removeDevice(key: string): Promise<void> { await this.req({ t: 'remove', key }); }

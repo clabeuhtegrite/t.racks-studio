@@ -18,6 +18,8 @@ import { ToolsView } from '../views/ToolsView.tsx';
 import { ConnectView } from '../views/ConnectView.tsx';
 import { LibraryView } from '../views/LibraryView.tsx';
 import { SheetView } from '../views/SheetView.tsx';
+import { LevelView } from '../views/LevelView.tsx';
+import { DjView } from '../views/DjView.tsx';
 import { LANGS, t, tm, tx, type Lang } from '../i18n.tsx';
 
 type NavGroup = 'live' | 'sound' | 'memory' | 'system';
@@ -25,6 +27,7 @@ interface NavItem { view: ViewId; label: string; icon: IconName; group: NavGroup
 const nav = (): NavItem[] => [
   { view: 'vue', label: t('Vue globale'), icon: 'overview', group: 'live', mobile: true },
   { view: 'console', label: t('Console'), icon: 'console', group: 'live', mobile: true },
+  { view: 'niveau', label: t('Gain auto'), icon: 'gauge', group: 'live' },
   { view: 'canal', label: t('Canaux'), icon: 'eq', group: 'sound', mobile: true },
   { view: 'geq', label: t('EQ graphique'), icon: 'geq', group: 'sound' },
   { view: 'dynamique', label: t('Dynamique'), icon: 'dynamics', group: 'sound' },
@@ -37,21 +40,22 @@ const nav = (): NavItem[] => [
   { view: 'connexion', label: t('Connexion'), icon: 'plug', group: 'system' },
 ];
 const groupLabel = (g: NavGroup): string => (g === 'live' ? t('En direct') : g === 'sound' ? t('Traitement') : g === 'memory' ? t('Mémoires') : t('Système'));
-const NEEDS_CONFIG: ViewId[] = ['console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'fiche'];
+const NEEDS_CONFIG: ViewId[] = ['console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'fiche', 'niveau'];
 
-function useTheme(): void {
+/** `dark`: the DJ screen, dark unless light was chosen (a booth is dark) */
+function useTheme(dark: boolean): void {
   const theme = useApp((s) => s.prefs.theme);
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: light)');
     const apply = (): void => {
-      const t = theme === 'auto' ? (mq.matches ? 'light' : 'dark') : theme;
+      const t = theme === 'auto' ? (mq.matches && !dark ? 'light' : 'dark') : theme;
       document.documentElement.dataset.theme = t;
       document.querySelector('meta[name=theme-color]')?.setAttribute('content', t === 'light' ? '#f3f5f8' : '#0f1216');
     };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
-  }, [theme]);
+  }, [theme, dark]);
 }
 
 function useShortcuts(): void {
@@ -71,9 +75,9 @@ function useShortcuts(): void {
 }
 
 export function App(): React.JSX.Element {
-  useTheme();
-  useShortcuts();
   const route = useRoute();
+  useTheme(route.view === 'dj');
+  useShortcuts();
   const status = useApp((s) => s.status);
   const { mirror, snap, config } = useDevice();
   const devices = useApp((s) => s.devices);
@@ -131,7 +135,20 @@ export function App(): React.JSX.Element {
       case 'connexion': body = <ConnectView />; break;
       case 'bibliotheque': body = <LibraryView />; break;
       case 'fiche': body = <SheetView />; break;
+      case 'niveau': body = <LevelView />; break;
+      case 'dj': body = null; break;
     }
+  }
+
+  // DJ screen: the whole screen, without the menus
+  if (route.view === 'dj' && status !== 'starting') {
+    return (
+      <>
+        <DjView />
+        <Toasts />
+        <DialogHost />
+      </>
+    );
   }
 
   return (

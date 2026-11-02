@@ -8,7 +8,7 @@
 
 import {
   actionKey, applyAction, inverseActions, linkedChannels, MODELS, validateAction,
-  type Action, type DeviceConfig, type DeviceInfo, type SessionSnapshot,
+  type Action, type DeviceConfig, type DeviceInfo, type LevelerState, type SessionSnapshot,
 } from '@dsp-studio/protocol';
 import type { Backend } from './types.ts';
 import { t } from '../i18n.tsx';
@@ -74,6 +74,9 @@ export class DeviceMirror {
   snap: SessionSnapshot | null = null;
   config: DeviceConfig | null = null;
   meters: MeterState | null = null;
+  /** automatic gain of the device (levels for the DJ screen too) */
+  leveler: LevelerState | null = null;
+  levelerRev = 0;
   frames: FrameLine[] = [];
   undoStack: UndoEntry[] = [];
   redoStack: UndoEntry[] = [];
@@ -87,6 +90,7 @@ export class DeviceMirror {
   private listeners = new Set<Fn>();
   private meterListeners = new Set<Fn>();
   private frameListeners = new Set<Fn>();
+  private levelerListeners = new Set<Fn>();
   private unsubs: (() => void)[] = [];
   private onError: (msg: string) => void;
   private alive = true;
@@ -103,6 +107,12 @@ export class DeviceMirror {
   subscribe = (f: Fn): (() => void) => { this.listeners.add(f); return () => { this.listeners.delete(f); }; };
   subscribeMeters = (f: Fn): (() => void) => { this.meterListeners.add(f); return () => { this.meterListeners.delete(f); }; };
   subscribeFrames = (f: Fn): (() => void) => { this.frameListeners.add(f); return () => { this.frameListeners.delete(f); }; };
+  subscribeLeveler = (f: Fn): (() => void) => { this.levelerListeners.add(f); return () => { this.levelerListeners.delete(f); }; };
+  private setLeveler(s: LevelerState | null): void {
+    this.leveler = s;
+    this.levelerRev++;
+    for (const f of this.levelerListeners) f();
+  }
   private bump(): void { this.rev++; for (const f of this.listeners) f(); }
 
   // ------------------------------------------------------------------ life cycle
@@ -120,6 +130,7 @@ export class DeviceMirror {
         this.meterRev++;
         for (const f of this.meterListeners) f();
       }),
+      b.on('leveler', (e) => { if (e.key === this.key) this.setLeveler(e.state); }),
       b.on('frame', (e) => {
         if (e.key !== this.key) return;
         this.frames.push({ dir: e.dir, hex: e.hex, at: e.at });
@@ -152,8 +163,9 @@ export class DeviceMirror {
   async resubscribe(): Promise<void> {
     if (!this.alive || this.backend.status !== 'online') return;
     try {
-      const { info, snap } = await this.backend.subscribe(this.key, this.debug);
+      const { info, snap, leveler } = await this.backend.subscribe(this.key, this.debug);
       this.info = info;
+      if (leveler !== undefined) this.setLeveler(leveler);
       this.pending = [];
       if (snap) this.onSnapshot(snap); else { this.snap = null; this.config = null; this.bump(); }
     } catch (e) {
