@@ -1,0 +1,2 @@
+# Émulateur du firmware (Python 3.10 ou plus récent)
+unicorn>=2.0.1

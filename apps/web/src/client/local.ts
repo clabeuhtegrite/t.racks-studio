@@ -1,0 +1,300 @@
+// Backend running entirely in the browser: demo devices (virtual DSP), USB through WebHID and
+// RS-232 / RS-485 through Web Serial. Used when the app is opened without a bridge (for instance
+// from a static web host), and offers the same operations as the bridge.
+
+import {
+  callSession, DeviceSession, describeSource, probeIds, sourceKey, validateAction, VirtualDsp,
+  type Action, type DeviceInfo, type DeviceState, type FoundModule, type Role, type SessionSnapshot, type SourceSpec, type Transport,
+} from '@dsp-studio/protocol';
+import { Emitter, APP_VERSION, type Backend, type BackendEvents, type BackendStatus, type LibraryApi, type LibraryDraft, type LibraryEntry, type LibrarySummary, type PortsInfo } from './types.ts';
+import { DSP_HID_FILTER, grantedHidDevices, hasWebHid, hasWebSerial, serialPortName, webHidTransport, webSerialTransport } from './webtransports.ts';
+
+const SAVED_KEY = 'dsp-studio.local-devices';
+const LIBRARY_KEY = 'dsp-studio.library';
+
+const clone = <T>(v: T): T => structuredClone(v);
+
+function readJson<T>(key: string, fallback: T): T {
+  try { const t = localStorage.getItem(key); return t ? (JSON.parse(t) as T) : fallback; } catch { return fallback; }
+}
+function writeJson(key: string, v: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {
+    throw new Error(`stockage du navigateur plein ou indisponible (${(e as Error).message})`);
+  }
+}
+
+class LocalLibrary implements LibraryApi {
+  readonly shared = false;
+  private all(): LibraryEntry[] { return readJson<LibraryEntry[]>(LIBRARY_KEY, []); }
+  async list(): Promise<LibrarySummary[]> {
+    return this.all().map(({ data: _d, ...m }) => m).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  }
+  async get(id: string): Promise<LibraryEntry> {
+    const e = this.all().find((x) => x.id === id);
+    if (!e) throw new Error('entrée introuvable');
+    return e;
+  }
+  async save(d: LibraryDraft): Promise<LibrarySummary> {
+    const entry: LibraryEntry = {
+      id: d.id ?? crypto.randomUUID(), kind: d.kind, model: d.model, name: String(d.name).slice(0, 80) || 'Sans nom',
+      notes: String(d.notes ?? '').slice(0, 4000), tags: (d.tags ?? []).map(String).slice(0, 20), savedAt: new Date().toISOString(), data: d.data,
+    };
+    const list = this.all().filter((x) => x.id !== entry.id);
+    list.push(entry);
+    writeJson(LIBRARY_KEY, list);
+    const { data: _d, ...meta } = entry;
+    return meta;
+  }
+  async remove(id: string): Promise<void> { writeJson(LIBRARY_KEY, this.all().filter((x) => x.id !== id)); }
+}
+
+type Opener = () => Promise<{ transport: Transport; sim?: VirtualDsp }>;
+
+class LocalDevice {
+  readonly key: string;
+  label: string;
+  readonly spec: SourceSpec;
+  state: DeviceState = 'offline';
+  error: string | null = null;
+  session: DeviceSession | null = null;
+  sim: VirtualDsp | null = null;
+  private opener: Opener;
+  private onChange: () => void;
+  private forward: (ev: 'snapshot' | 'action' | 'meters' | 'frame', v: unknown) => void;
+  private stopped = false;
+
+  constructor(spec: SourceSpec, opener: Opener, onChange: () => void, forward: LocalDevice['forward'], label?: string) {
+    this.spec = spec;
+    this.key = sourceKey(spec);
+    this.label = label ?? describeSource(spec);
+    this.opener = opener;
+    this.onChange = onChange;
+    this.forward = forward;
+  }
+
+  info(): DeviceInfo {
+    const snap = this.session?.snap;
+    return { key: this.key, label: this.label, spec: this.spec, state: this.state, error: this.error, model: snap?.model ?? null, presetName: snap?.config?.presetName ?? '' };
+  }
+  private set(state: DeviceState, error: string | null = null): void { this.state = state; this.error = error; this.onChange(); }
+
+  async start(): Promise<void> {
+    this.stopped = false;
+    this.set('connecting');
+    try {
+      const { transport, sim } = await this.opener();
+      this.sim = sim ?? null;
+      const s = new DeviceSession(transport, { deviceId: this.spec.deviceId ?? 1 });
+      this.session = s;
+      s.on('snapshot', (snap) => this.forward('snapshot', snap));
+      s.on('action', (a) => this.forward('action', a));
+      s.on('meters', (m) => this.forward('meters', m));
+      s.on('frame', (f) => this.forward('frame', f));
+      s.on('status', (st) => {
+        if (st === 'closed' && this.session === s) { this.session = null; this.set('offline', this.stopped ? null : 'liaison perdue'); }
+        else if (st === 'locked') this.set('locked');
+        else if (st === 'ready') this.set('online');
+      });
+      await s.connect();
+      this.set(s.snap.status === 'locked' ? 'locked' : 'online');
+    } catch (e) {
+      const s = this.session;
+      this.session = null;
+      try { await s?.close(); } catch { /* ignore */ }
+      this.set('offline', (e as Error).message);
+    }
+  }
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+    const s = this.session;
+    this.session = null;
+    if (s) await s.close();
+    this.set('offline');
+  }
+}
+
+export class LocalBackend implements Backend {
+  readonly kind = 'local' as const;
+  readonly clientId = 1;
+  readonly role: Role = 'admin';
+  readonly pinRequired = false;
+  readonly version = APP_VERSION;
+  status: BackendStatus = 'online';
+  readonly library = new LocalLibrary();
+  readonly features = { discover: false, ports: false, probe: false, webhid: hasWebHid(), webserial: hasWebSerial(), demo: true };
+  private map = new Map<string, LocalDevice>();
+  private hid = new Map<string, HIDDevice>();
+  private serial = new Map<string, SerialPort>();
+  private subs = new Map<string, boolean>();
+  private em = new Emitter<BackendEvents>();
+  private origin: { key: string; seq: number } | null = null;
+  private snapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  get devices(): DeviceInfo[] { return [...this.map.values()].map((d) => d.info()); }
+  on<K extends keyof BackendEvents>(k: K, f: (v: BackendEvents[K]) => void): () => void { return this.em.on(k, f); }
+
+  private changed = (): void => {
+    this.em.emit('devices', this.devices);
+    this.persist();
+  };
+
+  private forwarder(key: string): (ev: 'snapshot' | 'action' | 'meters' | 'frame', v: unknown) => void {
+    return (ev, v) => {
+      if (!this.subs.has(key)) return;
+      if (ev === 'snapshot') {
+        // like the bridge: at most one snapshot every 100 ms, as a copy
+        if (this.snapTimers.has(key)) return;
+        this.snapTimers.set(key, setTimeout(() => {
+          this.snapTimers.delete(key);
+          const s = this.map.get(key)?.session?.snap;
+          if (s) this.em.emit('snapshot', { key, snap: clone(s) });
+        }, 60));
+      } else if (ev === 'action') {
+        const a = v as { action: Action };
+        const o = this.origin && this.origin.key === key ? this.origin : null;
+        this.em.emit('action', { key, action: clone(a.action), origin: o ? this.clientId : 0, seq: o?.seq ?? 0 });
+      } else if (ev === 'meters') {
+        const m = v as { db: number[]; status: number };
+        this.em.emit('meters', { key, db: m.db.map((x) => Math.round(x * 10) / 10), status: m.status });
+      } else if (ev === 'frame' && this.subs.get(key)) {
+        const f = v as { dir: 'tx' | 'rx'; hex: string; t: number };
+        this.em.emit('frame', { key, dir: f.dir, hex: f.hex, at: f.t });
+      }
+    };
+  }
+
+  private persist(): void {
+    const saved = [...this.map.values()].map((d) => ({ spec: d.spec, label: d.label }));
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(saved)); } catch { /* private mode */ }
+  }
+
+  private create(spec: SourceSpec, opener: Opener, label?: string): LocalDevice {
+    const key = sourceKey(spec);
+    const existing = this.map.get(key);
+    if (existing) return existing;
+    const d = new LocalDevice(spec, opener, this.changed, this.forwarder(key), label);
+    this.map.set(key, d);
+    this.changed();
+    void d.start();
+    return d;
+  }
+
+  private demoOpener(spec: Extract<SourceSpec, { kind: 'demo' }>): Opener {
+    return async () => {
+      const sim = new VirtualDsp({ model: spec.model, deviceId: spec.deviceId ?? 1, latencyMs: 2 });
+      return { transport: sim.transport(), sim };
+    };
+  }
+
+  async start(): Promise<void> {
+    const saved = readJson<{ spec: SourceSpec; label?: string }[]>(SAVED_KEY, []);
+    const granted = await grantedHidDevices().catch(() => [] as HIDDevice[]);
+    for (const s of saved) {
+      if (s.spec.kind === 'demo') this.create(s.spec, this.demoOpener(s.spec), s.label);
+      else if (s.spec.kind === 'webhid') {
+        const dev = granted.find((g) => (g.productName || '') === (s.spec as { name?: string }).name) ?? granted[0];
+        if (dev) this.addHid(dev, s.spec.deviceId, s.label);
+      }
+    }
+    if (hasWebHid()) {
+      navigator.hid.addEventListener('connect', (e) => {
+        const d = e.device;
+        if (d.vendorId !== DSP_HID_FILTER.vendorId || d.productId !== DSP_HID_FILTER.productId) return;
+        const known = [...this.map.values()].find((x) => x.spec.kind === 'webhid' && this.hid.get(x.key) === d);
+        if (known && known.state === 'offline') void known.start();
+      });
+    }
+    this.em.emit('status', 'online');
+  }
+
+  private addHid(dev: HIDDevice, deviceId?: number, label?: string): LocalDevice {
+    const spec: SourceSpec = { kind: 'webhid', name: dev.productName || 'DSP', deviceId };
+    this.hid.set(sourceKey(spec), dev);
+    return this.create(spec, async () => ({ transport: await webHidTransport(dev) }), label);
+  }
+
+  async requestUsb(deviceId?: number): Promise<DeviceInfo | null> {
+    if (!hasWebHid()) throw new Error('WebHID indisponible : utilisez Chrome ou Edge sur une page https ou localhost');
+    const list = await navigator.hid.requestDevice({ filters: [DSP_HID_FILTER] });
+    if (!list.length) return null;
+    return this.addHid(list[0], deviceId).info();
+  }
+
+  async requestSerial(baud = 115200, deviceId?: number): Promise<DeviceInfo | null> {
+    if (!hasWebSerial()) throw new Error('Web Serial indisponible : utilisez Chrome ou Edge sur une page https ou localhost');
+    const port = await navigator.serial.requestPort();
+    const spec: SourceSpec = { kind: 'webserial', name: serialPortName(port), baud, deviceId };
+    this.serial.set(sourceKey(spec), port);
+    return this.create(spec, async () => ({ transport: await webSerialTransport(port, baud) })).info();
+  }
+
+  async login(): Promise<Role> { return 'admin'; }
+
+  async subscribe(key: string, debug = false): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null }> {
+    const d = this.map.get(key);
+    if (!d) throw new Error('appareil inconnu');
+    this.subs.set(key, debug);
+    return { info: d.info(), snap: d.session ? clone(d.session.snap) : null };
+  }
+  unsubscribe(key: string): void { this.subs.delete(key); }
+
+  private sessionOf(key: string): DeviceSession {
+    const s = this.map.get(key)?.session;
+    if (!s) throw new Error("l'appareil n'est pas connecté");
+    return s;
+  }
+
+  async action(key: string, a: Action, seq: number): Promise<void> {
+    const s = this.sessionOf(key);
+    if (!s.snap.model) throw new Error("l'appareil n'est pas prêt");
+    if (s.snap.status === 'locked') throw new Error("l'appareil est verrouillé");
+    const clean = validateAction(s.snap.model, a);
+    this.origin = { key, seq };
+    let p: Promise<void>;
+    try { p = s.apply(clean); } finally { this.origin = null; }
+    await p;
+  }
+
+  async call<T = unknown>(key: string, method: string, args: unknown[] = []): Promise<T> {
+    return clone(await callSession(this.sessionOf(key), method, clone(args))) as T;
+  }
+
+  async addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo> {
+    if (spec.kind !== 'demo') throw new Error('dans le navigateur, branchez le DSP avec les boutons USB ou Série');
+    return this.create(spec, this.demoOpener(spec), label).info();
+  }
+  async removeDevice(key: string): Promise<void> {
+    const d = this.map.get(key);
+    if (!d) return;
+    this.map.delete(key);
+    await d.stop();
+    const dev = this.hid.get(key);
+    if (dev) { this.hid.delete(key); try { await dev.forget(); } catch { /* old browsers */ } }
+    this.serial.delete(key);
+    this.changed();
+  }
+  async renameDevice(key: string, label: string): Promise<void> {
+    const d = this.map.get(key);
+    if (d) { d.label = label.slice(0, 60) || d.label; this.changed(); }
+  }
+  async reconnectDevice(key: string): Promise<void> {
+    const d = this.map.get(key);
+    if (!d) return;
+    await d.stop();
+    void d.start();
+  }
+  async discover(): Promise<FoundModule[]> { return []; }
+  async ports(): Promise<PortsInfo> { return { usb: null, serial: null }; }
+  async probe(spec: SourceSpec, max = 16): Promise<{ id: number; version: string }[]> {
+    // only for a granted USB / serial device that is not in use
+    const key = sourceKey(spec);
+    if (this.map.get(key)?.session) throw new Error("déconnectez d'abord l'appareil");
+    const dev = this.hid.get(key);
+    const port = this.serial.get(key);
+    const t = dev ? await webHidTransport(dev) : port ? await webSerialTransport(port, (spec as { baud?: number }).baud) : null;
+    if (!t) return [];
+    try { return await probeIds(t, max); } finally { await t.close(); }
+  }
+  close(): void { for (const d of this.map.values()) void d.stop(); }
+}

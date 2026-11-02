@@ -1,0 +1,21 @@
+{
+  "name": "@dsp-studio/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pont réseau : relie l'interface web aux DSP (USB, Ethernet, RS-232/485, émulateur, DSP virtuel)",
+  "bin": { "dsp-studio": "./src/main.ts" },
+  "scripts": {
+    "start": "node src/main.ts",
+    "demo": "node src/main.ts --demo 206 --demo 408"
+  },
+  "dependencies": {
+    "@dsp-studio/protocol": "0.1.0",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "node-hid": "^3.1.0",
+    "serialport": "^13.0.0"
+  },
+  "license": "MIT"
+}

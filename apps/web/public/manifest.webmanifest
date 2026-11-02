@@ -1,0 +1,12 @@
+{
+  "name": "DSP Studio",
+  "short_name": "DSP Studio",
+  "description": "Pilotage des processeurs t.racks DSP 206 et DSP 408",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1216",
+  "theme_color": "#0f1216",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
