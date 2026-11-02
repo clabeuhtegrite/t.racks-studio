@@ -91,8 +91,10 @@ patches:
 
 L’interface garde une WebSocket ouverte sur `/ws`. Le proxy doit la transmettre (en-têtes `Upgrade`
 et `Connection`) et garder l’en-tête `Host` : le pont n’accepte que les pages servies sous le nom
-d’hôte par lequel on l’atteint. Le pont envoie un ping à chaque écran toutes les 30 secondes : un
-proxy qui ferme les connexions silencieuses au bout d’une minute ou plus ne gêne pas.
+d’hôte par lequel on l’atteint. Si votre proxy le change, donnez l’adresse publique au pont après
+`demo` : `demo --allow-origin https://dsp.example.org`. Le pont envoie un ping à chaque écran toutes
+les 30 secondes : un proxy qui ferme les connexions silencieuses au bout d’une minute ou plus ne
+gêne pas.
 
 **Caddy**, avec son certificat HTTPS automatique :
 
@@ -146,6 +148,8 @@ Variables d’environnement de la commande `demo` :
 | `PORT` | `8080` | port HTTP dans le conteneur |
 | `DSP_STUDIO_PIN` | | code administrateur (voir *Sécurité*) |
 | `DSP_STUDIO_OPERATOR_PIN` | | code opérateur |
+
+Les arguments placés après `demo` vont au pont (`demo --help` rappelle les variables).
 
 ## Remises à zéro et mises à jour
 

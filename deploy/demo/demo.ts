@@ -19,6 +19,9 @@
 //                     access codes (none: every visitor can change every setting)
 //   PYTHON            Python of the emulator (python3)
 //
+// Other arguments go to the bridge, such as --allow-origin https://... when a proxy in front of the
+// demo changes the Host header (see `node apps/bridge/src/main.ts --help`).
+//
 // The firmware belongs to Thomann and is never part of the image: it is downloaded from Thomann's
 // site at the first start (emulator/fetch_firmware.py) and kept in DEMO_DIR/firmware.
 
@@ -44,6 +47,8 @@ export interface DemoConfig {
   resetAt: { h: number; m: number } | null;
   idleMinutes: number;
   python: string;
+  /** more options of the bridge (the arguments of the demo command) */
+  bridgeArgs: string[];
 }
 
 const log = (msg: string): void => console.log(`[demo] ${msg}`);
@@ -67,7 +72,7 @@ export function parseTime(value: string): { h: number; m: number } | null {
   return { h: Number(m[1]), m: Number(m[2]) };
 }
 
-export function readConfig(env: NodeJS.ProcessEnv = process.env): DemoConfig {
+export function readConfig(env: NodeJS.ProcessEnv = process.env, argv: string[] = []): DemoConfig {
   const idle = env.DEMO_IDLE_RESET?.trim() ? Number(env.DEMO_IDLE_RESET) : 30;
   if (!Number.isFinite(idle) || idle < 0) throw new Error(`DEMO_IDLE_RESET: "${env.DEMO_IDLE_RESET}" is not a number of minutes`);
   const port = env.PORT?.trim() ? Number(env.PORT) : 8080;
@@ -80,6 +85,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): DemoConfig {
     resetAt: parseTime(env.DEMO_RESET_AT?.trim() || '04:00'),
     idleMinutes: idle,
     python: env.PYTHON || 'python3',
+    bridgeArgs: argv,
   };
 }
 
@@ -231,7 +237,7 @@ export class Demo {
       '--firmware', firmwareFile(cfg.dir, m), '--state', join(run, `emulator-${i + 1}`), '--pause-when-idle',
     ], pyEnv));
     this.children.push(new Child('bridge', process.execPath, [
-      join(ROOT, 'apps/bridge/src/main.ts'), '--data', join(run, 'bridge'), '--port', String(cfg.port), '--sandbox',
+      join(ROOT, 'apps/bridge/src/main.ts'), '--data', join(run, 'bridge'), '--port', String(cfg.port), '--sandbox', ...cfg.bridgeArgs,
     ]));
     for (const c of this.children) c.start();
     this.visited = false;
@@ -315,11 +321,32 @@ export class Demo {
   }
 }
 
+const USAGE = `t.racks Studio demo instance: the DSP 206 and DSP 408 firmware in the emulator and a demo DSP,
+behind a bridge in sandbox mode, back to the start by itself. Guide: docs/demo.md
+
+  node deploy/demo/demo.ts [bridge options]       (in the Docker image: demo [bridge options])
+
+Environment variables:
+  PORT              HTTP port (8080)
+  DEMO_DIR          firmware cache and state of the instance (/data in the image)
+  DEMO_EMULATORS    DSPs running the real firmware: 206,408 (default) or none
+  DEMO_VIRTUAL      demo DSPs with moving meters: 408 (default) or none
+  DEMO_RESET_AT     daily reset, local time (TZ): 04:00 (default) or off
+  DEMO_IDLE_RESET   minutes without visitors before a reset: 30 (default), 0 = never
+  DSP_STUDIO_PIN, DSP_STUDIO_OPERATOR_PIN   access codes (none by default)
+
+Bridge options, such as --allow-origin https://...: node apps/bridge/src/main.ts --help`;
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   let demo: Demo;
   try {
-    demo = new Demo(readConfig());
+    const argv = process.argv.slice(2);
+    if (argv.includes('-h') || argv.includes('--help')) {
+      console.log(USAGE);
+      process.exit(0);
+    }
+    demo = new Demo(readConfig(process.env, argv));
   } catch (e) {
     console.error(`[demo] ${(e as Error).message}`);
     process.exit(2);

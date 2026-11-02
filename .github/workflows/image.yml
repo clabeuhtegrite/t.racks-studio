@@ -55,6 +55,7 @@ jobs:
             console.log(h.devices.map((d) => d.label).join(", "));
           '
           docker run --rm t.racks-studio:test --help | head -n 3
+          docker run --rm t.racks-studio:test demo --help | head -n 2
 
       - name: Log in to the registry
         if: github.event_name != 'pull_request'

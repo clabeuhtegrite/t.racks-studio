@@ -18,19 +18,19 @@ describe('demo instance settings', () => {
   it('has defaults for a public demo', () => {
     expect(readConfig({})).toEqual({
       port: 8080, dir: join(os.homedir(), '.dsp-studio-demo'), emulators: ['206', '408'], virtual: ['408'],
-      resetAt: { h: 4, m: 0 }, idleMinutes: 30, python: 'python3',
+      resetAt: { h: 4, m: 0 }, idleMinutes: 30, python: 'python3', bridgeArgs: [],
     });
     // an empty variable (a blank line of a Compose file) keeps the default
     expect(readConfig({ PORT: '', DEMO_DIR: '', DEMO_EMULATORS: ' ', DEMO_VIRTUAL: '', DEMO_RESET_AT: '', DEMO_IDLE_RESET: '' })).toEqual(readConfig({}));
   });
 
-  it('takes its settings from the environment', () => {
+  it('takes its settings from the environment, and options of the bridge', () => {
     expect(readConfig({
       PORT: '9000', DEMO_DIR: '/data', DEMO_EMULATORS: 'none', DEMO_VIRTUAL: 'DSP206, 408 408',
       DEMO_RESET_AT: 'off', DEMO_IDLE_RESET: '0', PYTHON: '/opt/emulator/bin/python',
-    })).toEqual({
+    }, ['--allow-origin', 'https://dsp.example.org'])).toEqual({
       port: 9000, dir: '/data', emulators: [], virtual: ['206', '408', '408'],
-      resetAt: null, idleMinutes: 0, python: '/opt/emulator/bin/python',
+      resetAt: null, idleMinutes: 0, python: '/opt/emulator/bin/python', bridgeArgs: ['--allow-origin', 'https://dsp.example.org'],
     });
     expect(() => readConfig({ DEMO_EMULATORS: '206,308' })).toThrow('DEMO_EMULATORS: unknown model "308"');
     expect(() => readConfig({ DEMO_IDLE_RESET: '-5' })).toThrow('DEMO_IDLE_RESET');

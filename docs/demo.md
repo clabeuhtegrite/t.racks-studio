@@ -88,8 +88,9 @@ patches:
 
 The interface keeps a WebSocket open on `/ws`. The proxy must pass it on (the `Upgrade` and
 `Connection` headers) and keep the `Host` header: the bridge only accepts pages served under the
-host name it is reached at. The bridge pings every screen every 30 seconds, so a proxy that closes
-quiet connections after a minute or more is fine.
+host name it is reached at. If your proxy changes it, give the public address to the bridge after
+`demo`: `demo --allow-origin https://dsp.example.org`. The bridge pings every screen every
+30 seconds, so a proxy that closes quiet connections after a minute or more is fine.
 
 **Caddy**, with its automatic HTTPS certificate:
 
@@ -143,6 +144,8 @@ Environment variables of the `demo` command:
 | `PORT` | `8080` | HTTP port inside the container |
 | `DSP_STUDIO_PIN` | | administrator code (see *Security*) |
 | `DSP_STUDIO_OPERATOR_PIN` | | operator code |
+
+Arguments after `demo` go to the bridge (`demo --help` lists the variables).
 
 ## Resets and updates
 
