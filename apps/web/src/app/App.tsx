@@ -1,9 +1,9 @@
-// Application shell: top bar (device, preset, undo / redo, A/B), navigation (side rail on large
+// Application shell: top bar (device, preset, undo / redo), navigation (side rail on large
 // screens, bottom bar on phones), the current screen, messages and dialogs.
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { MODELS } from '@dsp-studio/protocol';
-import { closeDialog, connectDevice, disconnectDevice, errorText, getState, login, promptDialog, run, selectDevice, setLanguage, setPrefs, toast, useApp, useDevice } from '../state/store.ts';
+import { closeDialog, connectDevice, disconnectDevice, errorText, getState, login, promptDialog, selectDevice, setLanguage, setPrefs, useApp, useDevice } from '../state/store.ts';
 import { go, href, useRoute, type ViewId } from '../state/route.ts';
 import { Icon, type IconName } from '../ui/icons.tsx';
 import { Badge, Button, Empty, Modal, Progress, Spinner, TextInput } from '../ui/kit.tsx';
@@ -267,7 +267,6 @@ function TopBar(): React.JSX.Element {
       {mode === 'local' && <Badge tone="muted" title={t('Le navigateur pilote directement le DSP')}>{t('Navigateur')}</Badge>}
       {(role !== 'admin' || pinRequired) && <RoleButton />}
       {mirror && config && role !== 'viewer' && <HistoryButtons />}
-      {mirror && config && role === 'admin' && <AbButton />}
     </header>
   );
 }
@@ -291,53 +290,6 @@ function HistoryButtons(): React.JSX.Element {
     <div className="btn-group">
       <Button small icon="undo" title={u ? t('Annuler (Ctrl+Z)') : t('Annuler (Ctrl+Z) : rien à annuler')} disabled={!u || mirror.readOnly} onClick={() => mirror.undo()} />
       <Button small icon="redo" title={t('Rétablir (Ctrl+Maj+Z)')} disabled={!r || mirror.readOnly} onClick={() => mirror.redo()} />
-    </div>
-  );
-}
-
-/**
- * A/B comparison: two memories of the settings. Until both are stored, one "A/B" button opens the
- * window that explains and stores them; then A and B switch from one to the other at once.
- */
-function AbButton(): React.JSX.Element {
-  const { mirror } = useDevice();
-  const [open, setOpen] = useState(false);
-  if (!mirror) return <></>;
-  const { A, B, active } = mirror.ab;
-  const recall = (s: 'A' | 'B'): void => { void run(t('Comparaison {0}', s), () => mirror.recallAB(s)); };
-  const both = !!A && !!B;
-  return (
-    <div className="ab">
-      {both ? (
-        <div className="btn-group ab-quick">
-          {(['A', 'B'] as const).map((s) => (
-            <Button key={s} small active={active === s} disabled={mirror.readOnly} title={t('Écouter la version {0}', s)} onClick={() => recall(s)}>{s}</Button>
-          ))}
-          <Button small icon="chevronDown" title={t('Comparaison A/B')} onClick={() => setOpen(true)} />
-        </div>
-      ) : null}
-      <Button small className={both ? 'ab-mobile' : 'ab-open'} active={!!active} title={t('Comparaison A/B : deux versions des réglages à comparer')} onClick={() => setOpen(true)}>
-        {active ? tx('Version {0}', active) : t('A/B')}
-      </Button>
-      {open && (
-        <Modal title={t('Comparaison A / B')} onClose={() => setOpen(false)}>
-          <p className="muted">{t('Mémorisez deux versions de vos réglages et passez de l’une à l’autre pour comparer à l’oreille. Seuls les paramètres qui diffèrent sont envoyés, le changement est donc rapide.')}</p>
-          <div className="grid2">
-            {(['A', 'B'] as const).map((s) => (
-              <div key={s} className="ab-slot">
-                <h3>{tx('Version {0}', s)}{' '}{active === s && <Badge tone="accent">{t('en écoute')}</Badge>}</h3>
-                <p className="small muted">{(s === 'A' ? A : B) ? t('Mémorisée') : t('Vide')}</p>
-                <div className="row">
-                  <Button small icon="save" disabled={mirror.readOnly} onClick={() => { mirror.storeAB(s); toast(t('Réglages mémorisés en {0}', s), 'ok'); }}>{t('Mémoriser ici')}</Button>
-                  <Button small icon="play" disabled={!(s === 'A' ? A : B) || mirror.readOnly} onClick={() => { recall(s); setOpen(false); }}>{t('Écouter')}</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="small muted">{both ? t('Les boutons A et B de la barre du haut passent d’une version à l’autre.') : t('Une fois A et B mémorisées, deux boutons A et B apparaissent dans la barre du haut.')}</p>
-          <div className="row end"><Button small kind="ghost" icon="trash" onClick={() => mirror.clearAB()}>{t('Effacer A et B')}</Button></div>
-        </Modal>
-      )}
     </div>
   );
 }

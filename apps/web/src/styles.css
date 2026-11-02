@@ -289,9 +289,6 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2)
 .btn-group > .btn + .btn { margin-left: -1px; }
 .btn-group > .btn:first-child { border-radius: 8px 0 0 8px; }
 .btn-group > .btn:last-child { border-radius: 0 8px 8px 0; }
-.ab { position: relative; display: flex; }
-.ab-mobile { display: none; }
-@media (max-width: 760px) { .ab .btn-group { display: none; } .ab-mobile { display: inline-flex; } }
 
 .tg {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -618,8 +615,6 @@ svg.is-disabled .g-handle, svg.is-disabled .g-pill { cursor: default; }
 .choice { display: flex; flex-direction: column; gap: 8px; }
 .choice-item { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); text-align: left; color: var(--text); }
 button.choice-item:hover { border-color: var(--accent); }
-.ab-slot { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); }
-.ab-slot h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
 
 /* ------------------------------------------------------------------ device, connection, library */
 .kv { display: grid; margin: 0; }
@@ -840,6 +835,46 @@ button.choice-item:hover { border-color: var(--accent); }
   position: fixed; top: calc(var(--top-h) + 10px); left: 50%; transform: translateX(-50%); z-index: 65;
   display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 999px; font-size: 13.5px;
   background: var(--surface-3); border: 1px solid var(--border-strong); box-shadow: var(--shadow); white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ PC: one screen, no scrolling
+   On a computer the app takes exactly the height of the window: the top bar and the menu never
+   move, and each page is laid out to fit the rest (only a page that cannot fit, like the printable
+   sheet, scrolls inside the content area). Controls are a little denser, made for a mouse. */
+@media (min-width: 1101px) {
+  :root { --top-h: 52px; --rail-w: 196px; }
+  .app { height: 100dvh; min-height: 0; overflow: hidden; }
+  .main { overflow: auto; padding-bottom: 0; display: flex; flex-direction: column; scrollbar-gutter: stable; }
+  .main > .page { flex: 1 0 auto; width: 100%; }
+  .rail { position: static; height: auto; min-height: 0; padding: 10px 8px; gap: 1px; }
+  .rail .nav-link { padding-top: 7px; padding-bottom: 7px; }
+  .nav-group { margin: 10px 12px 2px; }
+  .top { position: static; }
+  .banner { position: static; }
+
+  .page { max-width: 1720px; padding: 14px 18px 16px; gap: 12px; }
+  .page-head h1 { font-size: 19px; }
+  .card { padding: 12px 14px; gap: 10px; }
+  .cards { gap: 12px; }
+  .btn, .tg { height: 32px; }
+  .btn-sm, .tg-sm { height: 28px; }
+  .btn-icon { width: 32px; }
+  .btn-sm.btn-icon { width: 28px; }
+  .input, .select, .vf { height: 32px; }
+  .select-sm { height: 28px; }
+  .stepper > button { height: 32px; }
+  .sl-h { height: 26px; }
+  .prow { grid-template-columns: 92px minmax(0, 1fr) auto; gap: 8px; }
+  .vf { width: 88px; }
+}
+/* short PC screens: the menu gets tighter before anything else */
+@media (min-width: 1101px) and (max-height: 760px) {
+  .rail .nav-link { padding-top: 5px; padding-bottom: 5px; }
+  .nav-group { margin: 7px 12px 1px; }
+}
+@media (min-width: 1101px) and (max-height: 640px) {
+  .rail .nav-group { height: 1px; margin: 4px 10px; overflow: hidden; color: transparent; background: var(--border); }
+  .rail > .nav-group:first-child { display: none; }
 }
 
 /* ------------------------------------------------------------------ settings sheet (print) */

@@ -62,7 +62,7 @@ Windows-Editors ([wo Sie was finden](docs/parite-logiciel-windows.md), auf Franz
 - Mehrere DSPs gleichzeitig und beliebig viele Bildschirme, live synchronisiert.
 - Zugangscodes: Administrator (alle Einstellungen) und Bediener (nur Lautstärken, Mutes und
   Preset-Abruf).
-- Rückgängig und Wiederherstellen, A/B-Vergleich zweier Versionen der Einstellungen.
+- Rückgängig und Wiederherstellen.
 - Eine Bibliothek für alle Bildschirme: Presets, Sicherungen und Szenen, die mit einem Tipp
   abgerufen werden, ohne einen Gerätespeicher zu belegen, mit Notizen.
 - „Ausgänge stummschalten“ mit einem Tipp, Delay-Ausrichtung nach Entfernungen,

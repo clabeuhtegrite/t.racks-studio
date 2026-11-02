@@ -150,7 +150,7 @@ Sécurité :
 La copie locale (`mirror.ts`) applique chaque modification tout de suite à l’écran et l’envoie ; les
 modifications venues d’ailleurs sont appliquées aussi, et celles de cet écran encore en route sont
 rejouées par-dessus, de sorte que l’écran finit toujours exactement comme l’appareil. Elle gère aussi
-annuler / rétablir et les mémoires A / B. Chaque modification ne recrée que les canaux touchés, ce
+annuler / rétablir. Chaque modification ne recrée que les canaux touchés, ce
 qui garde l’interface fluide sur un téléphone.
 
 L’application est installable (manifeste et service worker dans `apps/web/public`) quand elle est

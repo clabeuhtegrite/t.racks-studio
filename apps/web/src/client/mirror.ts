@@ -4,14 +4,13 @@
 //   the edits of this window that are still on their way are re-applied on top, so the screen
 //   always ends up exactly like the device;
 // - every change makes new objects only for the channels it touches, so React redraws only them;
-// - undo / redo, and two A/B memories.
+// - undo / redo.
 
 import {
   actionKey, applyAction, inverseActions, linkedChannels, MODELS, validateAction,
   type Action, type DeviceConfig, type DeviceInfo, type LevelerState, type SessionSnapshot,
 } from '@dsp-studio/protocol';
 import type { Backend } from './types.ts';
-import { t } from '../i18n.tsx';
 
 export interface UndoEntry { key: string; action: Action; inverse: Action[]; redo: Action[]; at: number }
 export interface FrameLine { dir: 'tx' | 'rx'; hex: string; at: number }
@@ -92,7 +91,6 @@ export class DeviceMirror {
   frames: FrameLine[] = [];
   undoStack: UndoEntry[] = [];
   redoStack: UndoEntry[] = [];
-  ab: { A: DeviceConfig | null; B: DeviceConfig | null; active: 'A' | 'B' | null } = { A: null, B: null, active: null };
   rev = 0;
   meterRev = 0;
   frameRev = 0;
@@ -245,7 +243,6 @@ export class DeviceMirror {
     const seq = ++this.seq;
     this.pending.push({ seq, action: a });
     if (opts.record !== false) this.record(before, a);
-    if (this.ab.active) this.ab = { ...this.ab, active: null };
     this.bump();
     this.backend.action(this.key, a, seq).catch((e: Error) => {
       this.pending = this.pending.filter((p) => p.seq !== seq);
@@ -288,19 +285,4 @@ export class DeviceMirror {
     this.bump();
   }
   clearHistory(): void { this.undoStack = []; this.redoStack = []; this.bump(); }
-
-  // ------------------------------------------------------------------ A / B
-  storeAB(slot: 'A' | 'B'): void {
-    if (!this.config) return;
-    this.ab = { ...this.ab, [slot]: structuredClone(this.config), active: slot };
-    this.bump();
-  }
-  async recallAB(slot: 'A' | 'B'): Promise<void> {
-    const target = this.ab[slot];
-    if (!target) return;
-    await this.call('pushConfig', target, t('Comparaison {0}', slot));
-    this.ab = { ...this.ab, active: slot };
-    this.bump();
-  }
-  clearAB(): void { this.ab = { A: null, B: null, active: null }; this.bump(); }
 }

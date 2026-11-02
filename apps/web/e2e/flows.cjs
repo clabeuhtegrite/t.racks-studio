@@ -1,7 +1,7 @@
 // Parcours de bout en bout dans un vrai navigateur : deux écrans (ordinateur et téléphone) sur le
 // même pont. Les appareils s'ajoutent depuis l'écran Connexion, puis 40 vérifications
 // (connexion et déconnexion, synchronisation, annuler / rétablir, égaliseur, noms, liaisons,
-// presets, fichiers .prs, A/B, bibliothèque, générateur, verrouillage, second appareil, vue globale,
+// presets, fichiers .prs, bibliothèque, générateur, verrouillage, second appareil, vue globale,
 // gain automatique, sa pause et l'écran DJ, marge avant le limiteur).
 //
 //   npm start -- --data "$(mktemp -d)"        # un pont neuf, sans appareil mémorisé
@@ -185,25 +185,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   ok('fichier .prs rouvert', await A.getByText('Fichier .prs du logiciel Windows').isVisible());
   await A.getByRole('button', { name: /Écouter maintenant/ }).click();
   await wait(2000);
-
-  // 10. A/B compare
-  await A.evaluate(() => { location.hash = '#/console'; });
-  await wait(400);
-  const storeAB = async (n) => {
-    await A.locator('.ab-open').click();
-    await A.locator('.modal .ab-slot').nth(n).getByRole('button', { name: 'Mémoriser ici' }).click();
-    await A.keyboard.press('Escape');
-  };
-  await storeAB(0);
-  await setField(A, 'Volume InB', '-10');
-  await wait(400);
-  await storeAB(1);
-  await A.locator('.ab-quick').getByRole('button', { name: 'A', exact: true }).click();
-  await wait(1500);
-  ok('A/B : retour à la version A', (await field(A, 'Volume InB').inputValue()) === '0,0 dB', await field(A, 'Volume InB').inputValue());
-  await A.locator('.ab-quick').getByRole('button', { name: 'B', exact: true }).click();
-  await wait(1500);
-  ok('A/B : version B', (await field(A, 'Volume InB').inputValue()) === '−10,0 dB', await field(A, 'Volume InB').inputValue());
 
   // 11. scene in the library
   await A.evaluate(() => { location.hash = '#/bibliotheque'; });

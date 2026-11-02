@@ -61,7 +61,7 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 - Plusieurs DSP à la fois, et autant d’écrans que l’on veut, synchronisés en direct.
 - Codes d’accès : administrateur (tous les réglages) et opérateur (volumes, mutes et rappel de
   presets seulement).
-- Annuler et rétablir, comparaison A/B de deux versions des réglages.
+- Annuler et rétablir.
 - Une bibliothèque partagée par tous les écrans : presets, sauvegardes et scènes rappelées d’un geste
   sans occuper de mémoire de l’appareil, avec des notes.
 - « Couper les sorties » d’un geste, alignement des délais par les distances, assistant de filtrage 2

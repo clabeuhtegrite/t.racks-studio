@@ -58,7 +58,7 @@ in French).
 
 - Several DSPs at once, and any number of screens kept in sync live.
 - Access codes: administrator (every setting) and operator (volumes, mutes and preset recall only).
-- Undo and redo, A/B comparison of two versions of the settings.
+- Undo and redo.
 - A library shared by every screen: presets, backups and scenes recalled in one tap without using a
   device memory, with notes.
 - One-tap “mute the outputs”, delay alignment from distances, 2- and 3-way crossover assistant,
