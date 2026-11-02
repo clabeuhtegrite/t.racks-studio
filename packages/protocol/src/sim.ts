@@ -7,7 +7,8 @@ import { encodeFrame, FrameParser, type Frame } from './frame.ts';
 import { MODELS, type ModelId } from './models.ts';
 import { applyAction, type Action } from './state.ts';
 import { decodeAscii } from './commands.ts';
-import { gainRawToDb } from './codecs.ts';
+import { gainRawToDb, ratioValue, thrRawToDb } from './codecs.ts';
+import { encodeLevel, levelToDb } from './meters.ts';
 import type { Transport } from './session.ts';
 
 export interface VirtualDspOptions {
@@ -215,12 +216,17 @@ export class VirtualDsp {
     }
   }
 
-  /** Meters: a slowly moving programme-like signal shaped by gains, mutes and routing. */
+  /**
+   * Meters: a slowly moving programme-like signal shaped by gains, mutes, routing and the outputs'
+   * compressor and limiter, encoded like the firmware (see meters.ts), with the status word that
+   * tells when the compressor or the limiter acts.
+   */
   private meterBytes(): number[] {
     const m = MODELS[this.model];
     const c = this.config;
     const t = (Date.now() - this.t0) / 1000;
     const groups: number[] = Array(12).fill(0);
+    let status = 0;
     const inLv: number[] = [];
     for (let i = 0; i < m.inputs; i++) {
       if (this.signalDb === null) { inLv.push(0); continue; }
@@ -233,29 +239,26 @@ export class VirtualDsp {
       const o = c.outputs[j];
       let sum = 0;
       for (let i = 0; i < m.inputs; i++) if ((o.route >> i) & 1) sum += groups[i] * Math.pow(10, gainRawToDb(o.mix[i]) / 20);
-      let lv = sum * Math.pow(10, gainRawToDb(o.gain) / 20);
-      const thr = Math.pow(10, ((o.limiter.threshold - 180) / 2) / 20);
-      if (lv > thr) lv = thr;
-      groups[4 + j] = lv; // meters are taken before the output mute, like the hardware
+      let db = levelToDb(sum * Math.pow(10, gainRawToDb(o.gain) / 20));
+      const compThr = thrRawToDb(o.comp.threshold);
+      if (o.comp.ratio > 0 && db > compThr) {
+        db = compThr + (db - compThr) / ratioValue(o.comp.ratio);
+        status |= 1 << j;
+      }
+      const limThr = thrRawToDb(o.limiter.threshold);
+      if (db > limThr) {
+        db = limThr;
+        status |= 1 << (8 + j);
+      }
+      groups[4 + j] = db > -140 ? Math.pow(10, db / 20) : 0; // meters are taken before the output mute, like the hardware
     }
     const out: number[] = [];
-    for (const v of groups) {
-      const h = toHalf(Math.min(v, 4));
-      out.push(h & 0xff, h >> 8, 0);
-    }
-    if (m.inputs === 2) out.push(0, 0);
+    for (const v of groups) out.push(...encodeLevel(Math.min(v, 4)));
+    out.push(status & 0xff, status >> 8);
     return out;
   }
 
   /** Raw bytes of the live config (handy for tests). */
   image(): Uint8Array { return serializeConfig(this.config); }
   loadImage(bytes: ArrayLike<number>): void { this.config = parseConfig(this.model, bytes); }
-}
-
-function toHalf(v: number): number {
-  if (!(v > 6.1e-5)) return 0;
-  let e = Math.floor(Math.log2(v));
-  let f = Math.round((v / 2 ** e - 1) * 1024);
-  if (f >= 1024) { f = 0; e++; }
-  return (((e + 15) & 0x1f) << 10) | (f & 0x3ff);
 }

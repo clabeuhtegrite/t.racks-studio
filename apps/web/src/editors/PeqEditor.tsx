@@ -89,7 +89,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
       subtitle={hints ? t('Glissez un point pour régler fréquence et gain, molette ou touches + / − pour la largeur (Q), flèches au clavier.') : undefined}
       actions={<>
         <Segmented small label={t('Affichage')} value={mode} onChange={setMode} options={[{ value: 'mag', label: t('Amplitude') }, { value: 'phase', label: t('Phase') }]} />
-        <Toggle small on={showAll} onChange={setShowAll} title={t('Affiche les réglages de toutes les bandes sur la courbe')}>{t('Tous les paramètres')}</Toggle>
+        <Toggle small on={showAll} onChange={setShowAll} title={t('Affiche les réglages de toutes les bandes sur la courbe')}>{t('Valeurs sur la courbe')}</Toggle>
         <Toggle small tone="amber" on={c.peqBypass} onChange={(on) => mirror.apply({ t: 'peqBypass', ch, on })} disabled={disabled} title={t('Contourne tout l’égaliseur de ce canal')}>{t('Bypass EQ')}</Toggle>
         <Button small icon="refresh" disabled={disabled} onClick={async () => {
           if (await confirmDialog({ title: t('Réinitialiser l’égaliseur'), message: t('Remettre les {0} bandes de {1} à plat (0 dB, fréquences et largeurs d’origine) ?', c.peq.length, labelOf(cfg, ch)), ok: t('Réinitialiser'), danger: true })) {
@@ -113,15 +113,19 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
         }}
       />
       <div className="overlay-pick">
-        <span className="muted small">{t('Superposer :')}</span>
-        <div className="chips chips-small">
-          {sameKind.map((o) => (
-            <button key={o} type="button" aria-pressed={overlay.includes(o)} className={`chip ${overlay.includes(o) ? 'is-on' : ''}`} style={{ ['--ch' as string]: colorOf(cfg, o) }}
-              onClick={() => setOverlay(overlay.includes(o) ? overlay.filter((x) => x !== o) : [...overlay, o])}>
-              <span className="chip-id">{labelOf(cfg, o)}</span>
-            </button>
-          ))}
-        </div>
+        <Select label={t('Superposer la courbe d’un autre canal')} value={-1} className="select-sm"
+          options={[{ value: -1, label: t('Superposer un canal…') }, ...sameKind.filter((o) => !overlay.includes(o)).map((o) => ({ value: o, label: labelOf(cfg, o) }))]}
+          onChange={(o) => { if (o >= 0) setOverlay([...overlay, o]); }} />
+        {overlay.filter((o) => o !== ch).length > 0 && (
+          <div className="chips chips-small">
+            {overlay.filter((o) => o !== ch).map((o) => (
+              <button key={o} type="button" className="chip is-on" style={{ ['--ch' as string]: colorOf(cfg, o) }} title={t('Retirer {0}', labelOf(cfg, o))}
+                onClick={() => setOverlay(overlay.filter((x) => x !== o))}>
+                <span className="chip-id">{labelOf(cfg, o)}<span className="chip-x" aria-hidden="true">×</span></span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bands">
@@ -132,7 +136,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
             </button>
           ))}
         </div>
-        <div className="band-edit">
+        <div className={`band-edit ${b.bypass ? 'is-byp' : ''}`}>
           <div className="band-edit-top">
             <Select label={t('Type de filtre')} value={b.type} disabled={disabled} onChange={(type) => setBand(band, { type })}
               options={peqTypeLabels().map((label, i) => ({ value: i, label }))} />
@@ -149,7 +153,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
           <thead><tr><th>{t('Bande')}</th><th>{t('Type')}</th><th>{t('Fréquence')}</th><th>Q</th><th>{t('Gain')}</th><th>{t('Bypass')}</th></tr></thead>
           <tbody>
             {c.peq.map((pb, k) => (
-              <tr key={k} className={k === band ? 'is-sel' : ''} onClick={() => setSel(k)}>
+              <tr key={k} className={`${k === band ? 'is-sel' : ''} ${pb.bypass ? 'is-byp' : ''}`} onClick={() => setSel(k)}>
                 <td><strong>{k + 1}</strong></td>
                 <td>
                   <Select label={t('Type bande {0}', k + 1)} value={pb.type} disabled={disabled} onChange={(type) => setBand(k, { type })}
@@ -158,7 +162,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
                 <td><ValueField value={pb.freq} param={P.freq} onChange={(freq) => setBand(k, { freq })} disabled={disabled} label={t('Fréquence bande {0}', k + 1)} /></td>
                 <td><ValueField value={pb.q} param={P.q} onChange={(q) => setBand(k, { q })} disabled={disabled || !peqTypeHasQ(pb.type)} label={t('Q bande {0}', k + 1)} /></td>
                 <td><ValueField value={pb.gain} param={P.eqGain} onChange={(gain) => setBand(k, { gain })} disabled={disabled || !peqTypeHasGain(pb.type)} label={t('Gain bande {0}', k + 1)} /></td>
-                <td><Toggle small tone="amber" on={pb.bypass} onChange={(bypass) => setBand(k, { bypass })} disabled={disabled}>{t('Byp')}</Toggle></td>
+                <td><Toggle small tone="amber" on={pb.bypass} onChange={(bypass) => setBand(k, { bypass })} disabled={disabled} title={t('Bypass bande {0}', k + 1)}>{t('Bypass')}</Toggle></td>
               </tr>
             ))}
           </tbody>

@@ -107,7 +107,6 @@ function DeviceRow({ d, current, admin, operate, backend }: { d: DeviceInfo; cur
     await run(t('Retrait'), () => backend.removeDevice(d.key));
   };
   const live = d.state === 'online' || d.state === 'locked';
-  const open = (): void => { selectDevice(d.key); go('console'); };
   return (
     <div className={`dev ${current ? 'is-on' : ''}`}>
       <span className="dev-icon"><Icon name={SOURCE_ICON[d.spec.kind]} /></span>
@@ -116,14 +115,15 @@ function DeviceRow({ d, current, admin, operate, backend }: { d: DeviceInfo; cur
           <span className={`dot dot-${d.state}`} />
           <strong>{d.label}</strong>
           {d.model && <Badge>{MODELS[d.model].name}</Badge>}
+          {current && <Badge tone="accent" title={t('Les pages de réglage montrent cet appareil (il est aussi choisi dans la barre du haut).')}>{t('sélectionné')}</Badge>}
         </div>
         <div className="small muted">{tm(describeSource(d.spec))} · {stateLabel(d.state)}{d.presetName ? ` · ${d.presetName}` : ''}</div>
         {d.state === 'offline' && d.error && <div className="small text-error">{errorText(d.error)}</div>}
       </div>
       <div className="dev-actions">
-        {live && <Button small kind={current ? 'primary' : 'plain'} onClick={open}>{current ? t('Ouvert') : t('Ouvrir')}</Button>}
+        {live && !current && <Button small kind="primary" title={t('Régler cet appareil dans les autres pages')} onClick={() => selectDevice(d.key)}>{t('Sélectionner')}</Button>}
         {!live && d.state !== 'connecting' && operate && (
-          <Button small kind="primary" icon="plug" onClick={() => { connectDevice(d.key); open(); }}>{d.state === 'offline' ? t('Réessayer') : t('Se connecter')}</Button>
+          <Button small kind="primary" icon="plug" onClick={() => { connectDevice(d.key); selectDevice(d.key); }}>{d.state === 'offline' ? t('Réessayer') : t('Se connecter')}</Button>
         )}
         {d.state !== 'idle' && operate && <Button small onClick={() => disconnectDevice(d.key)}>{d.state === 'connecting' ? t('Annuler') : t('Se déconnecter')}</Button>}
         {admin && <Button small icon="edit" title={t('Renommer')} onClick={rename} />}
@@ -191,30 +191,37 @@ function AddOnBridge({ backend }: { backend: Backend }): React.JSX.Element {
   const add = async (spec: SourceSpec): Promise<void> => {
     await added(await run(t('Ajout de l’appareil'), () => backend.addDevice({ ...spec, deviceId } as SourceSpec, label.trim() || undefined)));
   };
+  const props: AddProps = {
+    backend, onAdd: add, idScan, id, setId,
+    name: (
+      <Field label={t('Nom (facultatif)')} hint={t('Pour reconnaître l’appareil : « Façade », « Retours »…')}>
+        <TextInput value={label} onChange={setLabel} maxLength={60} placeholder={t('Par défaut : le type de liaison')} label={t('Nom de l’appareil')} />
+      </Field>
+    ),
+  };
   return (
-    <Card title={t('Ajouter un appareil')} className="span2">
+    <Card title={t('Ajouter un appareil')} subtitle={t('Choisissez la liaison, renseignez l’appareil, puis touchez Ajouter : il rejoint les appareils mémorisés.')} className="span2">
       <Tabs label={t('Type de liaison')} value={tab} onChange={(t) => { setTab(t); idScan.reset(); }} tabs={[
         { id: 'tcp', label: <><Icon name="ethernet" size={16} />{' '}{t('Ethernet')}</> },
         { id: 'usb', label: <><Icon name="usb" size={16} />{' '}{t('USB')}</> },
         { id: 'serial', label: <><Icon name="serial" size={16} />{' '}{t('RS-232 / RS-485')}</> },
         { id: 'demo', label: <><Icon name="demo" size={16} />{' '}{t('Démo')}</> },
       ]} />
-      {tab === 'tcp' && <AddTcp backend={backend} onAdd={add} idScan={idScan} id={id} setId={setId} />}
-      {tab === 'usb' && <AddUsb backend={backend} onAdd={add} idScan={idScan} id={id} setId={setId} />}
-      {tab === 'serial' && <AddSerial backend={backend} onAdd={add} idScan={idScan} id={id} setId={setId} />}
-      {tab === 'demo' && <AddDemo onAdd={add} />}
-      <Field label={t('Nom (facultatif)')} hint={t('Pour reconnaître l’appareil : « Façade », « Retours »…')}>
-        <TextInput value={label} onChange={setLabel} maxLength={60} placeholder={t('Par défaut : le type de liaison')} label={t('Nom de l’appareil')} />
-      </Field>
+      {tab === 'tcp' && <AddTcp {...props} />}
+      {tab === 'usb' && <AddUsb {...props} />}
+      {tab === 'serial' && <AddSerial {...props} />}
+      {tab === 'demo' && <AddDemo {...props} />}
     </Card>
   );
 }
 
 interface AddProps {
   backend: Backend; onAdd: (s: SourceSpec) => Promise<void>; idScan: ReturnType<typeof useIdScan>; id: string; setId: (v: string) => void;
+  /** the optional name field, shared by every kind of link */
+  name: React.ReactNode;
 }
 
-function AddTcp({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Element {
+function AddTcp({ backend, onAdd, idScan, id, setId, name }: AddProps): React.JSX.Element {
   const [host, setHost] = useState('');
   const [port, setPort] = useState(String(DSP_TCP_PORT));
   const [found, setFound] = useState<FoundModule[] | null>(null);
@@ -226,7 +233,7 @@ function AddTcp({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Elem
     try { setFound(await backend.discover(sweep)); } catch (e) { toast(errorText(e), 'error'); } finally { setSearching(false); }
   };
   return (
-    <div className="stack">
+    <form className="form add-form" onSubmit={(e) => { e.preventDefault(); if (host.trim()) void onAdd(spec()); }}>
       <div className="row wrap">
         <Button icon="search" disabled={searching} onClick={search}>{searching ? t('Recherche sur le réseau…') : t('Rechercher sur le réseau')}</Button>
         <label className="check">
@@ -236,24 +243,24 @@ function AddTcp({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Elem
         {searching && <Spinner />}
       </div>
       {found && (
-        <div className="found-list">
-          {found.length === 0 && <p className="small muted">{t('Aucun module Ethernet trouvé. Vérifiez que le DSP et le pont sont sur le même réseau, ou saisissez son adresse.')}</p>}
+        <div className="found">
+          {found.length === 0 && <span className="small muted">{t('Aucun module Ethernet trouvé. Vérifiez que le DSP et le pont sont sur le même réseau, ou saisissez son adresse.')}</span>}
           {found.map((f) => (
-            <div key={f.host} className="dev">
-              <span className="dev-icon"><Icon name="ethernet" /></span>
-              <div className="grow"><strong>{f.host}</strong><div className="small muted">{[tm(f.name), f.mac].filter(Boolean).join(' · ')}</div></div>
-              <Button small kind="primary" icon="plus" onClick={() => onAdd({ kind: 'tcp', host: f.host })}>{t('Ajouter')}</Button>
-            </div>
+            <button key={f.host} type="button" className={`pick ${host.trim() === f.host ? 'is-on' : ''}`} title={f.mac || undefined}
+              onClick={() => { setHost(f.host); setPort(String(DSP_TCP_PORT)); idScan.reset(); }}>
+              {[f.host, tm(f.name)].filter(Boolean).join(' · ')}
+            </button>
           ))}
         </div>
       )}
-      <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (host.trim()) void onAdd(spec()); }}>
+      <div className="form-inline">
         <Field label={t('Adresse IP du DSP')}><TextInput value={host} onChange={setHost} placeholder="192.168.1.101" label={t('Adresse IP du DSP')} /></Field>
         <Field label={t('Port')}><TextInput value={port} onChange={(v) => setPort(v.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" label={t('Port TCP')} className="input-xs" /></Field>
-        <Button type="submit" kind="primary" icon="plus" disabled={!host.trim()}>{t('Ajouter')}</Button>
-      </form>
+      </div>
       <IdField value={id} onChange={setId} found={idScan.found} scanning={idScan.scanning} onScan={host.trim() ? () => idScan.scan(spec()) : undefined} />
-    </div>
+      {name}
+      <div className="row"><Button type="submit" kind="primary" icon="plus" disabled={!host.trim()}>{t('Ajouter')}</Button></div>
+    </form>
   );
 }
 
@@ -268,67 +275,72 @@ function usePorts(backend: Backend): { ports: PortsInfo | null; refresh: () => v
   return { ports, refresh: () => setN((x) => x + 1) };
 }
 
-function AddUsb({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Element {
+function AddUsb({ backend, onAdd, idScan, id, setId, name }: AddProps): React.JSX.Element {
   const { ports, refresh } = usePorts(backend);
+  const [path, setPath] = useState('');
   const usb = ports?.usb;
+  // a single DSP plugged in is chosen at once
+  const chosen = usb?.find((u) => u.path === path) ?? (usb?.length === 1 ? usb[0] : undefined);
   return (
-    <div className="stack">
+    <div className="form add-form">
       {ports === null && <Spinner />}
       {ports && usb === null && <Note tone="warn">{tx('Le module USB n’est pas installé sur le pont : lancez {0} dans le dossier du pont, ou utilisez Ethernet ou RS-232.', <code>npm install node-hid</code>)}</Note>}
-      {usb && usb.length === 0 && <p className="small muted">{t('Aucun DSP t.racks branché en USB sur l’ordinateur du pont.')}</p>}
-      {usb?.map((u) => (
-        <div key={u.path} className="dev">
-          <span className="dev-icon"><Icon name="usb" /></span>
-          <div className="grow"><strong>{u.product}</strong><div className="small muted">{u.serial || u.path}</div></div>
-          <Button small icon="search" onClick={() => idScan.scan({ kind: 'usb', path: u.path })}>{t('ID')}</Button>
-          <Button small kind="primary" icon="plus" onClick={() => onAdd({ kind: 'usb', path: u.path })}>{t('Ajouter')}</Button>
-        </div>
-      ))}
-      <div className="row"><Button small icon="refresh" onClick={refresh}>{t('Actualiser')}</Button></div>
-      <IdField value={id} onChange={setId} found={idScan.found} scanning={idScan.scanning} />
+      <div className="found">
+        {usb && usb.length === 0 && <span className="small muted">{t('Aucun DSP t.racks branché en USB sur l’ordinateur du pont.')}</span>}
+        {usb?.map((u) => (
+          <button key={u.path} type="button" className={`pick ${chosen?.path === u.path ? 'is-on' : ''}`} title={u.path}
+            onClick={() => { setPath(u.path); idScan.reset(); }}>
+            {[u.product, u.serial].filter(Boolean).join(' · ')}
+          </button>
+        ))}
+        <Button small icon="refresh" onClick={refresh}>{t('Actualiser')}</Button>
+      </div>
+      <IdField value={id} onChange={setId} found={idScan.found} scanning={idScan.scanning} onScan={chosen ? () => idScan.scan({ kind: 'usb', path: chosen.path }) : undefined} />
+      {name}
+      <div className="row"><Button kind="primary" icon="plus" disabled={!chosen} onClick={() => { if (chosen) void onAdd({ kind: 'usb', path: chosen.path }); }}>{t('Ajouter')}</Button></div>
     </div>
   );
 }
 
-function AddSerial({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Element {
+function AddSerial({ backend, onAdd, idScan, id, setId, name }: AddProps): React.JSX.Element {
   const { ports, refresh } = usePorts(backend);
   const [path, setPath] = useState('');
   const [baud, setBaud] = useState(115200);
   const serial = ports?.serial;
-  const spec = (p: string): SourceSpec => ({ kind: 'serial', path: p, baud });
+  const spec = (): SourceSpec => ({ kind: 'serial', path: path.trim(), baud });
   return (
-    <div className="stack">
+    <form className="form add-form" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void onAdd(spec()); }}>
       {ports && serial === null && <Note tone="warn">{tx('Le module série n’est pas installé sur le pont : lancez {0} dans le dossier du pont.', <code>npm install serialport</code>)}</Note>}
-      {serial && serial.length === 0 && <p className="small muted">{t('Aucun port série détecté sur l’ordinateur du pont.')}</p>}
-      {serial?.map((s) => (
-        <div key={s.path} className="dev">
-          <span className="dev-icon"><Icon name="serial" /></span>
-          <div className="grow"><strong>{s.path}</strong><div className="small muted">{s.label}</div></div>
-          <Button small icon="search" onClick={() => idScan.scan(spec(s.path))}>{t('ID')}</Button>
-          <Button small kind="primary" icon="plus" onClick={() => onAdd(spec(s.path))}>{t('Ajouter')}</Button>
-        </div>
-      ))}
-      <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void onAdd(spec(path.trim())); }}>
+      <div className="found">
+        {serial && serial.length === 0 && <span className="small muted">{t('Aucun port série détecté sur l’ordinateur du pont.')}</span>}
+        {serial?.map((p) => (
+          <button key={p.path} type="button" className={`pick ${path.trim() === p.path ? 'is-on' : ''}`} title={p.label || undefined}
+            onClick={() => { setPath(p.path); idScan.reset(); }}>
+            {[p.path, p.label].filter(Boolean).join(' · ')}
+          </button>
+        ))}
+        <Button small icon="refresh" onClick={refresh}>{t('Actualiser')}</Button>
+      </div>
+      <div className="form-inline">
         <Field label={t('Port')}><TextInput value={path} onChange={setPath} placeholder={t('/dev/ttyUSB0 ou COM3')} label={t('Port série')} /></Field>
         <Field label={t('Débit')}><Select label={t('Débit')} value={baud} onChange={setBaud} options={bauds()} /></Field>
-        <Button type="submit" kind="primary" icon="plus" disabled={!path.trim()}>{t('Ajouter')}</Button>
-        <Button small icon="refresh" onClick={refresh}>{t('Actualiser')}</Button>
-      </form>
+      </div>
       <p className="small muted">{t('Le DSP parle à 115200 bauds, 8 bits, sans parité. En RS-485, plusieurs DSP peuvent partager la ligne : donnez à chacun un ID différent (écran Appareil > Réseau).')}</p>
-      <IdField value={id} onChange={setId} found={idScan.found} scanning={idScan.scanning} />
-    </div>
+      <IdField value={id} onChange={setId} found={idScan.found} scanning={idScan.scanning} onScan={path.trim() ? () => idScan.scan(spec()) : undefined} />
+      {name}
+      <div className="row"><Button type="submit" kind="primary" icon="plus" disabled={!path.trim()}>{t('Ajouter')}</Button></div>
+    </form>
   );
 }
 
-function AddDemo({ onAdd }: { onAdd: (s: SourceSpec) => Promise<void> }): React.JSX.Element {
+function AddDemo({ onAdd, name }: AddProps): React.JSX.Element {
   const [model, setModel] = useState<ModelId>('dsp408');
   return (
-    <div className="stack">
+    <div className="form add-form">
       <p className="small">{t('Un DSP simulé, qui se comporte comme le vrai (mêmes réglages, mêmes réponses, vumètres animés) : idéal pour découvrir t.racks Studio ou préparer un preset sans le matériel.')}</p>
-      <div className="row wrap">
-        <Segmented label={t('Modèle')} value={model} onChange={setModel} options={[{ value: 'dsp206', label: t('DSP 206 (2 × 6)') }, { value: 'dsp408', label: t('DSP 408 (4 × 8)') }]} />
-        <Button kind="primary" icon="plus" onClick={() => onAdd({ kind: 'demo', model })}>{tx('Ajouter un {0} de démonstration', MODELS[model].name)}</Button>
-      </div>
+      <div><Segmented label={t('Modèle')} value={model} onChange={setModel} options={[{ value: 'dsp206', label: t('DSP 206 (2 × 6)') }, { value: 'dsp408', label: t('DSP 408 (4 × 8)') }]} /></div>
+      {name}
+      <div className="row"><Button kind="primary" icon="plus" onClick={() => onAdd({ kind: 'demo', model })}>{tx('Ajouter un {0} de démonstration', MODELS[model].name)}</Button></div>
     </div>
   );
 }

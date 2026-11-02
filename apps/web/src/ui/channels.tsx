@@ -1,11 +1,12 @@
 // Channel helpers and the channel picker (InA .. Out8), shared by the editors.
 
 import {
-  channelLabel, channelResponse, effectiveLinkMask, MODELS, type AnyChannel, type DeviceConfig, type InputChannel, type OutputChannel,
+  channelLabel, channelResponse, effectiveLinkMask, freqRawToHz, MODELS, thrRawToDb,
+  type AnyChannel, type DelayUnit, type DeviceConfig, type InputChannel, type OutputChannel,
 } from '@dsp-studio/protocol';
-import { channelColor } from './format.ts';
+import { channelColor, delayParam, fmtDb, fmtHz, fmtHzShort, P } from './format.ts';
 import { Icon } from './icons.tsx';
-import { t } from '../i18n.tsx';
+import { t, tn } from '../i18n.tsx';
 
 export const isIn = (cfg: DeviceConfig, ch: number): boolean => ch < MODELS[cfg.model].inputs;
 export function chan(cfg: DeviceConfig, ch: number): AnyChannel {
@@ -74,4 +75,66 @@ export function ChannelChips(p: {
       })}
     </div>
   );
+}
+
+/** One processing block of a channel, in the order of the signal (the editor's block diagram). */
+export interface ChannelBlock {
+  key: string;
+  /** where its editor is on the channel page */
+  id: string;
+  label: string;
+  /** what it does, and its settings */
+  title: string;
+  /** active (not at its neutral settings, not bypassed) */
+  on: boolean;
+  /** main setting, shown under the label when active */
+  info?: string;
+  /** label and setting in a few characters ("HP 90 Hz", "Délai 2,10 ms"), for the overview */
+  short: string;
+  mute?: boolean;
+}
+
+/** Bands of the parametric EQ that change the sound (not bypassed, with gain, or a filter type). */
+export function activePeqBands(c: AnyChannel): number {
+  if (c.peqBypass) return 0;
+  return c.peq.filter((b) => !b.bypass && (b.gain !== 120 || b.type > 2)).length;
+}
+
+export function channelBlocks(cfg: DeviceConfig, ch: number): ChannelBlock[] {
+  const m = MODELS[cfg.model];
+  const c = chan(cfg, ch);
+  const unit = cfg.delayUnit as DelayUnit;
+  const peq = activePeqBands(c);
+  const hp = c.hpf.slope > 0 ? freqRawToHz(c.hpf.freq) : null;
+  const lp = c.lpf.slope > 0 ? freqRawToHz(c.lpf.freq) : null;
+  const xInfo = hp !== null && lp !== null ? `${fmtHzShort(hp)} – ${fmtHzShort(lp)}` : hp !== null ? `HP ${fmtHz(hp)}` : lp !== null ? `LP ${fmtHz(lp)}` : '';
+  const block = (b: Omit<ChannelBlock, 'short'> & { short?: string }): ChannelBlock => ({ ...b, short: b.short ?? (b.info ? `${b.label} ${b.info}` : b.label) });
+  const gain = block({ key: 'gain', id: 'blk-level', label: t('Volume'), title: t('Volume : {0}', P.gain.fmt(c.gain)), on: c.gain !== 280, info: P.gain.fmt(c.gain) });
+  const xover = block({
+    key: 'xover', id: 'blk-xover', label: t('HP / LP'), title: t('Filtres passe-haut et passe-bas'), on: hp !== null || lp !== null, info: xInfo,
+    short: hp !== null && lp !== null ? `HP/LP ${xInfo}` : xInfo || t('HP / LP'),
+  });
+  const peqB = block({ key: 'peq', id: 'blk-peq', label: 'PEQ', title: t('Égaliseur paramétrique'), on: peq > 0, info: tn(peq, '{0} bande', '{0} bandes') });
+  const delay = block({ key: 'delay', id: 'blk-level', label: t('Délai'), title: t('Délai : {0}', delayParam(unit).fmt(c.delay)), on: c.delay > 0, info: delayParam(unit).fmt(c.delay) });
+  const phase = block({ key: 'phase', id: 'blk-level', label: t('Polarité'), title: c.phase ? t('Polarité inversée') : t('Polarité normale'), on: !!c.phase, info: t('inversée'), short: t('Polarité inversée') });
+  const mute = block({ key: 'mute', id: 'blk-level', label: t('Mute'), title: c.mute ? t('Canal coupé') : t('Canal actif'), on: c.mute, mute: true });
+  if (ch < m.inputs) {
+    const i = c as InputChannel;
+    const geq = i.geqBypass ? 0 : i.geq.filter((g) => g !== 120).length;
+    return [
+      gain,
+      block({ key: 'gate', id: 'blk-gate', label: t('Gate'), title: t('Noise gate'), on: i.gate.threshold > 0, info: fmtDb(thrRawToDb(i.gate.threshold), 0) }),
+      block({ key: 'geq', id: 'blk-geq', label: 'GEQ', title: t('Égaliseur graphique 31 bandes'), on: geq > 0, info: tn(geq, '{0} bande', '{0} bandes') }),
+      peqB, xover, delay, phase, mute,
+    ];
+  }
+  const o = c as OutputChannel;
+  const src = cfg.inputs.map((_, k) => ((o.route >> k) & 1 ? m.inputLabels[k].slice(2) : '')).filter(Boolean).join('+');
+  return [
+    block({ key: 'route', id: 'blk-route', label: t('Sources'), title: src ? t('Entrées mélangées sur cette sortie : {0}', src) : t('Aucune entrée n’arrive sur cette sortie'), on: o.route !== 0, info: src }),
+    xover, peqB,
+    block({ key: 'comp', id: 'blk-comp', label: t('Compresseur'), title: t('Compresseur'), on: o.comp.threshold < 220 && o.comp.ratio > 0, info: `${fmtDb(thrRawToDb(o.comp.threshold), 0)} · ${P.ratio.fmt(o.comp.ratio)}`, short: `${t('Comp.')} ${fmtDb(thrRawToDb(o.comp.threshold), 0)} · ${P.ratio.fmt(o.comp.ratio)}` }),
+    block({ key: 'limit', id: 'blk-limit', label: t('Limiteur'), title: t('Limiteur'), on: o.limiter.threshold < 220, info: fmtDb(thrRawToDb(o.limiter.threshold), 0) }),
+    delay, phase, gain, mute,
+  ];
 }

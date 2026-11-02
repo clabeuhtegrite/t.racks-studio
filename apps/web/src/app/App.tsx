@@ -13,26 +13,30 @@ import { ChannelView } from '../views/ChannelView.tsx';
 import { DelayView, DynamicsView, GeqView, MatrixView } from '../views/OverviewViews.tsx';
 import { PresetsView } from '../views/PresetsView.tsx';
 import { DeviceView, UnlockCard } from '../views/DeviceView.tsx';
+import { GlobalView } from '../views/GlobalView.tsx';
 import { ToolsView } from '../views/ToolsView.tsx';
 import { ConnectView } from '../views/ConnectView.tsx';
 import { LibraryView } from '../views/LibraryView.tsx';
 import { SheetView } from '../views/SheetView.tsx';
 import { LANGS, t, tm, tx, type Lang } from '../i18n.tsx';
 
-interface NavItem { view: ViewId; label: string; icon: IconName; mobile?: boolean }
+type NavGroup = 'live' | 'sound' | 'memory' | 'system';
+interface NavItem { view: ViewId; label: string; icon: IconName; group: NavGroup; mobile?: boolean }
 const nav = (): NavItem[] => [
-  { view: 'console', label: t('Console'), icon: 'console', mobile: true },
-  { view: 'canal', label: t('Canaux'), icon: 'eq', mobile: true },
-  { view: 'geq', label: t('EQ graphique'), icon: 'geq' },
-  { view: 'dynamique', label: t('Dynamique'), icon: 'dynamics' },
-  { view: 'delais', label: t('Délais'), icon: 'delay' },
-  { view: 'matrice', label: t('Matrice'), icon: 'matrix', mobile: true },
-  { view: 'presets', label: t('Presets'), icon: 'presets', mobile: true },
-  { view: 'bibliotheque', label: t('Bibliothèque'), icon: 'library' },
-  { view: 'appareil', label: t('Appareil'), icon: 'device' },
-  { view: 'outils', label: t('Outils'), icon: 'tools' },
-  { view: 'connexion', label: t('Connexion'), icon: 'plug' },
+  { view: 'vue', label: t('Vue globale'), icon: 'overview', group: 'live', mobile: true },
+  { view: 'console', label: t('Console'), icon: 'console', group: 'live', mobile: true },
+  { view: 'canal', label: t('Canaux'), icon: 'eq', group: 'sound', mobile: true },
+  { view: 'geq', label: t('EQ graphique'), icon: 'geq', group: 'sound' },
+  { view: 'dynamique', label: t('Dynamique'), icon: 'dynamics', group: 'sound' },
+  { view: 'delais', label: t('Délais'), icon: 'delay', group: 'sound' },
+  { view: 'matrice', label: t('Matrice'), icon: 'matrix', group: 'sound' },
+  { view: 'presets', label: t('Presets'), icon: 'presets', group: 'memory', mobile: true },
+  { view: 'bibliotheque', label: t('Bibliothèque'), icon: 'library', group: 'memory' },
+  { view: 'appareil', label: t('Appareil'), icon: 'device', group: 'system' },
+  { view: 'outils', label: t('Outils'), icon: 'tools', group: 'system' },
+  { view: 'connexion', label: t('Connexion'), icon: 'plug', group: 'system' },
 ];
+const groupLabel = (g: NavGroup): string => (g === 'live' ? t('En direct') : g === 'sound' ? t('Traitement') : g === 'memory' ? t('Mémoires') : t('Système'));
 const NEEDS_CONFIG: ViewId[] = ['console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'fiche'];
 
 function useTheme(): void {
@@ -114,6 +118,7 @@ export function App(): React.JSX.Element {
     }
   } else {
     switch (route.view) {
+      case 'vue': body = <GlobalView />; break;
       case 'console': body = <ConsoleView />; break;
       case 'canal': body = <ChannelView />; break;
       case 'geq': body = <GeqView />; break;
@@ -133,7 +138,9 @@ export function App(): React.JSX.Element {
     <div className={`app view-${route.view}`}>
       <TopBar />
       <nav className="rail" aria-label={t('Navigation')}>
-        {nav().map((n) => <NavLink key={n.view} item={n} active={route.view === n.view} />)}
+        {nav().map((n, i, all) => (
+          <NavEntry key={n.view} item={n} active={route.view === n.view} heading={i === 0 || all[i - 1].group !== n.group ? groupLabel(n.group) : undefined} />
+        ))}
         <div className="rail-foot"><ThemeButton /><LangSelect /><LangSelect short /></div>
       </nav>
       <main className="main" id="main">
@@ -146,6 +153,15 @@ export function App(): React.JSX.Element {
       <DialogHost />
       <BusyOverlay />
     </div>
+  );
+}
+
+function NavEntry({ item, active, heading }: { item: NavItem; active: boolean; heading?: string }): React.JSX.Element {
+  return (
+    <>
+      {heading && <div className="nav-group" role="presentation">{heading}</div>}
+      <NavLink item={item} active={active} />
+    </>
   );
 }
 
@@ -175,9 +191,18 @@ function BottomNav({ current }: { current: ViewId }): React.JSX.Element {
       {more && (
         <div className="sheet-back" onPointerDown={(e) => { if (e.target === e.currentTarget) setMore(false); }}>
           <div className="sheet" role="dialog" aria-label={t('Autres écrans')}>
-            <div className="sheet-grid">
-              {others.map((n) => <NavLink key={n.view} item={n} active={current === n.view} onClick={() => setMore(false)} />)}
-            </div>
+            {(['live', 'sound', 'memory', 'system'] as const).map((g) => {
+              const list = others.filter((n) => n.group === g);
+              if (!list.length) return null;
+              return (
+                <div key={g} className="sheet-sec">
+                  <h2 className="nav-group">{groupLabel(g)}</h2>
+                  <div className="sheet-grid">
+                    {list.map((n) => <NavLink key={n.view} item={n} active={current === n.view} onClick={() => setMore(false)} />)}
+                  </div>
+                </div>
+              );
+            })}
             <div className="sheet-foot"><div className="row"><ThemeButton /><LangSelect /></div><Button onClick={() => setMore(false)}>{t('Fermer')}</Button></div>
           </div>
         </div>
@@ -210,7 +235,7 @@ function TopBar(): React.JSX.Element {
   const mode = useApp((s) => s.mode);
   return (
     <header className="top">
-      <a className="brand" href={href('console')} aria-label={t('t.racks Studio, accueil')}>
+      <a className="brand" href={href('vue')} aria-label={t('t.racks Studio, accueil')}>
         <img src="./icon.svg" alt="" width={28} height={28} />
         <span>t.racks Studio</span>
       </a>
@@ -253,25 +278,30 @@ function HistoryButtons(): React.JSX.Element {
   );
 }
 
+/**
+ * A/B comparison: two memories of the settings. Until both are stored, one "A/B" button opens the
+ * window that explains and stores them; then A and B switch from one to the other at once.
+ */
 function AbButton(): React.JSX.Element {
   const { mirror } = useDevice();
   const [open, setOpen] = useState(false);
   if (!mirror) return <></>;
   const { A, B, active } = mirror.ab;
   const recall = (s: 'A' | 'B'): void => { void run(t('Comparaison {0}', s), () => mirror.recallAB(s)); };
+  const both = !!A && !!B;
   return (
     <div className="ab">
-      <div className="btn-group">
-        {(['A', 'B'] as const).map((s) => (
-          <Button
-            key={s} small active={active === s} disabled={mirror.readOnly}
-            title={(s === 'A' ? A : B) ? t('Écouter la version {0}', s) : t('Mémoriser les réglages actuels en {0}', s)}
-            onClick={() => ((s === 'A' ? A : B) ? recall(s) : mirror.storeAB(s))}
-          >{s}{(s === 'A' ? A : B) ? '' : '+'}</Button>
-        ))}
-        <Button small icon="chevronDown" title={t('Comparaison A/B')} onClick={() => setOpen(true)} />
-      </div>
-      <Button small className="ab-mobile" active={!!active} title={t('Comparaison A/B')} onClick={() => setOpen(true)}>{active ?? 'A/B'}</Button>
+      {both ? (
+        <div className="btn-group ab-quick">
+          {(['A', 'B'] as const).map((s) => (
+            <Button key={s} small active={active === s} disabled={mirror.readOnly} title={t('Écouter la version {0}', s)} onClick={() => recall(s)}>{s}</Button>
+          ))}
+          <Button small icon="chevronDown" title={t('Comparaison A/B')} onClick={() => setOpen(true)} />
+        </div>
+      ) : null}
+      <Button small className={both ? 'ab-mobile' : 'ab-open'} active={!!active} title={t('Comparaison A/B : deux versions des réglages à comparer')} onClick={() => setOpen(true)}>
+        {active ? tx('Version {0}', active) : t('A/B')}
+      </Button>
       {open && (
         <Modal title={t('Comparaison A / B')} onClose={() => setOpen(false)}>
           <p className="muted">{t('Mémorisez deux versions de vos réglages et passez de l’une à l’autre pour comparer à l’oreille. Seuls les paramètres qui diffèrent sont envoyés, le changement est donc rapide.')}</p>
@@ -281,12 +311,13 @@ function AbButton(): React.JSX.Element {
                 <h3>{tx('Version {0}', s)}{' '}{active === s && <Badge tone="accent">{t('en écoute')}</Badge>}</h3>
                 <p className="small muted">{(s === 'A' ? A : B) ? t('Mémorisée') : t('Vide')}</p>
                 <div className="row">
-                  <Button small icon="save" onClick={() => { mirror.storeAB(s); toast(t('Réglages mémorisés en {0}', s), 'ok'); }}>{t('Mémoriser ici')}</Button>
-                  <Button small icon="play" disabled={!(s === 'A' ? A : B)} onClick={() => { recall(s); setOpen(false); }}>{t('Écouter')}</Button>
+                  <Button small icon="save" disabled={mirror.readOnly} onClick={() => { mirror.storeAB(s); toast(t('Réglages mémorisés en {0}', s), 'ok'); }}>{t('Mémoriser ici')}</Button>
+                  <Button small icon="play" disabled={!(s === 'A' ? A : B) || mirror.readOnly} onClick={() => { recall(s); setOpen(false); }}>{t('Écouter')}</Button>
                 </div>
               </div>
             ))}
           </div>
+          <p className="small muted">{both ? t('Les boutons A et B de la barre du haut passent d’une version à l’autre.') : t('Une fois A et B mémorisées, deux boutons A et B apparaissent dans la barre du haut.')}</p>
           <div className="row end"><Button small kind="ghost" icon="trash" onClick={() => mirror.clearAB()}>{t('Effacer A et B')}</Button></div>
         </Modal>
       )}

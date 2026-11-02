@@ -13,7 +13,7 @@ import {
 } from '@dsp-studio/protocol';
 import { confirmDialog, promptDialog, run, toast, useApp, useCanEdit, useCanOperate, useDevice, errorText, getState } from '../state/store.ts';
 import { downloadFile, fileBytes, pickFile, safeName, stamp } from '../app/files.ts';
-import { Badge, Button, Card, Field, Modal, Note, Select } from '../ui/kit.tsx';
+import { Badge, Button, Card, Field, Modal, Note, Select, TextInput } from '../ui/kit.tsx';
 import { presetLabel } from '../ui/format.ts';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { locale, t, tn, tx } from '../i18n.tsx';
@@ -32,16 +32,7 @@ export function PresetsView(): React.JSX.Element {
     await run(t('Rappel du preset {0}', presetLabel(n)), () => mirror.call('loadPreset', n), t('Preset {0} rappelé', presetLabel(n)));
     mirror.clearHistory();
   };
-  const store = async (n: number): Promise<void> => {
-    const slot = snap.presets.find((p) => p.slot === n);
-    const name = await promptDialog({
-      title: t('Enregistrer dans {0}', presetLabel(n)),
-      message: slot?.user ? t('{0} contient déjà « {1} » : il sera remplacé par les réglages actuels.', presetLabel(n), slot.name) : t('Les réglages actuels seront mémorisés dans l’appareil.'),
-      label: t('Nom du preset (14 caractères)'), value: config?.presetName ?? '', maxLength: 14, ok: t('Enregistrer'),
-    });
-    if (name === null) return;
-    await run(t('Enregistrement dans {0}', presetLabel(n)), () => mirror.call('storePreset', n, name), t('Enregistré dans {0}', presetLabel(n)));
-  };
+  const [storing, setStoring] = useState(false);
 
   const openAny = async (): Promise<void> => {
     const f = await pickFile('.prs,.unt,.json,application/json');
@@ -71,24 +62,27 @@ export function PresetsView(): React.JSX.Element {
               <strong>{config.presetName || t('Sans nom')}</strong>
               <p className="small muted">{t('Les réglages modifiés depuis le rappel ne sont mémorisés qu’après « Enregistrer ».')}</p>
             </div>
-            <Button small icon="edit" disabled={!canEdit} onClick={async () => {
-              const v = await promptDialog({ title: t('Nom du preset en cours'), label: t('Nom (14 caractères)'), value: config.presetName, maxLength: 14, ok: t('Renommer') });
-              if (v !== null) mirror.apply({ t: 'presetName', name: v });
-            }}>{t('Renommer')}</Button>
+            <div className="row wrap">
+              <Button small icon="edit" disabled={!canEdit} onClick={async () => {
+                const v = await promptDialog({ title: t('Nom du preset en cours'), label: t('Nom (14 caractères)'), value: config.presetName, maxLength: 14, ok: t('Renommer') });
+                if (v !== null) mirror.apply({ t: 'presetName', name: v });
+              }}>{t('Renommer')}</Button>
+              <Button small kind="primary" icon="save" disabled={!canEdit} onClick={() => setStoring(true)}>{t('Enregistrer dans une mémoire…')}</Button>
+            </div>
           </div>
         </Card>
       )}
+      {storing && config && <StoreDialog mirror={mirror} onClose={() => setStoring(false)} />}
 
-      <Card title={t('Mémoires de l’appareil')} subtitle={t('F00 est le réglage d’usine ; U01 à U20 sont les mémoires utilisateur.')}>
+      <Card title={t('Mémoires de l’appareil')} subtitle={t('F00 est le réglage d’usine ; U01 à U20 sont les mémoires utilisateur (une mémoire vide contient le réglage d’usine). Rappeler remplace tous les réglages en cours.')}>
         <div className="presets">
           {presets.map((p) => (
             <div key={p.slot} className={`preset ${p.slot === snap.activePreset ? 'is-on' : ''} ${p.user || p.slot === 0 ? '' : 'is-empty'}`}>
               <span className="preset-num">{presetLabel(p.slot)}</span>
-              <span className="preset-name">{p.slot === 0 ? t('Réglage d’usine') : p.user ? p.name || t('Sans nom') : t('Vide (réglage d’usine)')}</span>
+              <span className="preset-name">{p.slot === 0 ? t('Réglage d’usine') : p.user ? p.name || t('Sans nom') : t('Vide')}</span>
               {p.slot === snap.activePreset && <Badge tone="accent">{t('en cours')}</Badge>}
               <div className="preset-actions">
-                <Button small icon="play" disabled={!canOperate} onClick={() => recall(p.slot)}>{t('Rappeler')}</Button>
-                {p.slot > 0 && <Button small icon="save" disabled={!canEdit} onClick={() => store(p.slot)}>{t('Enregistrer ici')}</Button>}
+                <Button small icon="play" disabled={!canOperate} onClick={() => recall(p.slot)} title={t('Rappeler {0}', presetLabel(p.slot))}>{t('Rappeler')}</Button>
               </div>
             </div>
           ))}
@@ -99,6 +93,36 @@ export function PresetsView(): React.JSX.Element {
 
       {opened && <OpenedDialog file={opened} mirror={mirror} onClose={() => setOpened(null)} />}
     </div>
+  );
+}
+
+/** The editor's Store: the current settings into one of the 20 memories, under a name. */
+function StoreDialog({ mirror, onClose }: { mirror: DeviceMirror; onClose: () => void }): React.JSX.Element {
+  const snap = mirror.snap!;
+  const firstEmpty = snap.presets.find((p) => !p.user)?.slot ?? 1;
+  const [slot, setSlot] = useState(snap.activePreset > 0 ? snap.activePreset : firstEmpty);
+  const [name, setName] = useState(mirror.config?.presetName ?? '');
+  const target = snap.presets.find((p) => p.slot === slot);
+  const store = async (): Promise<void> => {
+    onClose();
+    await run(t('Enregistrement dans {0}', presetLabel(slot)), () => mirror.call('storePreset', slot, name), t('Enregistré dans {0}', presetLabel(slot)));
+  };
+  return (
+    <Modal title={t('Enregistrer les réglages en cours')} onClose={onClose} footer={<>
+      <Button onClick={onClose}>{t('Annuler')}</Button>
+      <Button kind="primary" icon="save" onClick={store}>{t('Enregistrer')}</Button>
+    </>}>
+      <Field label={t('Mémoire')}>
+        <Select label={t('Mémoire')} value={slot} onChange={setSlot}
+          options={snap.presets.map((p) => ({ value: p.slot, label: `${presetLabel(p.slot)} · ${p.user ? p.name || t('Sans nom') : t('vide')}` }))} />
+      </Field>
+      {target?.user
+        ? <Note tone="warn">{t('{0} contient déjà « {1} » : il sera remplacé par les réglages actuels.', presetLabel(slot), target.name)}</Note>
+        : <p className="small muted">{t('Les réglages actuels seront mémorisés dans l’appareil.')}</p>}
+      <Field label={t('Nom du preset (14 caractères)')} hint={t('{0} / {1} caractères', name.length, 14)}>
+        <TextInput value={name} onChange={setName} maxLength={14} label={t('Nom du preset (14 caractères)')} onEnter={store} />
+      </Field>
+    </Modal>
   );
 }
 

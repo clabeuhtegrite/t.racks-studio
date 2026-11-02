@@ -36,13 +36,17 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 
 **Tout ce que fait le logiciel Windows**
 
+- **Vue globale** (la page d’accueil) : tous les DSP connectés d’un coup d’œil, en direct : niveaux,
+  volumes, mutes et traitements actifs de chaque canal, écrêtage, compresseur et limiteur en action.
 - **Console** : volume, mute, polarité et vumètres de toutes les entrées et sorties, courbes de
-  réponse des canaux.
+  réponse des canaux. Les vumètres se lisent comme ceux du logiciel Windows : zones verte, jaune et
+  rouge, et sur chaque sortie le voyant orange qui s’allume quand son compresseur ou son limiteur
+  agit.
 - **Canaux** : égaliseur paramétrique (8 bandes par entrée, 9 par sortie, 9 types de filtres) sur
   une courbe tactile, passe-haut et passe-bas (20 pentes Butterworth, Bessel, Linkwitz-Riley), délai,
   gate (entrées), compresseur et limiteur (sorties), routage et mélange des entrées, égaliseur
   graphique 31 bandes (entrées).
-- **Vues d’ensemble** : EQ graphique, dynamique, délais et matrice de routage de tous les canaux.
+- **Tous les canaux côte à côte** : EQ graphique, dynamique, délais et matrice de routage.
 - **Presets** : rappel et enregistrement des 20 mémoires et du réglage d’usine F00, fichiers `.prs`
   et sauvegardes complètes `.unt` compatibles avec le logiciel Windows, retour aux réglages d’usine.
 - **Appareil** : liaisons et copie de canaux, noms des canaux, verrouillage par mot de passe,
@@ -64,10 +68,12 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
 - Thèmes clair et sombre, application installable sur téléphone et tablette (en HTTPS).
 - Fonctionne sur un Raspberry Pi branché au réseau de la salle.
 
-![Un canal en thème clair : égaliseur paramétrique et filtres d’une sortie](docs/screenshots/fr/channel.png)
+![La vue globale : niveaux, volumes, mutes et traitements actifs de chaque canal, avec le compresseur et le limiteur en action](docs/screenshots/fr/overview.png)
+
+![Un canal en thème clair : chaîne du signal, égaliseur paramétrique et filtres d’une sortie](docs/screenshots/fr/channel.png)
 
 <p align="center">
-  <img src="docs/screenshots/fr/phone.png" width="760" alt="Sur un téléphone : la console, l’égaliseur paramétrique d’une entrée et les presets" />
+  <img src="docs/screenshots/fr/phone.png" width="760" alt="Sur un téléphone : la console, la vue globale et l’égaliseur paramétrique d’une entrée" />
 </p>
 
 ## Démarrage rapide
@@ -171,7 +177,7 @@ npm test                      # tests : protocole, conformité au firmware, pont
 npm run typecheck
 npm run dev:bridge            # un pont avec ses propres données (.dev/), puis dans un autre terminal :
 npm run dev                   # l’interface avec rechargement à chaud, sur http://localhost:5173
-node apps/web/e2e/flows.cjs   # 29 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
+node apps/web/e2e/flows.cjs   # 32 vérifications de bout en bout dans un navigateur (Playwright, pont lancé)
 ```
 
 | Dossier | |

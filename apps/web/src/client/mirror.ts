@@ -54,6 +54,19 @@ function reuse(old: DeviceConfig | null, incoming: DeviceConfig): DeviceConfig {
 
 type Fn = () => void;
 
+/**
+ * Mirrors alive per backend and device: the current device's mirror and those of the overview can
+ * follow the same device, and its subscription ends with the last of them.
+ */
+const alive = new WeakMap<Backend, Map<string, number>>();
+function hold(b: Backend, key: string, d: 1 | -1): number {
+  let m = alive.get(b);
+  if (!m) { m = new Map(); alive.set(b, m); }
+  const n = Math.max(0, (m.get(key) ?? 0) + d);
+  if (n) m.set(key, n); else m.delete(key);
+  return n;
+}
+
 export class DeviceMirror {
   readonly key: string;
   readonly backend: Backend;
@@ -77,6 +90,7 @@ export class DeviceMirror {
   private unsubs: (() => void)[] = [];
   private onError: (msg: string) => void;
   private alive = true;
+  private started = false;
 
   constructor(backend: Backend, key: string, onError: (msg: string) => void) {
     this.backend = backend;
@@ -94,6 +108,9 @@ export class DeviceMirror {
   // ------------------------------------------------------------------ life cycle
   async start(): Promise<void> {
     const b = this.backend;
+    if (this.started || !this.alive) return;
+    this.started = true;
+    hold(b, this.key, 1);
     this.unsubs.push(
       b.on('snapshot', (e) => { if (e.key === this.key) this.onSnapshot(e.snap); }),
       b.on('action', (e) => { if (e.key === this.key) this.onAction(e.action, e.origin, e.seq); }),
@@ -125,10 +142,11 @@ export class DeviceMirror {
   }
 
   stop(): void {
+    if (!this.alive) return;
     this.alive = false;
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    this.backend.unsubscribe(this.key);
+    if (this.started && hold(this.backend, this.key, -1) === 0) this.backend.unsubscribe(this.key);
   }
 
   async resubscribe(): Promise<void> {

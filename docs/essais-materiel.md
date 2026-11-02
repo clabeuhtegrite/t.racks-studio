@@ -1,7 +1,7 @@
 # Essais sur un vrai appareil
 
 t.racks Studio a été vérifié sur le vrai firmware v1.04, exécuté dans [l’émulateur](../emulator/README.md) :
-commandes, presets, fichiers, verrouillage, compteur PTS, mémoire système, et 29 vérifications de bout
+commandes, presets, fichiers, verrouillage, compteur PTS, mémoire système, et 32 vérifications de bout
 en bout dans le navigateur. Quelques points ne peuvent se vérifier qu’avec un boîtier : le son et les
 vumètres, l’USB, le module Ethernet lui-même, un bus RS-485 avec plusieurs appareils, la façade et
 les vrais redémarrages. Cette page dit quoi essayer, et comment enregistrer les échanges si quelque
@@ -37,7 +37,8 @@ sur l’appareil.
 | Domaine | Essai | Résultat attendu | Émulateur |
 | --- | --- | --- | --- |
 | Connexion | se connecter, ouvrir Appareil > Général | version, noms des presets et preset actif identiques à ceux de la façade | ✓ |
-| Vumètres | passer de la musique | les vumètres de la Console bougent comme ceux de la façade ; témoin Clip sur une entrée saturée, Limit sur une sortie quand le limiteur agit | — |
+| Vumètres | passer de la musique | les vumètres de la Console et de la Vue globale bougent comme ceux de la façade et du logiciel Windows (mêmes zones verte, jaune et rouge) ; témoin rouge sur une entrée saturée ; témoin orange sur une sortie quand son compresseur ou son limiteur agit | ✓ trames ; niveaux : — |
+| Vumètres d’entrée | un signal constant sur InA, puis baisser le volume de InA de 6 dB | noter si le vumètre de InA baisse de 6 dB (mesure après le volume d’entrée) ou ne bouge pas (avant) ; le DSP virtuel suppose « après » | — |
 | Réglages en direct | volume, mute, bande d’égaliseur, passe-haut, délai, polarité | le changement s’entend tout de suite ; la façade affiche la même valeur | ✓ (sans le son) |
 | Façade | changer un réglage sur la façade pendant que t.racks Studio est connecté, puis Appareil > Général > Relire | la nouvelle valeur apparaît | — |
 | Presets | enregistrer U20 depuis t.racks Studio, le rappeler depuis la façade, puis F00 et U20 depuis t.racks Studio | même son, même nom sur la façade | ✓ (sans la façade) |

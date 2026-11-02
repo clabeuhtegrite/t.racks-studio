@@ -134,38 +134,6 @@ export const cmd = {
 
 // ----------------------------------------------------------------------------------------------
 // Reply decoding
-export function decodeFloat16(lo: number, hi: number): number {
-  const v = lo | (hi << 8);
-  const s = (v >> 15) & 1, e = (v >> 10) & 0x1f, f = v & 0x3ff;
-  let r: number;
-  if (e === 0) r = (f / 1024) * 2 ** -14;
-  else if (e === 31) r = f ? NaN : Infinity;
-  else r = (1 + f / 1024) * 2 ** (e - 15);
-  return s ? -r : r;
-}
-export interface Meters {
-  /** linear peak levels per wire channel (inputs then outputs) */
-  levels: number[];
-  /** dBFS per wire channel */
-  db: number[];
-  /** trailing status word (limiter / compressor activity on the 206) */
-  status: number;
-}
-/** Meter groups are laid out for 4 inputs + 8 outputs on both models. */
-export function decodeMeters(data: ArrayLike<number>, inputs: number, outputs: number): Meters {
-  const group = (g: number): number => {
-    const o = g * 3;
-    if (o + 1 >= data.length) return 0;
-    const v = Math.abs(decodeFloat16(data[o], data[o + 1]));
-    return Number.isFinite(v) ? v : 0;
-  };
-  const levels: number[] = [];
-  for (let i = 0; i < inputs; i++) levels.push(group(i));
-  for (let j = 0; j < outputs; j++) levels.push(group(4 + j));
-  const status = data.length >= 38 ? data[36] | (data[37] << 8) : 0;
-  return { levels, db: levels.map((v) => (v > 1e-7 ? 20 * Math.log10(v) : -140)), status };
-}
-
 export interface LockStatus { ptsOn: boolean; ptsLimit: number; ptsCount: number; locked: boolean }
 export function decodeLockStatus(d: ArrayLike<number>): LockStatus {
   return { ptsOn: d[0] === 1, ptsLimit: (d[1] << 8) | d[2], ptsCount: (d[3] << 8) | d[4], locked: d[5] === 1 };

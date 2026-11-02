@@ -126,7 +126,6 @@ export function DelayView(): React.JSX.Element {
   const unit = config.delayUnit as DelayUnit;
   const dp = delayParam(unit);
   const all = Array.from({ length: m.inputs + m.outputs }, (_, i) => i);
-  const maxDelay = Math.max(1, ...all.map((ch) => chan(config, ch).delay));
   return (
     <div className="page">
       <div className="page-head">
@@ -144,7 +143,6 @@ export function DelayView(): React.JSX.Element {
                 <Slider value={c.delay} min={0} max={dp.max} def={0} step={dp.step} onChange={(raw) => mirror.apply({ t: 'delay', ch, raw })} disabled={!canEdit}
                   label={t('Délai {0}', labelOf(config, ch))} valueText={dp.fmt} color={colorOf(config, ch)} />
                 <ValueField value={c.delay} param={dp} onChange={(raw) => mirror.apply({ t: 'delay', ch, raw })} disabled={!canEdit} label={t('Délai {0}', labelOf(config, ch))} wide />
-                <div className="delay-bar" aria-hidden="true"><span style={{ width: `${(c.delay / maxDelay) * 100}%` }} /></div>
               </div>
             );
           })}
@@ -205,14 +203,14 @@ export function MatrixView(): React.JSX.Element {
         <div className="table-wrap">
           <table className="table matrix">
             <thead>
-              <tr><th>{t('Sortie')}</th>{config.inputs.map((_, i) => <th key={i} style={{ color: colorOf(config, i) }}>{titleOf(config, i)}</th>)}</tr>
+              <tr><th>{t('Sortie')}</th>{config.inputs.map((_, i) => <th key={i} style={{ color: colorOf(config, i) }} title={titleOf(config, i)}><MxHead cfg={config} ch={i} /></th>)}</tr>
             </thead>
             <tbody>
               {config.outputs.map((o, j) => {
                 const ch = m.inputs + j;
                 return (
                   <tr key={j}>
-                    <th scope="row"><button type="button" className="linklike" style={{ color: colorOf(config, ch) }} onClick={() => go('canal', ch)}>{titleOf(config, ch)}</button></th>
+                    <th scope="row"><button type="button" className="linklike" style={{ color: colorOf(config, ch) }} onClick={() => go('canal', ch)} title={titleOf(config, ch)}><MxHead cfg={config} ch={ch} /></button></th>
                     {config.inputs.map((_, i) => {
                       const on = ((o.route >> i) & 1) === 1;
                       return (
@@ -232,41 +230,13 @@ export function MatrixView(): React.JSX.Element {
           </table>
         </div>
       </Card>
-      <Card title={t('Schéma bloc')} subtitle={t('Blocs actifs de chaque canal ; touchez un canal pour l’ouvrir.')}>
-        <BlockSummary cfg={config} />
-      </Card>
     </div>
   );
 }
 
-function BlockSummary({ cfg }: { cfg: DeviceConfig }): React.JSX.Element {
-  const m = MODELS[cfg.model];
-  const pills = (ch: number): { l: string; on: boolean }[] => {
-    const c = chan(cfg, ch);
-    const peq = !c.peqBypass && c.peq.some((b) => !b.bypass && (b.gain !== 120 || b.type > 2));
-    const x = c.hpf.slope > 0 || c.lpf.slope > 0;
-    if ('gate' in c) {
-      return [
-        { l: 'GAIN', on: c.gain !== 280 }, { l: 'GATE', on: c.gate.threshold > 0 }, { l: 'GEQ', on: !c.geqBypass && c.geq.some((g) => g !== 120) },
-        { l: 'PEQ', on: peq }, { l: 'HP/LP', on: x }, { l: 'DELAY', on: c.delay > 0 }, { l: t('Ø'), on: !!c.phase }, { l: 'MUTE', on: c.mute },
-      ];
-    }
-    const o = c as DeviceConfig['outputs'][number];
-    return [
-      { l: 'XOVER', on: x }, { l: 'PEQ', on: peq }, { l: 'COMP', on: o.comp.threshold < 220 && o.comp.ratio > 0 }, { l: 'LIMIT', on: o.limiter.threshold < 220 },
-      { l: 'DELAY', on: c.delay > 0 }, { l: t('Ø'), on: !!c.phase }, { l: 'GAIN', on: c.gain !== 280 }, { l: 'MUTE', on: c.mute },
-    ];
-  };
-  const row = (ch: number): React.JSX.Element => (
-    <button key={ch} type="button" className="blk-row" onClick={() => go('canal', ch)} style={{ ['--ch' as string]: colorOf(cfg, ch) }}>
-      <span className="blk-name">{titleOf(cfg, ch)}</span>
-      <span className="blk-pills">{pills(ch).map((p) => <span key={p.l} className={`pill ${p.on ? 'is-on' : ''} ${p.l === 'MUTE' && p.on ? 'is-mute' : ''}`}>{p.l}</span>)}</span>
-    </button>
-  );
-  return (
-    <div className="grid2">
-      <div><h3 className="muted small">{t('Entrées')}</h3>{cfg.inputs.map((_, i) => row(i))}</div>
-      <div><h3 className="muted small">{t('Sorties')}</h3>{cfg.outputs.map((_, j) => row(m.inputs + j))}</div>
-    </div>
-  );
+/** Channel of the matrix on two lines: "InA" and its name. */
+function MxHead({ cfg, ch }: { cfg: DeviceConfig; ch: number }): React.JSX.Element {
+  const name = chan(cfg, ch).name.trim();
+  const l = labelOf(cfg, ch);
+  return <span className="mx-head"><span className="mx-id">{l}</span>{name && name !== l && <span className="mx-name">{name}</span>}</span>;
 }

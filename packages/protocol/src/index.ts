@@ -5,6 +5,7 @@ export * from './codecs.ts';
 export * from './models.ts';
 export * from './config.ts';
 export * from './commands.ts';
+export * from './meters.ts';
 export * from './links.ts';
 export * from './state.ts';
 export * from './filters.ts';

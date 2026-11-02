@@ -17,7 +17,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 | Volume du canal (curseur et saisie) | Console et Canaux > Niveau, polarité et délai | ✓ |
 | Mute | Console et Canaux | ✓ |
 | Polarité (正向 / inverse) | Console et Canaux | ✓ |
-| Vumètre, témoin Clip (entrées), témoin Limit (sorties) | Console : vumètre de chaque tranche, témoins | ✓ trames ; niveaux : appareil |
+| Vumètres en barres vertes, jaunes et rouges, témoin Clip, témoin Limit des sorties (allumé quand le compresseur ou le limiteur agit) | Console, **Vue globale** et Canaux > Niveau : mêmes seuils de couleur que le logiciel, témoin rouge d’écrêtage, témoin orange compresseur ou limiteur ; badges « Compresseur » et « Limiteur » dans la Vue globale, « compresse en ce moment » et « limite en ce moment » dans les éditeurs | ✓ trames ; niveaux : appareil |
 | Passe-haut (低切) : fréquence, pente (20 choix BW / BL / LK de −6 à −48 dB/oct), bypass | Canaux > Filtres (crossover), aussi par glisser sur la courbe | ✓ |
 | Passe-bas (高切) : fréquence, pente, bypass | Canaux > Filtres (crossover) | ✓ |
 | Égaliseur paramétrique : 8 bandes (entrées) ou 9 (sorties), boutons 1 … 9 | Canaux > Égaliseur paramétrique : bandes sur la courbe et dans le tableau | ✓ |
@@ -33,7 +33,7 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 | Page Delay (délai de chaque canal, unité ms / m / ft) | **Délais** et Canaux ; unité au choix comme sur l’appareil | ✓ |
 | Page Matrix (entrées vers sorties et niveaux de mélange) | **Matrice** et Canaux > Routage | ✓ |
 | Page GEQ (31 bandes, bypass, entrées) | **EQ graphique** et Canaux | ✓ |
-| Schéma bloc (menu caché 方塊圖) | Matrice > Schéma bloc | — |
+| Schéma bloc (menu caché 方塊圖) | **Vue globale** : traitements actifs de chaque canal, avec son niveau ; Canaux : chaîne du signal du canal | — |
 | Zone preset : numéro et nom du preset en cours | En-tête de chaque écran (badge du preset) et **Presets** | ✓ |
 | Bouton Recall (dialogue « Load Preset » F00, U01 … U20) | Presets > Rappeler | ✓ |
 | Bouton Store (dialogues « Store Preset » et nom du preset, 14 caractères) | Presets > Enregistrer ici (nom de 14 caractères, accents retirés comme sur l’appareil) | ✓ |

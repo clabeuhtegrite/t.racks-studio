@@ -36,12 +36,15 @@ in French).
 
 **Everything the Windows editor does**
 
+- **Overview** (the home page): every connected DSP at a glance, live: levels, volumes, mutes and
+  the processing active on each channel, clipping, compressor and limiter at work.
 - **Console**: volume, mute, polarity and meters of every input and output, response curves of the
-  channels.
+  channels. The meters read like the Windows editor’s: green, yellow and red zones, and on each
+  output the orange LED that lights while its compressor or limiter acts.
 - **Channels**: parametric EQ (8 bands per input, 9 per output, 9 filter types) on a touch curve,
   high-pass and low-pass filters (20 slopes: Butterworth, Bessel, Linkwitz-Riley), delay, gate
   (inputs), compressor and limiter (outputs), routing and input mix, 31-band graphic EQ (inputs).
-- **Overviews**: graphic EQ, dynamics, delays and routing matrix of all the channels.
+- **All the channels side by side**: graphic EQ, dynamics, delays and routing matrix.
 - **Presets**: recall and store the 20 user memories and the F00 factory preset, `.prs` presets and
   `.unt` full backups compatible with the Windows editor, factory reset.
 - **Device**: channel links, channel copy, channel names, password lock, power-on limit (PTS),
@@ -62,10 +65,12 @@ in French).
 - Light and dark themes, app installable on phones and tablets (over HTTPS).
 - Runs on a Raspberry Pi wired to the venue network.
 
-![A channel in the light theme: parametric EQ and crossover of an output](docs/screenshots/en/channel.png)
+![The overview: levels, volumes, mutes and active processing of every channel, with the compressor and limiter at work](docs/screenshots/en/overview.png)
+
+![A channel in the light theme: signal chain, parametric EQ and crossover of an output](docs/screenshots/en/channel.png)
 
 <p align="center">
-  <img src="docs/screenshots/en/phone.png" width="760" alt="On a phone: the console, the parametric EQ of an input and the presets" />
+  <img src="docs/screenshots/en/phone.png" width="760" alt="On a phone: the console, the overview and the parametric EQ of an input" />
 </p>
 
 ## Getting started
@@ -170,7 +175,7 @@ npm test                      # unit tests: protocol, firmware conformance, brid
 npm run typecheck
 npm run dev:bridge            # a bridge with its own data (.dev/), then in another terminal:
 npm run dev                   # the interface with hot reload, on http://localhost:5173
-node apps/web/e2e/flows.cjs   # 29 end-to-end checks in a browser (Playwright, bridge running)
+node apps/web/e2e/flows.cjs   # 32 end-to-end checks in a browser (Playwright, bridge running)
 ```
 
 | Folder | |

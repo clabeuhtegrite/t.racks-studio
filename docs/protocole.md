@@ -121,7 +121,7 @@ les envoyer.
 | Ratio | 0 … 14 : 1:1 à 1:20 (15 valeurs) ; 15 = limiteur |
 | Genou | 0 … 12 dB |
 | Générateur | source 0 entrées, 1 bruit rose, 2 bruit blanc, 3 sinus ; sinus = l’une des 31 fréquences de l’EQ graphique |
-| Vumètres | 12 groupes de 3 octets (4 entrées puis 8 sorties, sur les deux modèles), niveau en flottant 16 bits, puis un mot d’état |
+| Vumètres | 12 groupes de 3 octets (4 entrées puis 8 sorties sur les deux modèles ; le 206 laisse vides les groupes 2, 3, 10 et 11). Chaque groupe est le haut d’un flottant 32 bits (niveau linéaire, 1 = 0 dBFS), dans l’ordre bits 16 à 23, 24 à 31, 8 à 15. Puis un mot d’état de 2 octets, poids faible d’abord : bit j = compresseur de la sortie j en action, bit 8 + j = son limiteur. Le logiciel Windows n’en tient compte que si le ratio n’est pas 1:1 (compresseur) ou si le seuil est sous +20 dB (limiteur). |
 
 ## Mémoire de configuration
 
