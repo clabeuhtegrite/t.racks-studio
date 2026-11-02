@@ -15,7 +15,11 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 export interface Key { key: string; where: string }
 
 /** Texts built elsewhere that no rule below can see, and internal codes that are never shown. */
-const EXTRA = ['Module Ethernet', 'Envoi', 'Série', 'USB', 'limite', 'adresse IP'];
+const EXTRA = [
+  'Module Ethernet', 'Envoi', 'Série', 'USB', 'limite', 'adresse IP',
+  // automatic gain settings (protocol/src/leveler.ts, step())
+  'niveau cible invalide', 'tolérance invalide', 'correction maximale invalide', 'nombre de corrections invalide',
+];
 const IGNORE = new Set(['dropped']);
 
 function sources(dir: string): string[] {

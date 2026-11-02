@@ -66,6 +66,9 @@ anglais ou allemand, et garde chaque menu, dialogue et réglage du logiciel Wind
   ou 3 voies, calculs de délai et de longueur d’onde.
 - Fiche des réglages imprimable (ou en PDF).
 - Thèmes clair et sombre, application installable sur téléphone et tablette (en HTTPS).
+- Gain automatique pour les sets vinyles : le pont égalise doucement le niveau d’un disque à l’autre
+  (cible, tolérance, limites, pause sur les breaks), avec un écran DJ plein écran qui dit quand
+  toucher au gain de la table, et l’historique des deux dernières heures.
 - Fonctionne sur un Raspberry Pi branché au réseau de la salle.
 
 ![La vue globale : niveaux, volumes, mutes et traitements actifs de chaque canal, avec le compresseur et le limiteur en action](docs/screenshots/fr/overview.png)

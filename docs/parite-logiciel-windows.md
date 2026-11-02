@@ -96,5 +96,9 @@ tests d’intégration ou parcours dans le navigateur) ; « appareil » = à con
 - « Couper les sorties » d’un geste, alignement des délais par distances, assistant de filtrage 2 ou
   3 voies, calculs de délai et de longueur d’onde.
 - Fiche des réglages imprimable (ou en PDF).
+- Gain automatique (page Gain auto) : le pont ajuste doucement le gain des entrées de la table de
+  mixage pour garder le même niveau d’un disque à l’autre, et un écran DJ plein écran dit quand
+  toucher au gain de la table. Le DSP n’a rien de tel : son compresseur et son limiteur ne sont que
+  sur les sorties, avec un relâchement de 3 s au plus.
 - Pilotage sans installation depuis Chrome ou Edge (USB et série), application installable sur
   téléphone (HTTPS).

@@ -53,6 +53,9 @@ sur l’appareil.
 | Générateur | bruit rose à bas niveau, puis un sinus, puis Arrêter | le signal remplace les entrées, puis la musique revient | ✓ (sans le son) |
 | Protocole Extend | Outils > Code RS-232 : préparer une trame, l’envoyer avec un terminal série | « OK » et effet immédiat ; lecture du volume et du mute | ✓ |
 | Plusieurs écrans | un téléphone et un ordinateur sur le même appareil | chaque modification apparaît aussitôt sur l’autre écran | ✓ |
+| Gain auto : vumètres | Gain auto > Réglages avancés > Vérifier, pendant la musique | « avant le gain » ou « après le gain », le même résultat deux fois de suite (noter lequel) | — |
+| Gain auto : correction | cible −14 dBFS, gain auto activé, puis un disque nettement plus faible (ou baisser la sortie de la table de 6 dB) | le gain des entrées remonte par pas de 0,5 dB jusqu’à la zone, sans dépasser la remontée maximale ; l’écran DJ passe de « Correction en cours » à « Bon niveau » | — |
+| Gain auto : break et silence | un break de 20 s, puis lever le diamant | le gain ne remonte pas pendant le break ; « Silence : en pause » quand le diamant est levé | — |
 
 À la fin, restaurez la sauvegarde du début si besoin.
 

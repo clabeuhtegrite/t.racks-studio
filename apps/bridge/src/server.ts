@@ -11,6 +11,7 @@ import { t } from '@dsp-studio/i18n';
 import { callSession, canApply, canCall, validateAction, validateSource, type Action, type Role, type SessionSnapshot } from '@dsp-studio/protocol';
 import { discover, probeIds } from './discovery.ts';
 import { Hub } from './hub.ts';
+import type { Levelers } from './leveler.ts';
 import { Library } from './library.ts';
 import { listSerial, listUsb, serialTransport, tcpTransport, usbTransport } from './transports.ts';
 
@@ -23,6 +24,8 @@ export interface ServerOptions {
   webDir: string | null;
   library: Library;
   hub: Hub;
+  /** automatic gain of each device */
+  levelers?: Levelers;
   pins?: { admin?: string; operator?: string };
   /** HTTPS (needed by browsers for the microphone / WebHID when not on localhost) */
   tls?: { cert: Buffer | string; key: Buffer | string };
@@ -102,6 +105,7 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
   });
   o.hub.on('meters', (key: string, m: { db: number[]; status: number }) => toSubs(key, { t: 'meters', key, db: m.db.map((v) => Math.round(v * 10) / 10), status: m.status }));
   o.hub.on('frame', (key: string, f: { dir: string; hex: string; t: number }) => toSubs(key, { t: 'frame', key, dir: f.dir, hex: f.hex, at: f.t }, (c) => c.debug.has(key)));
+  o.levelers?.on('state', (key: string, state: unknown) => toSubs(key, { t: 'leveler', key, state }));
   o.hub.on('devices', (list) => {
     for (const c of clients.values()) send(c, { t: 'devices', list });
     o.onDevicesChanged?.();
@@ -171,7 +175,7 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
         const d = deviceOf(key);
         c.subs.add(key);
         if (m.debug) c.debug.add(key); else c.debug.delete(key);
-        return { info: d.info(), snap: d.snapshot() };
+        return { info: d.info(), snap: d.snapshot(), leveler: o.levelers?.find(key)?.state() ?? null };
       }
       case 'unsubscribe': c.subs.delete(String(m.key)); c.debug.delete(String(m.key)); return true;
       case 'action': {
@@ -191,6 +195,20 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
         const s = sessionOf(m.key);
         if (!canCall(c.role, method)) throw new Error('action non autorisée pour ce rôle');
         return await callSession(s, method, Array.isArray(m.args) ? m.args : []);
+      }
+      case 'leveler': {
+        // automatic gain: anyone sees it, an operator switches it on and off, the admin sets it up
+        const lv = o.levelers?.get(String(deviceOf(m.key).key));
+        if (!lv) throw new Error('requête inconnue');
+        switch (m.op) {
+          case 'state': return lv.state();
+          case 'history': return lv.history();
+          case 'enable': needOperator(c); return lv.enable(m.value === true);
+          case 'set': needAdmin(c); return lv.update(m.value);
+          case 'target': needAdmin(c); return lv.takeTarget();
+          case 'check': needAdmin(c); return await lv.checkMeter();
+          default: throw new Error('requête inconnue');
+        }
       }
       case 'discover': needAdmin(c); return discover({ sweep: !!m.sweep });
       case 'ports': return { usb: await listUsb(), serial: await listSerial() };

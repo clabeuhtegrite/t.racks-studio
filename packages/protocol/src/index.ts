@@ -16,3 +16,4 @@ export * from './rs232.ts';
 export * from './rpc.ts';
 export * from './devices.ts';
 export * from './probe.ts';
+export * from './leveler.ts';

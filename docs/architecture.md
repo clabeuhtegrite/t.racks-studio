@@ -50,6 +50,7 @@ virtuel appliquent toujours les modifications de la même façon que le firmware
 | `sim.ts` | DSP virtuel : répond comme le firmware (mode démo et tests) |
 | `devices.ts`, `probe.ts` | façons de joindre un DSP, recherche des ID qui répondent |
 | `rs232.ts` | protocole « Extend » de la page Aide > RS-232 Code |
+| `leveler.ts` | gain automatique : les décisions (`LevelerCore`, sans entrée ni sortie) et leur application à une session (`Leveler`) |
 
 ### La session
 
@@ -75,6 +76,30 @@ envoyer. Elle reproduit ce que fait le firmware : une modification d’un canal 
 son groupe, une copie de canal copie exactement ce que copie le firmware. Les tests de conformité
 vérifient ce comportement contre les mesures faites sur le vrai firmware.
 
+### Le gain automatique
+
+Pour les sets vinyles, le niveau change d’un disque à l’autre. Le DSP ne sait pas le corriger : son
+compresseur et son limiteur ne sont que sur les sorties, avec un relâchement de 3 s au plus. Le
+gain automatique (`leveler.ts`) tourne donc dans le pont, même sans écran ouvert, et agit sur le
+gain des entrées où arrive la table de mixage :
+
+- il lit les vumètres des entrées choisies (4 fois par seconde) et en déduit le niveau qu’aurait la
+  musique sans sa correction ; il ne décide que sur des moyennes (15 à 60 s selon la vitesse), en
+  laissant de côté le silence et les passages calmes ;
+- il corrige par pas de 0,5 dB, hors d’une zone autour de la cible, entre les limites choisies ;
+  une chute brutale du niveau (un break) suspend la remontée ;
+- chaque pas passe par la session comme une modification ordinaire : tous les écrans la voient ;
+  un gain changé par quelqu’un d’autre devient la nouvelle référence après une pause ;
+- le firmware écrit chaque modification dans sa mémoire (EEPROM) aussitôt : le nombre de pas par
+  heure est donc limité ;
+- on ne sait pas encore si les vumètres d’entrée du boîtier mesurent avant ou après le gain
+  d’entrée. Tant que ce n’est pas vérifié, il suppose « avant », le cas sans danger (au pire, la
+  correction ne va qu’à moitié) ; la vérification baisse le gain de 6 dB pendant 2 s et regarde si
+  les vumètres suivent.
+
+L’écran DJ (`#/dj`) montre le niveau par rapport à la zone et ne conseille de toucher au gain de la
+table que quand le gain automatique ne peut pas le faire lui-même.
+
 ## Le pont (`apps/bridge`)
 
 | Fichier | Rôle |
@@ -85,6 +110,7 @@ vérifient ce comportement contre les mesures faites sur le vrai firmware.
 | `server.ts` | HTTP (interface compilée) et WebSocket : abonnements, actions, appels, bibliothèque, codes |
 | `discovery.ts` | recherche Ethernet (diffusion UDP 30303 comme le logiciel Windows, puis essai du port 9761 sur le réseau local) |
 | `library.ts` | bibliothèque partagée : presets, sauvegardes d’appareil, scènes (fichiers JSON dans `<data>/library`) |
+| `leveler.ts` | un gain automatique par appareil, branché sur sa session tant qu’il est en ligne ; réglages et gains de référence dans `<data>/leveler.json` |
 
 Tous les écrans abonnés à un appareil partagent sa session. Quand un écran envoie une action, le
 pont l’applique, puis la diffuse aux autres écrans, qui la rejouent sur leur copie : tout le monde
@@ -106,7 +132,7 @@ Sécurité :
 | --- | --- |
 | `client/` | les deux « backends » (pont par WebSocket, ou navigateur seul), les transports WebHID et Web Serial, et `mirror.ts`, la copie locale de chaque appareil |
 | `state/` | état global (appareil choisi, rôle, messages, dialogues) et navigation par adresse (`#/canal/3`, `#/appareil/liaisons`…) |
-| `views/` | les écrans : Vue globale, Console, Canaux, pages de tous les canaux (EQ graphique, Dynamique, Délais, Matrice), Presets, Bibliothèque, Appareil, Outils, Connexion, fiche imprimable |
+| `views/` | les écrans : Vue globale, Console, Canaux, pages de tous les canaux (EQ graphique, Dynamique, Délais, Matrice), Presets, Bibliothèque, Appareil, Outils, Connexion, Gain auto et écran DJ, fiche imprimable |
 | `editors/` | éditeurs d’un canal : égaliseur paramétrique, filtres, dynamique, routage, EQ graphique |
 | `ui/` | composants : curseurs, champs de saisie, courbe de réponse tactile, vumètres, icônes |
 

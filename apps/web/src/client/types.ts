@@ -2,7 +2,7 @@
 // phone / tablet / computer on the network) or the browser itself (WebHID, Web Serial, demo).
 // Both expose exactly the same operations and events.
 
-import type { Action, DeviceInfo, FoundModule, ModelId, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
+import type { Action, DeviceInfo, FoundModule, LevelerState, ModelId, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
 
 export type BackendStatus = 'connecting' | 'online' | 'offline';
 
@@ -13,7 +13,11 @@ export interface BackendEvents {
   action: { key: string; action: Action; origin: number; seq: number };
   meters: { key: string; db: number[]; status: number };
   frame: { key: string; dir: 'tx' | 'rx'; hex: string; at: number };
+  leveler: { key: string; state: LevelerState };
 }
+
+/** Requests to the automatic gain of a device (see packages/protocol/src/leveler.ts). */
+export type LevelerOp = 'state' | 'history' | 'enable' | 'set' | 'target' | 'check';
 
 export interface PortsInfo {
   usb: { path: string; product: string; serial: string }[] | null;
@@ -56,10 +60,12 @@ export interface Backend {
   on<K extends keyof BackendEvents>(k: K, f: (v: BackendEvents[K]) => void): () => void;
   start(): Promise<void>;
   login(pin: string): Promise<Role>;
-  subscribe(key: string, debug?: boolean): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null }>;
+  subscribe(key: string, debug?: boolean): Promise<{ info: DeviceInfo; snap: SessionSnapshot | null; leveler?: LevelerState | null }>;
   unsubscribe(key: string): void;
   action(key: string, a: Action, seq: number): Promise<void>;
   call<T = unknown>(key: string, method: string, args?: unknown[]): Promise<T>;
+  /** automatic gain: state, history, on / off (operator), settings, target, meter check (admin) */
+  leveler<T = unknown>(key: string, op: LevelerOp, value?: unknown): Promise<T>;
   addDevice(spec: SourceSpec, label?: string): Promise<DeviceInfo>;
   removeDevice(key: string): Promise<void>;
   renameDevice(key: string, label: string): Promise<void>;
