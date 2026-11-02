@@ -248,7 +248,7 @@ function AddTcp({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Elem
         </div>
       )}
       <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (host.trim()) void onAdd(spec()); }}>
-        <Field label={t('Adresse IP du DSP')}><TextInput value={host} onChange={setHost} placeholder="192.168.1.100" label={t('Adresse IP du DSP')} /></Field>
+        <Field label={t('Adresse IP du DSP')}><TextInput value={host} onChange={setHost} placeholder="192.168.1.101" label={t('Adresse IP du DSP')} /></Field>
         <Field label={t('Port')}><TextInput value={port} onChange={(v) => setPort(v.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" label={t('Port TCP')} className="input-xs" /></Field>
         <Button type="submit" kind="primary" icon="plus" disabled={!host.trim()}>{t('Ajouter')}</Button>
       </form>

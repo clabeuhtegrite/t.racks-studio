@@ -34,7 +34,8 @@ Options :
   --data dossier              appareils mémorisés et bibliothèque (~/.dsp-studio par défaut,
                               ou variable DSP_STUDIO_DATA)
   --web dossier               interface web compilée (apps/web/dist par défaut)
-  --cert fichier --key fichier  HTTPS (application installable, USB et série du navigateur)
+  --cert fichier --key fichier
+                              HTTPS (application installable, USB et série du navigateur)
   --allow-origin url          autorise une interface hébergée ailleurs (répétable, * = toutes)
   --quiet                     moins de messages
   -h, --help                  cette aide`, BRIDGE_VERSION);

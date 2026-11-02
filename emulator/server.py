@@ -3,7 +3,7 @@
 
     python3 emulator/server.py 206                 # DSP 206 émulé sur le port 9761
     python3 emulator/server.py 408 --port 9762     # un DSP 408 en même temps
-    node apps/bridge/src/main.ts --tcp localhost:9761 --tcp localhost:9762
+    npm start                                      # puis Connexion > Ethernet : localhost, port 9761 ou 9762
 
 Le vrai firmware Thomann tourne dans l'émulateur (voir README.md). Ce programme joue le rôle du
 module Ethernet du boîtier : il relaie les octets entre la connexion TCP et le port série du
@@ -64,7 +64,7 @@ def main():
     print(f'Prêt en {time.monotonic() - t:.0f} s : {a.host}:{a.port}, ID {unit.eeprom.mem[0]}, '
           f'IP du boîtier {unit.ip()}, mémoire dans {state}', flush=True)
     host = 'localhost' if a.host in ('127.0.0.1', '::1', 'localhost') else a.host
-    print(f'Pont : node apps/bridge/src/main.ts --tcp {host}:{a.port}', flush=True)
+    print(f'Dans t.racks Studio : Connexion > Ethernet, adresse {host}, port {a.port}', flush=True)
 
     udp = None
     if a.port == TCP_PORT and a.host not in ('127.0.0.1', '::1', 'localhost'):
