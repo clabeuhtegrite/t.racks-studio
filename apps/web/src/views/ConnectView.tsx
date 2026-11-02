@@ -1,9 +1,9 @@
-// Connection: how this screen reaches the DSPs (through a DSP Studio bridge, or the browser itself),
+// Connection: how this screen reaches the DSPs (through a t.racks Studio bridge, or the browser itself),
 // the list of devices, and adding one: Ethernet (with network discovery), USB, RS-232 / RS-485 and
 // demo devices, with the editor's device ID scan.
 
 import { useEffect, useState } from 'react';
-import { describeSource, DSP_TCP_PORT, MODELS, type DeviceInfo, type FoundModule, type ModelId, type SourceSpec } from '@dsp-studio/protocol';
+import { describeSource, DSP_TCP_PORT, MODELS, type DeviceInfo, type FoundModule, type ModelId, type Role, type SourceSpec } from '@dsp-studio/protocol';
 import { confirmDialog, connectBridge, connectDevice, disconnectDevice, errorText, getState, login, promptDialog, run, selectDevice, toast, useApp } from '../state/store.ts';
 import { go } from '../state/route.ts';
 import { Badge, Button, Card, Field, Note, Segmented, Select, Spinner, Tabs, TextInput } from '../ui/kit.tsx';
@@ -11,7 +11,7 @@ import { Icon, type IconName } from '../ui/icons.tsx';
 import { stateLabel } from '../ui/format.ts';
 import type { Backend, PortsInfo } from '../client/types.ts';
 import { hasWebHid, hasWebSerial } from '../client/webtransports.ts';
-import { t, tx } from '../i18n.tsx';
+import { t, tm, tx } from '../i18n.tsx';
 
 export function ConnectView(): React.JSX.Element {
   const backend = useApp((s) => s.backend);
@@ -30,7 +30,7 @@ export function ConnectView(): React.JSX.Element {
 }
 
 // ------------------------------------------------------------------------------------ mode
-const ROLE_LABEL = { admin: 'administrateur (tous les réglages)', operator: 'opérateur (volumes, mutes, presets)', viewer: 'lecture seule' } as const;
+const roleLabel = (r: Role): string => (r === 'admin' ? t('administrateur (tous les réglages)') : r === 'operator' ? t('opérateur (volumes, mutes, presets)') : t('lecture seule'));
 
 function ModeCard(): React.JSX.Element {
   const mode = useApp((s) => s.mode);
@@ -51,11 +51,11 @@ function ModeCard(): React.JSX.Element {
   };
   if (mode === 'bridge') {
     return (
-      <Card title={<><Icon name="plug" size={18} />{' '}{t('Pont DSP Studio')}</>} subtitle={t('Un ordinateur relié aux DSP partage leur pilotage avec tous les écrans du réseau.')}>
+      <Card title={<><Icon name="plug" size={18} />{' '}{t('Pont t.racks Studio')}</>} subtitle={t('Un ordinateur relié aux DSP partage leur pilotage avec tous les écrans du réseau.')}>
         <dl className="kv">
           <div><dt>{t('État')}</dt><dd>{status === 'online' ? <Badge tone="ok">{t('connecté')}</Badge> : <Badge tone="warn">{status === 'offline' ? t('injoignable, nouvel essai…') : t('connexion…')}</Badge>}</dd></div>
           <div><dt>{t('Version')}</dt><dd>{backend?.version || '—'}</dd></div>
-          <div><dt>{t('Votre accès')}</dt><dd>{ROLE_LABEL[role]}</dd></div>
+          <div><dt>{t('Votre accès')}</dt><dd>{roleLabel(role)}</dd></div>
           {served && <div><dt>{t('Adresse à ouvrir sur les autres écrans')}</dt><dd><code>{window.location.origin}{window.location.pathname}</code></dd></div>}
         </dl>
         <div className="row wrap">
@@ -67,7 +67,7 @@ function ModeCard(): React.JSX.Element {
   }
   return (
     <Card title={<><Icon name="usb" size={18} />{' '}{t('Mode navigateur')}</>} subtitle={t('Ce navigateur pilote lui-même le DSP branché sur cet ordinateur (USB ou adaptateur série).')}>
-      <p className="small">{t('Pour piloter depuis un téléphone ou une tablette, ou à plusieurs, lancez le pont DSP Studio sur l’ordinateur relié aux DSP, puis ouvrez son adresse ou indiquez-la ici.')}</p>
+      <p className="small">{t('Pour piloter depuis un téléphone ou une tablette, ou à plusieurs, lancez le pont t.racks Studio sur l’ordinateur relié aux DSP, puis ouvrez son adresse ou indiquez-la ici.')}</p>
       <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (addr.trim()) void connect(addr.trim()); }}>
         <Field label={t('Adresse du pont')} hint={t('Exemple : 192.168.1.20 ou regie.local:8080')}>
           <TextInput value={addr} onChange={setAddr} placeholder="192.168.1.20" label={t('Adresse du pont')} />
@@ -117,7 +117,7 @@ function DeviceRow({ d, current, admin, operate, backend }: { d: DeviceInfo; cur
           <strong>{d.label}</strong>
           {d.model && <Badge>{MODELS[d.model].name}</Badge>}
         </div>
-        <div className="small muted">{describeSource(d.spec)} · {stateLabel(d.state)}{d.presetName ? ` · ${d.presetName}` : ''}</div>
+        <div className="small muted">{tm(describeSource(d.spec))} · {stateLabel(d.state)}{d.presetName ? ` · ${d.presetName}` : ''}</div>
         {d.state === 'offline' && d.error && <div className="small text-error">{errorText(d.error)}</div>}
       </div>
       <div className="dev-actions">
@@ -135,14 +135,14 @@ function DeviceRow({ d, current, admin, operate, backend }: { d: DeviceInfo; cur
 
 async function added(info: DeviceInfo | null | undefined): Promise<void> {
   if (!info) return;
-  toast(t('{0} ajouté', info.label), 'ok');
+  toast(t('{0} ajouté', tm(info.label)), 'ok');
   selectDevice(info.key);
   go('console');
 }
 
 // ------------------------------------------------------------------------------------ add (bridge)
 type AddTab = 'tcp' | 'usb' | 'serial' | 'demo';
-const BAUDS = [115200, 57600, 38400, 19200, 9600].map((b) => ({ value: b, label: `${b} bauds` }));
+const bauds = (): { value: number; label: string }[] => [115200, 57600, 38400, 19200, 9600].map((b) => ({ value: b, label: t('{0} bauds', b) }));
 
 /** Device ID (RS-485 lines can chain up to 250 DSPs; the editor's "ID Number Select"). */
 function IdField({ value, onChange, onScan, scanning, found }: {
@@ -241,7 +241,7 @@ function AddTcp({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.Elem
           {found.map((f) => (
             <div key={f.host} className="dev">
               <span className="dev-icon"><Icon name="ethernet" /></span>
-              <div className="grow"><strong>{f.host}</strong><div className="small muted">{[f.name, f.mac].filter(Boolean).join(' · ')}</div></div>
+              <div className="grow"><strong>{f.host}</strong><div className="small muted">{[tm(f.name), f.mac].filter(Boolean).join(' · ')}</div></div>
               <Button small kind="primary" icon="plus" onClick={() => onAdd({ kind: 'tcp', host: f.host })}>{t('Ajouter')}</Button>
             </div>
           ))}
@@ -310,7 +310,7 @@ function AddSerial({ backend, onAdd, idScan, id, setId }: AddProps): React.JSX.E
       ))}
       <form className="form form-inline" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void onAdd(spec(path.trim())); }}>
         <Field label={t('Port')}><TextInput value={path} onChange={setPath} placeholder={t('/dev/ttyUSB0 ou COM3')} label={t('Port série')} /></Field>
-        <Field label={t('Débit')}><Select label={t('Débit')} value={baud} onChange={setBaud} options={BAUDS} /></Field>
+        <Field label={t('Débit')}><Select label={t('Débit')} value={baud} onChange={setBaud} options={bauds()} /></Field>
         <Button type="submit" kind="primary" icon="plus" disabled={!path.trim()}>{t('Ajouter')}</Button>
         <Button small icon="refresh" onClick={refresh}>{t('Actualiser')}</Button>
       </form>
@@ -324,7 +324,7 @@ function AddDemo({ onAdd }: { onAdd: (s: SourceSpec) => Promise<void> }): React.
   const [model, setModel] = useState<ModelId>('dsp408');
   return (
     <div className="stack">
-      <p className="small">{t('Un DSP simulé, qui se comporte comme le vrai (mêmes réglages, mêmes réponses, vumètres animés) : idéal pour découvrir DSP Studio ou préparer un preset sans le matériel.')}</p>
+      <p className="small">{t('Un DSP simulé, qui se comporte comme le vrai (mêmes réglages, mêmes réponses, vumètres animés) : idéal pour découvrir t.racks Studio ou préparer un preset sans le matériel.')}</p>
       <div className="row wrap">
         <Segmented label={t('Modèle')} value={model} onChange={setModel} options={[{ value: 'dsp206', label: t('DSP 206 (2 × 6)') }, { value: 'dsp408', label: t('DSP 408 (4 × 8)') }]} />
         <Button kind="primary" icon="plus" onClick={() => onAdd({ kind: 'demo', model })}>{tx('Ajouter un {0} de démonstration', MODELS[model].name)}</Button>
@@ -344,7 +344,7 @@ function AddInBrowser({ backend }: { backend: Backend }): React.JSX.Element {
   return (
     <Card title={t('Ajouter un appareil')} className="span2">
       {!secure && <Note tone="warn">{t('Cette page n’est pas sécurisée : le navigateur n’autorise l’USB et le port série que sur une adresse https ou localhost.')}</Note>}
-      {secure && (!hid || !ser) && <Note>{t('L’USB (WebHID) et le port série (Web Serial) demandent Chrome, Edge ou Opera sur ordinateur. Sur téléphone ou tablette, passez par le pont DSP Studio.')}</Note>}
+      {secure && (!hid || !ser) && <Note>{t('L’USB (WebHID) et le port série (Web Serial) demandent Chrome, Edge ou Opera sur ordinateur. Sur téléphone ou tablette, passez par le pont t.racks Studio.')}</Note>}
       <div className="add-grid">
         <div className="add-box">
           <h3><Icon name="usb" size={18} />{' '}{t('USB')}</h3>
@@ -355,7 +355,7 @@ function AddInBrowser({ backend }: { backend: Backend }): React.JSX.Element {
           <h3><Icon name="serial" size={18} />{' '}{t('RS-232 / RS-485')}</h3>
           <p className="small muted">{t('Par un adaptateur USB-série relié au port du DSP.')}</p>
           <div className="row">
-            <Select label={t('Débit')} value={baud} onChange={setBaud} options={BAUDS} />
+            <Select label={t('Débit')} value={baud} onChange={setBaud} options={bauds()} />
             <Button kind="primary" disabled={!ser || !backend.requestSerial} onClick={async () => added(await run(t('Connexion série'), () => backend.requestSerial!(baud, deviceId)))}>{t('Choisir le port…')}</Button>
           </div>
         </div>
@@ -369,7 +369,7 @@ function AddInBrowser({ backend }: { backend: Backend }): React.JSX.Element {
         </div>
       </div>
       <IdField value={id} onChange={setId} />
-      <p className="small muted">{t('Ethernet : le navigateur ne peut pas ouvrir de connexion TCP vers le DSP ; utilisez le pont DSP Studio.')}</p>
+      <p className="small muted">{t('Ethernet : le navigateur ne peut pas ouvrir de connexion TCP vers le DSP ; utilisez le pont t.racks Studio.')}</p>
     </Card>
   );
 }

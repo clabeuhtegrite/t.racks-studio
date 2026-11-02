@@ -66,7 +66,7 @@ describe('bridge server (open access)', () => {
     dir = await mkdtemp(join(tmpdir(), 'dsp-bridge-'));
     const web = join(dir, 'web');
     await mkdir(join(web, 'assets'), { recursive: true });
-    await writeFile(join(web, 'index.html'), '<!doctype html><title>DSP Studio</title>');
+    await writeFile(join(web, 'index.html'), '<!doctype html><title>t.racks Studio</title>');
     await writeFile(join(web, 'assets', 'app.js'), 'console.log(1)');
     const library = new Library(join(dir, 'lib'));
     await library.init();
@@ -89,12 +89,12 @@ describe('bridge server (open access)', () => {
     expect(h.ok).toBe(true);
     expect(h.devices.map((d) => d.key)).toContain(KEY);
     const idx = await fetch(`${base}/`);
-    expect(await idx.text()).toContain('DSP Studio');
+    expect(await idx.text()).toContain('t.racks Studio');
     const js = await fetch(`${base}/assets/app.js`);
     expect(js.headers.get('content-type')).toContain('javascript');
     expect(js.headers.get('cache-control')).toContain('immutable');
     const deep = await fetch(`${base}/presets/1`);
-    expect(await deep.text()).toContain('DSP Studio');
+    expect(await deep.text()).toContain('t.racks Studio');
     const trav = await fetch(`${base}/..%2f..%2fpackage.json`);
     expect(await trav.text()).not.toContain('"name"');
   });

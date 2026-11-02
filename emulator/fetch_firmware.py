@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Télécharge les mises à jour officielles Thomann des DSP 206 / 408 et en extrait le firmware.
 
-Le firmware n'est jamais redistribué avec DSP Studio : ce script le récupère sur le site de Thomann
+Le firmware n'est jamais redistribué avec t.racks Studio : ce script le récupère sur le site de Thomann
 et l'extrait sur votre machine, dans emulator/firmware/ (dossier ignoré par git).
 
     python3 emulator/fetch_firmware.py            # les deux modèles
@@ -21,7 +21,7 @@ UPDATERS = {
     '206': '435192_update_dsp_206_v1_04_netstartverdet.exe',
     '408': '435194_update_dsp_408_v1_04_netstartverdet.exe',
 }
-# Images extracted from the v1.04 updaters on 2026-11-01, the ones DSP Studio was tested with.
+# Images extracted from the v1.04 updaters on 2026-11-01, the ones t.racks Studio was tested with.
 KNOWN = {
     'dsp206-v0104.bin': 'd6c11de4cc6d72a6dc4d3e34b984ab97a72e2b31e0a6bbfcd4c47f29f39ab849',
     'dsp206-v0104p.bin': '7ab38c7f29bd5f89f56ac68d8f66675844a3953dd96a786baf5c6407b7f2d4e4',
@@ -115,7 +115,7 @@ def extract(exe_path, want=None):
         with open(path, 'wb') as f:
             f.write(img)
         digest = hashlib.sha256(img).hexdigest()
-        note = 'identique à la version testée' if KNOWN.get(name) == digest else 'VERSION NON TESTÉE avec DSP Studio'
+        note = 'identique à la version testée' if KNOWN.get(name) == digest else 'VERSION NON TESTÉE avec t.racks Studio'
         print(f'  {name} ({len(img)} octets) : {note}')
         found.append(name)
     return found

@@ -1,6 +1,6 @@
 # Émulateur du firmware DSP 206 / 408
 
-Pour tester DSP Studio sur du « vrai » sans boîtier : le firmware officiel Thomann v1.04 tourne
+Pour tester t.racks Studio sur du « vrai » sans boîtier : le firmware officiel Thomann v1.04 tourne
 instruction par instruction sur une carte Nuvoton NUC1xx (ARM Cortex-M0) virtuelle. Ce n’est pas une
 imitation : c’est le code du DSP lui-même qui répond aux trames, gère ses presets, son verrouillage et
 sa mémoire.

@@ -269,10 +269,10 @@ export function encodeNative(f: NativeFile): string {
 
 export function decodeNative(text: string): NativeFile {
   let j: unknown;
-  try { j = JSON.parse(text); } catch { throw new FileFormatError("Ce fichier n'est pas un fichier DSP Studio (JSON illisible)."); }
+  try { j = JSON.parse(text); } catch { throw new FileFormatError("Ce fichier n'est pas un fichier t.racks Studio (JSON illisible)."); }
   const f = j as Partial<NativeFile>;
-  if (!f || f.format !== NATIVE_FORMAT) throw new FileFormatError("Ce fichier n'est pas un fichier DSP Studio.");
-  if ((f.version ?? 0) > NATIVE_VERSION) throw new FileFormatError('Ce fichier a été créé par une version plus récente de DSP Studio.');
+  if (!f || f.format !== NATIVE_FORMAT) throw new FileFormatError("Ce fichier n'est pas un fichier t.racks Studio.");
+  if ((f.version ?? 0) > NATIVE_VERSION) throw new FileFormatError('Ce fichier a été créé par une version plus récente de t.racks Studio.');
   if (!f.model || !(f.model in MODELS)) throw new FileFormatError('Modèle inconnu dans le fichier.');
   if (f.kind === 'preset') {
     const p = f as NativePresetFile;
@@ -283,7 +283,7 @@ export function decodeNative(text: string): NativeFile {
     const presets = normalizePresets(u.presets, u.model);
     return { ...u, system: u.system ? decodeUnitSystem(u.system.raw) : null, live: u.live ? normalizeConfig(u.live, u.model) : null, presets };
   }
-  throw new FileFormatError('Type de fichier DSP Studio inconnu.');
+  throw new FileFormatError('Type de fichier t.racks Studio inconnu.');
 }
 
 /** Opens any supported file (editor .prs / .unt, or native JSON). */

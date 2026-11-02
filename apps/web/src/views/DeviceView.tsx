@@ -15,22 +15,23 @@ import { allChannels, chan, colorOf, labelOf } from '../ui/channels.tsx';
 import { fmtIso, fmtIsoHz, presetLabel, stateLabel } from '../ui/format.ts';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { factoryReset } from './PresetsView.tsx';
-import { t, tx } from '../i18n.tsx';
+import { t, tm, tx } from '../i18n.tsx';
 
 type Tab = 'general' | 'liaisons' | 'noms' | 'securite' | 'generateur';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'general', label: 'Général' },
-  { id: 'liaisons', label: 'Liaisons et copie' },
-  { id: 'noms', label: 'Noms des canaux' },
-  { id: 'securite', label: 'Verrouillage' },
-  { id: 'generateur', label: 'Générateur' },
+const TAB_IDS: Tab[] = ['general', 'liaisons', 'noms', 'securite', 'generateur'];
+const tabs = (): { id: Tab; label: string }[] => [
+  { id: 'general', label: t('Général') },
+  { id: 'liaisons', label: t('Liaisons et copie') },
+  { id: 'noms', label: t('Noms des canaux') },
+  { id: 'securite', label: t('Verrouillage') },
+  { id: 'generateur', label: t('Générateur') },
 ];
 
 export function DeviceView(): React.JSX.Element {
   const { mirror, config, snap } = useDevice();
   const route = useRoute();
   const canEdit = useCanEdit();
-  const tab = (TABS.some((t) => t.id === route.arg) ? route.arg : 'general') as Tab;
+  const tab = (TAB_IDS.includes(route.arg as Tab) ? route.arg : 'general') as Tab;
   if (!mirror || !config || !snap) return <></>;
   const disabled = !canEdit;
   return (
@@ -38,10 +39,10 @@ export function DeviceView(): React.JSX.Element {
       <div className="page-head">
         <div>
           <h1>{t('Appareil')}</h1>
-          <p className="muted small">{MODELS[config.model].name} · {mirror.info?.label ?? ''}</p>
+          <p className="muted small">{MODELS[config.model].name} · {tm(mirror.info?.label ?? '')}</p>
         </div>
       </div>
-      <Tabs label={t('Sections')} value={tab} tabs={TABS} onChange={(t) => go('appareil', t)} />
+      <Tabs label={t('Sections')} value={tab} tabs={tabs()} onChange={(v) => go('appareil', v)} />
       {tab === 'general' && (
         <div className="cards">
           <InfoCard mirror={mirror} snap={snap} config={config} />
@@ -79,10 +80,10 @@ function InfoCard({ mirror, snap, config }: { mirror: DeviceMirror; snap: Sessio
     [t('Firmware'), [snap.version, snap.versionExt].filter(Boolean).join(' · ') || '—'],
     [t('ID de l’appareil'), String(snap.system?.deviceId ?? snap.deviceId)],
     [t('Adresse IP'), snap.system ? snap.system.ip.join('.') : '—'],
-    [t('Liaison'), info ? `${describeSource(info.spec)} · ${stateLabel(info.state)}` : '—'],
+    [t('Liaison'), info ? `${tm(describeSource(info.spec))} · ${stateLabel(info.state)}` : '—'],
     [t('Preset en cours'), `${presetLabel(snap.activePreset)} · ${config.presetName || t('Sans nom')}`],
-    [t('Mémoires utilisées'), `${used} sur ${m.userPresets}`],
-    [t('Verrouillage'), lock ? `${lock.locked ? t('verrouillé') : t('déverrouillé')}${lock.ptsOn ? t(' · limite d’allumages active ({0} sur {1})', lock.ptsCount, lock.ptsLimit) : ''}` : '—'],
+    [t('Mémoires utilisées'), t('{0} sur {1}', used, m.userPresets)],
+    [t('Verrouillage'), lock ? [lock.locked ? t('verrouillé') : t('déverrouillé'), lock.ptsOn ? t('limite d’allumages active ({0} sur {1})', lock.ptsCount, lock.ptsLimit) : ''].filter(Boolean).join(' · ') : '—'],
   ];
   return (
     <Card title={t('Informations')} actions={
@@ -268,7 +269,9 @@ function CopyCard({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Device
   const copy = async (): Promise<void> => {
     const ok = await confirmDialog({
       title: t('Copier un canal'),
-      message: t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; {2} et les liaisons sont conservés, comme sur l’appareil)', label(src), dst.map(label).join(', '), kind === 'out' ? t('le nom, le routage') : t('le nom')),
+      message: kind === 'out'
+        ? t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom, le routage et les liaisons sont conservés, comme sur l’appareil)', label(src), dst.map(label).join(', '))
+        : t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom et les liaisons sont conservés, comme sur l’appareil)', label(src), dst.map(label).join(', ')),
       ok: t('Copier'),
     });
     if (!ok) return;
@@ -339,16 +342,16 @@ function NamesCard({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Devic
       </div>
       <div className="row end">
         <Button kind="ghost" disabled={!Object.keys(draft).length} onClick={() => setDraft({})}>{t('Annuler')}</Button>
-        <Button kind="primary" icon="check" disabled={disabled || !dirty.length} onClick={save}>{tx('Enregistrer{0}', dirty.length ? ` (${dirty.length})` : '')}</Button>
+        <Button kind="primary" icon="check" disabled={disabled || !dirty.length} onClick={save}>{dirty.length ? t('Enregistrer ({0})', dirty.length) : t('Enregistrer')}</Button>
       </div>
     </Card>
   );
 }
 
 // ---------------------------------------------------------------------------------------- lock
-const PW_HINT = '4 caractères (lettres ou chiffres)';
+const pwHint = (): string => t('4 caractères (lettres ou chiffres)');
 /** for a new password: the front panel only offers 0-9 and A-Z */
-const NEW_PW_HINT = '4 caractères : chiffres et majuscules (0000 à ZZZZ) pour pouvoir aussi le saisir sur la façade';
+const newPwHint = (): string => t('4 caractères : chiffres et majuscules (0000 à ZZZZ) pour pouvoir aussi le saisir sur la façade');
 const pwOk = (s: string): boolean => /^[\x21-\x7e]{4}$/.test(s);
 
 function LockCard({ mirror, disabled }: { mirror: DeviceMirror; disabled: boolean }): React.JSX.Element {
@@ -357,7 +360,7 @@ function LockCard({ mirror, disabled }: { mirror: DeviceMirror; disabled: boolea
   const lock = async (): Promise<void> => {
     const ok = await confirmDialog({
       title: t('Verrouiller l’appareil'),
-      message: t('Une fois verrouillé, DSP Studio comme le logiciel Windows demandent le mot de passe « {0} » avant toute modification. Notez-le bien.', pw),
+      message: t('Une fois verrouillé, t.racks Studio comme le logiciel Windows demandent le mot de passe « {0} » avant toute modification. Notez-le bien.', pw),
       ok: t('Verrouiller'), danger: true,
     });
     if (!ok) return;
@@ -367,7 +370,7 @@ function LockCard({ mirror, disabled }: { mirror: DeviceMirror; disabled: boolea
   return (
     <Card title={<><Icon name="unlock" size={18} />{' '}{t('Verrouillage par mot de passe')}</>} subtitle={t('Menu « Lock » du logiciel Windows. Empêche toute modification sans le mot de passe.')}>
       <form className="form" onSubmit={(e) => { e.preventDefault(); if (pwOk(pw) && pw === pw2) void lock(); }}>
-        <Field label={t('Mot de passe')} hint={NEW_PW_HINT}>
+        <Field label={t('Mot de passe')} hint={newPwHint()}>
           <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Mot de passe')} />
         </Field>
         <Field label={t('Confirmation')} hint={pw2 && pw !== pw2 ? t('Les deux saisies diffèrent') : undefined}>
@@ -396,10 +399,10 @@ export function UnlockCard(): React.JSX.Element {
   };
   return (
     <div className="stack unlock">
-      <Card title={<><Icon name="lock" size={18} />{' '}{t('Appareil verrouillé')}</>} subtitle={t('Ce DSP a été verrouillé par mot de passe (depuis DSP Studio ou le logiciel Windows).')}>
+      <Card title={<><Icon name="lock" size={18} />{' '}{t('Appareil verrouillé')}</>} subtitle={t('Ce DSP a été verrouillé par mot de passe (depuis t.racks Studio ou le logiciel Windows).')}>
         {role !== 'admin' ? <Note>{t('Seul un administrateur peut déverrouiller l’appareil.')}</Note> : (
           <form className="form" onSubmit={(e) => { e.preventDefault(); if (pw) void unlock(); }}>
-            <Field label={t('Mot de passe')} hint={PW_HINT}>
+            <Field label={t('Mot de passe')} hint={pwHint()}>
               <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} autoFocus label={t('Mot de passe')} />
             </Field>
             <div className="row end"><Button type="submit" kind="primary" icon="unlock" disabled={!pw}>{t('Déverrouiller')}</Button></div>
@@ -439,7 +442,7 @@ function PtsCard({ mirror, lock, disabled }: { mirror: DeviceMirror; lock: LockS
           <div><dt>{t('Limite (« Time »)')}</dt><dd>{lock ? lock.ptsLimit : '—'}</dd></div>
         </dl>
         <form className="form" onSubmit={(e) => { e.preventDefault(); if (pwOk(pw) && limitOk) void save(); }}>
-          <Field label={t('Mot de passe PTS')} hint={NEW_PW_HINT}>
+          <Field label={t('Mot de passe PTS')} hint={newPwHint()}>
             <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Mot de passe PTS')} />
           </Field>
           <Field label={t('Nombre d’allumages autorisés')} hint={t('De 0 à 9999.')}>
@@ -466,9 +469,9 @@ function PtsPasswordCard({ mirror, lock, disabled }: { mirror: DeviceMirror; loc
     setPw('');
   };
   return (
-    <Card title={t('Mot de passe PTS')} subtitle={due ? t('La limite d’allumages est atteinte : saisissez le mot de passe PTS.') : t('{0} allumage(s) sur {1} autorisés.', lock.ptsCount, lock.ptsLimit)}>
+    <Card title={t('Mot de passe PTS')} subtitle={due ? t('La limite d’allumages est atteinte : saisissez le mot de passe PTS.') : t('Allumages : {0} sur {1} autorisés.', lock.ptsCount, lock.ptsLimit)}>
       <form className="form" onSubmit={(e) => { e.preventDefault(); if (pw) void check(); }}>
-        <Field label={t('Mot de passe PTS')} hint={PW_HINT}>
+        <Field label={t('Mot de passe PTS')} hint={pwHint()}>
           <TextInput type="password" value={pw} onChange={(v) => setPw(deviceText(v, 4))} maxLength={4} disabled={disabled} label={t('Mot de passe PTS')} />
         </Field>
         <div className="row end"><Button type="submit" kind={due ? 'primary' : 'plain'} icon="unlock" disabled={disabled || !pw}>{t('Valider')}</Button></div>
@@ -478,7 +481,7 @@ function PtsPasswordCard({ mirror, lock, disabled }: { mirror: DeviceMirror; loc
 }
 
 // ---------------------------------------------------------------------------------------- tone
-const TONE_SOURCES = ['Entrée analogique', 'Bruit rose', 'Bruit blanc', 'Sinus'];
+const toneSources = (): string[] => [t('Entrée analogique'), t('Bruit rose'), t('Bruit blanc'), t('Sinus')];
 
 function ToneCard({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: DeviceMirror; disabled: boolean }): React.JSX.Element {
   const src = cfg.toneSource;
@@ -487,7 +490,7 @@ function ToneCard({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Device
       const ok = await confirmDialog({
         title: t('Générateur de test'),
         message: t('Le signal de test remplace la musique sur les entrées et part vers toutes les sorties routées, au niveau des réglages actuels. Baissez les amplis avant de continuer.'),
-        ok: t('Envoyer {0}', TONE_SOURCES[source].toLowerCase()), danger: true,
+        ok: source === 1 ? t('Envoyer le bruit rose') : source === 2 ? t('Envoyer le bruit blanc') : t('Envoyer le sinus'), danger: true,
       });
       if (!ok) return;
     }
@@ -497,13 +500,13 @@ function ToneCard({ cfg, mirror, disabled }: { cfg: DeviceConfig; mirror: Device
     <Card title={t('Générateur de test')} subtitle={t('Menu « Test tone » du logiciel Windows : bruit rose, bruit blanc ou sinus à la place des entrées.')}>
       {src !== 0 && (
         <div className="tone-live">
-          <Note tone="warn">{tx('Générateur actif : {0}{1}.', TONE_SOURCES[src].toLowerCase(), src === 3 ? ` à ${fmtIsoHz(GEQ_FREQS[cfg.toneFreq])}` : '')}</Note>
+          <Note tone="warn">{src === 3 ? t('Générateur actif : sinus à {0}.', fmtIsoHz(GEQ_FREQS[cfg.toneFreq])) : src === 1 ? t('Générateur actif : bruit rose.') : t('Générateur actif : bruit blanc.')}</Note>
           <Button kind="danger" icon="stop" disabled={disabled} onClick={() => set(0)}>{t('Arrêter (revenir aux entrées)')}</Button>
         </div>
       )}
       <Segmented
         label={t('Source')} value={src} disabled={disabled} onChange={(v) => void set(v)}
-        options={TONE_SOURCES.map((l, i) => ({ value: i, label: l }))}
+        options={toneSources().map((l, i) => ({ value: i, label: l }))}
       />
       <p className="field-label">{t('Fréquence du sinus')}</p>
       <div className="tone-freqs" role="radiogroup" aria-label={t('Fréquence du sinus')}>

@@ -1,8 +1,8 @@
 {
-  "name": "DSP Studio",
-  "short_name": "DSP Studio",
-  "description": "Pilotage des processeurs t.racks DSP 206 et DSP 408",
-  "lang": "fr",
+  "name": "t.racks Studio",
+  "short_name": "t.racks Studio",
+  "description": "Unofficial editor for the t.racks DSP 206 and DSP 408 processors",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

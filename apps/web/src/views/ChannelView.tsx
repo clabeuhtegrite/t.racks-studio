@@ -75,7 +75,9 @@ function CopyTo(p: { cfg: DeviceConfig; ch: number; disabled: boolean; onCopy: (
         if (dst < 0) return;
         if (await confirmDialog({
           title: t('Copier un canal'),
-          message: t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom{2} et les liaisons de {3} sont conservés, comme sur l’appareil)', labelOf(p.cfg, p.ch), labelOf(p.cfg, dst), input ? '' : t(', le routage'), labelOf(p.cfg, dst)),
+          message: input
+            ? t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom et les liaisons de {1} sont conservés, comme sur l’appareil)', labelOf(p.cfg, p.ch), labelOf(p.cfg, dst))
+            : t('Copier tous les réglages de {0} vers {1} ?\n(égaliseurs, filtres, dynamique, volume, délai, polarité ; le nom, le routage et les liaisons de {1} sont conservés, comme sur l’appareil)', labelOf(p.cfg, p.ch), labelOf(p.cfg, dst)),
           ok: t('Copier'),
         })) p.onCopy(dst);
       }}

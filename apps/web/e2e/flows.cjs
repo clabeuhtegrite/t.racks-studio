@@ -209,7 +209,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms * FACTOR));
   await A.evaluate(() => { location.hash = '#/appareil/generateur'; });
   await wait(500);
   await A.getByRole('radio', { name: 'Bruit rose' }).click();
-  await A.getByRole('button', { name: /Envoyer bruit rose/ }).click();
+  await A.getByRole('button', { name: /Envoyer le bruit rose/ }).click();
   await wait(600);
   ok('générateur : bruit rose actif', await A.getByText('Générateur actif : bruit rose').isVisible());
   await A.getByRole('button', { name: /Arrêter/ }).click();

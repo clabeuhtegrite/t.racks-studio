@@ -2,7 +2,7 @@
   "name": "dsp-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "Interface web complète pour les processeurs t.racks DSP 206 et DSP 408 (Thomann)",
+  "description": "Unofficial web editor for the t.racks DSP 206 and DSP 408 processors (Thomann)",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -15,7 +15,8 @@
     "start": "node apps/bridge/src/main.ts",
     "test": "vitest run",
     "test:emulator": "vitest run apps/bridge/test/emulator.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "i18n": "node packages/i18n/scripts/keys.ts"
   },
   "engines": {
     "node": ">=22.18"

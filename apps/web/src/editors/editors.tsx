@@ -87,7 +87,7 @@ export function LevelEditor({ cfg, ch, mirror, disabled, canOperate }: EdProps &
         <div className="prow">
           <span className="prow-label">{t('Unité')}</span>
           <Segmented small label={t('Unité des délais')} value={unit} disabled={disabled} onChange={(u) => mirror.apply({ t: 'delayUnit', unit: u })}
-            options={DELAY_UNIT_LABELS.map((l, i) => ({ value: i as DelayUnit, label: l, title: i === 0 ? 'millisecondes' : i === 1 ? t('mètres') : 'pieds' }))} />
+            options={DELAY_UNIT_LABELS.map((l, i) => ({ value: i as DelayUnit, label: l, title: i === 0 ? t('millisecondes') : i === 1 ? t('mètres') : t('pieds') }))} />
         </div>
       </div>
     </Card>

@@ -1,6 +1,6 @@
 // Presets and files (the editor's Recall / Store buttons and its File menu):
 // - recall F00 / U01..U20, store under a name, rename the current preset;
-// - open a preset (.prs of the Windows editor or DSP Studio .json) and send it, or write it into a
+// - open a preset (.prs of the Windows editor or t.racks Studio .json) and send it, or write it into a
 //   memory without changing what is playing;
 // - save the current preset (.prs compatible with the editor, or .json);
 // - back up the whole unit (.unt compatible with the editor, or .json) and restore it;
@@ -16,7 +16,7 @@ import { downloadFile, fileBytes, pickFile, safeName, stamp } from '../app/files
 import { Badge, Button, Card, Field, Modal, Note, Select } from '../ui/kit.tsx';
 import { presetLabel } from '../ui/format.ts';
 import type { DeviceMirror } from '../client/mirror.ts';
-import { t, tx } from '../i18n.tsx';
+import { locale, t, tn, tx } from '../i18n.tsx';
 
 export function PresetsView(): React.JSX.Element {
   const { mirror, snap, config } = useDevice();
@@ -125,7 +125,7 @@ function SaveMenu({ config }: { config: DeviceConfig | null }): React.JSX.Elemen
               <span className="small muted">{t('S’ouvre aussi dans l’éditeur officiel t.racks. Ne contient pas l’unité des délais, le générateur et les bypass globaux d’EQ (comme l’éditeur).')}</span>
             </button>
             <button type="button" className="choice-item" onClick={() => { downloadFile(`${base}.json`, encodeNative(presetToNative(config)), 'application/json'); setOpen(false); }}>
-              <strong>{t('.json (DSP Studio)')}</strong>
+              <strong>{t('.json (t.racks Studio)')}</strong>
               <span className="small muted">{t('Garde absolument tous les réglages.')}</span>
             </button>
           </div>
@@ -169,19 +169,19 @@ function UnitCard({ mirror, canEdit, onOpened }: { mirror: DeviceMirror; canEdit
         <Modal title={t('Sauvegarde prête')} onClose={() => setUnit(null)}>
           <p>{tx('{0} mémoire(s) utilisateur lue(s).', unit.presets.filter(Boolean).length)}</p>
           <div className="choice">
-            <button type="button" className="choice-item" onClick={() => { downloadFile(t('{0}_{1}.unt', model?.name.replace(' ', '') ?? 'DSP', stamp()), encodeUnt(unit) as Uint8Array<ArrayBuffer>); setUnit(null); }}>
+            <button type="button" className="choice-item" onClick={() => { downloadFile(`${model?.name.replace(' ', '') ?? 'DSP'}_${stamp()}.unt`, encodeUnt(unit) as Uint8Array<ArrayBuffer>); setUnit(null); }}>
               <strong>{t('.unt (logiciel Windows)')}</strong><span className="small muted">{t('Se restaure aussi avec l’éditeur officiel.')}</span>
             </button>
             <button type="button" className="choice-item" onClick={() => {
-              const n = unitToNative(unit, mirror.config, t('Sauvegarde {0}', new Date().toLocaleString('fr-FR')));
-              downloadFile(t('{0}_{1}.json', model?.name.replace(' ', '') ?? 'DSP', stamp()), encodeNative(n), 'application/json'); setUnit(null);
+              const n = unitToNative(unit, mirror.config, t('Sauvegarde {0}', new Date().toLocaleString(locale())));
+              downloadFile(`${model?.name.replace(' ', '') ?? 'DSP'}_${stamp()}.json`, encodeNative(n), 'application/json'); setUnit(null);
             }}>
-              <strong>{t('.json (DSP Studio)')}</strong><span className="small muted">{t('Contient aussi le preset en cours.')}</span>
+              <strong>{t('.json (t.racks Studio)')}</strong><span className="small muted">{t('Contient aussi le preset en cours.')}</span>
             </button>
             <button type="button" className="choice-item" onClick={async () => {
               const lib = getState().backend?.library;
               if (!lib || !model) return;
-              const name = await promptDialog({ title: t('Nom de la sauvegarde'), label: t('Nom'), value: t('Sauvegarde {0}', new Date().toLocaleDateString('fr-FR')), maxLength: 80 });
+              const name = await promptDialog({ title: t('Nom de la sauvegarde'), label: t('Nom'), value: t('Sauvegarde {0}', new Date().toLocaleDateString(locale())), maxLength: 80 });
               if (name === null) return;
               await run(t('Enregistrement'), () => lib.save({ kind: 'unit', model: model.id, name, data: unitToNative(unit, mirror.config, name) }), t('Ajouté à la bibliothèque'));
               setUnit(null);
@@ -207,7 +207,7 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
     const cfg = file.config;
     return (
       <Modal title={t('Preset « {0} »', cfg.presetName || file.name)} onClose={onClose} footer={<Button onClick={onClose}>{t('Fermer')}</Button>}>
-        <p className="muted small">{file.source === 'prs' ? t('Fichier .prs du logiciel Windows') : t('Fichier DSP Studio')} · {model.name}</p>
+        <p className="muted small">{file.source === 'prs' ? t('Fichier .prs du logiciel Windows') : t('Fichier t.racks Studio')} · {model.name}</p>
         <div className="choice">
           <button type="button" className="choice-item" onClick={async () => {
             onClose();
@@ -220,7 +220,7 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
             <strong>{t('Écrire dans une mémoire sans changer le son')}</strong>
             <span className="small muted">{t('Le preset est copié dans l’appareil pendant que le son actuel continue.')}</span>
             <div className="row">
-              <Select label={t('Mémoire')} value={slot} onChange={setSlot} options={(snap?.presets ?? []).map((p) => ({ value: p.slot, label: `${presetLabel(p.slot)} · ${p.user ? p.name : 'vide'}` }))} />
+              <Select label={t('Mémoire')} value={slot} onChange={setSlot} options={(snap?.presets ?? []).map((p) => ({ value: p.slot, label: `${presetLabel(p.slot)} · ${p.user ? p.name : t('vide')}` }))} />
               <Button kind="primary" onClick={async () => {
                 const sl = snap?.presets.find((p) => p.slot === slot);
                 if (sl?.user && !await confirmDialog({ title: t('Remplacer la mémoire'), message: t('{0} contient « {1} ». Le remplacer ?', presetLabel(slot), sl.name), ok: t('Remplacer'), danger: true })) return;
@@ -245,7 +245,7 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
   const used = file.unit.presets.map((p, i) => ({ p, i })).filter((x): x is { p: UnitPreset; i: number } => !!x.p);
   return (
     <Modal wide title={t('Sauvegarde « {0} »', file.name)} onClose={onClose} footer={<Button onClick={onClose}>{t('Fermer')}</Button>}>
-      <p className="muted small">{tx('{0} · {1} · {2} mémoire(s) utilisée(s)', file.source === 'unt' ? t('Fichier .unt du logiciel Windows') : t('Fichier DSP Studio'), model.name, used.length)}</p>
+      <p className="muted small">{tn(used.length, '{1} · {2} · {0} mémoire utilisée', '{1} · {2} · {0} mémoires utilisées', file.source === 'unt' ? t('Fichier .unt du logiciel Windows') : t('Fichier t.racks Studio'), model.name)}</p>
       <div className="table-wrap"><table className="table">
         <thead><tr><th /><th>{t('Mémoire')}</th><th>{t('Nom')}</th></tr></thead>
         <tbody>{used.map(({ p, i }) => (
@@ -261,7 +261,7 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
           <span className="small muted">{t('Comme le logiciel Windows : les 20 mémoires sont d’abord remises à zéro, puis celles du fichier sont écrites. Le son en cours n’est pas modifié.')}</span>
           <label className="check">
             <input type="checkbox" checked={restoreSystem} onChange={(e) => setRestoreSystem(e.target.checked)} />
-            <span>{tx('Restaurer aussi le verrouillage et le compteur PTS du fichier{0}', file.unit.system.locked ? t(' (le fichier contient un appareil verrouillé !)') : '')}</span>
+            <span>{file.unit.system.locked ? t('Restaurer aussi le verrouillage et le compteur PTS du fichier (le fichier contient un appareil verrouillé !)') : t('Restaurer aussi le verrouillage et le compteur PTS du fichier')}</span>
           </label>
           {restoreSystem && <Note tone="warn">{tx('Le mot de passe de verrouillage du fichier ({0}) et le réglage PTS seront appliqués. L’ID de l’appareil n’est jamais modifié.', file.unit.system.lockPassword)}</Note>}
           <div className="row end">
@@ -279,7 +279,7 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
             <Button kind="primary" disabled={!chosen.some((v, i) => v && file.unit.presets[i])} onClick={async () => {
               const list = used.filter(({ i }) => chosen[i]).map(({ p }) => ({ slot: p.slot, name: p.name, config: p.config }));
               onClose();
-              await run(t('Écriture des mémoires'), () => mirror.call('writePresets', list), t('{0} mémoire(s) écrite(s)', list.length));
+              await run(t('Écriture des mémoires'), () => mirror.call('writePresets', list), tn(list.length, '{0} mémoire écrite', '{0} mémoires écrites'));
             }}>{t('Écrire la sélection')}</Button>
           </div>
         </div>
@@ -298,6 +298,6 @@ export function OpenedDialog({ file, mirror, onClose, inLibrary }: { file: Opene
 
 export function PresetPicker(p: { value: number; onChange: (n: number) => void; withFactory?: boolean }): React.JSX.Element {
   const { snap } = useDevice();
-  const opts = [...(p.withFactory ? [{ value: 0, label: t('F00 · usine') }] : []), ...(snap?.presets ?? []).map((x) => ({ value: x.slot, label: `${presetLabel(x.slot)} · ${x.user ? x.name : 'vide'}` }))];
+  const opts = [...(p.withFactory ? [{ value: 0, label: t('F00 · usine') }] : []), ...(snap?.presets ?? []).map((x) => ({ value: x.slot, label: `${presetLabel(x.slot)} · ${x.user ? x.name : t('vide')}` }))];
   return <Field label={t('Mémoire')}><Select label={t('Mémoire')} value={p.value} onChange={p.onChange} options={opts} /></Field>;
 }

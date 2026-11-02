@@ -4,7 +4,6 @@
 
 import { useId, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { fmtHzShort } from './format.ts';
-import { t } from '../i18n.tsx';
 
 export interface GraphCurve { id: string; color: string; values: number[]; width?: number; opacity?: number; dash?: string; fill?: boolean }
 export interface GraphHandle { id: number; f: number; db: number; label: string; color: string; bypass?: boolean; fixedY?: boolean; selected?: boolean; info?: string }
@@ -140,7 +139,7 @@ export function ResponseGraph(p: ResponseGraphProps): React.JSX.Element {
         {hLines.filter((_, i) => i % (p.mode === 'phase' ? 1 : 2) === 0).map((v) => (
           <text key={v} x={L - 5} y={y(v) + 4} className="g-label" textAnchor="end">{v > 0 ? `+${v}` : v}{p.mode === 'phase' ? '°' : ''}</text>
         ))}
-        <g clipPath={t('url(#{0})', clip)}>
+        <g clipPath={`url(#${clip})`}>
           {p.curves.map((c) => (
             <g key={c.id}>
               {c.fill && p.mode === 'mag' && (

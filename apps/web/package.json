@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interface web de DSP Studio (React) : mobile, tablette et ordinateur",
+  "description": "Interface web de t.racks Studio (React) : mobile, tablette et ordinateur",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

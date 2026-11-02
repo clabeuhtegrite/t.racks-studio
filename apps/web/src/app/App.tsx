@@ -3,7 +3,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { MODELS } from '@dsp-studio/protocol';
-import { closeDialog, connectDevice, disconnectDevice, errorText, getState, login, promptDialog, run, selectDevice, setPrefs, toast, useApp, useDevice } from '../state/store.ts';
+import { closeDialog, connectDevice, disconnectDevice, errorText, getState, login, promptDialog, run, selectDevice, setLanguage, setPrefs, toast, useApp, useDevice } from '../state/store.ts';
 import { go, href, useRoute, type ViewId } from '../state/route.ts';
 import { Icon, type IconName } from '../ui/icons.tsx';
 import { Badge, Button, Empty, Modal, Progress, Spinner, TextInput } from '../ui/kit.tsx';
@@ -17,21 +17,21 @@ import { ToolsView } from '../views/ToolsView.tsx';
 import { ConnectView } from '../views/ConnectView.tsx';
 import { LibraryView } from '../views/LibraryView.tsx';
 import { SheetView } from '../views/SheetView.tsx';
-import { t, tm, tx } from '../i18n.tsx';
+import { LANGS, t, tm, tx, type Lang } from '../i18n.tsx';
 
 interface NavItem { view: ViewId; label: string; icon: IconName; mobile?: boolean }
-const NAV: NavItem[] = [
-  { view: 'console', label: 'Console', icon: 'console', mobile: true },
-  { view: 'canal', label: 'Canaux', icon: 'eq', mobile: true },
-  { view: 'geq', label: 'EQ graphique', icon: 'geq' },
-  { view: 'dynamique', label: 'Dynamique', icon: 'dynamics' },
-  { view: 'delais', label: 'Délais', icon: 'delay' },
-  { view: 'matrice', label: 'Matrice', icon: 'matrix', mobile: true },
-  { view: 'presets', label: 'Presets', icon: 'presets', mobile: true },
-  { view: 'bibliotheque', label: 'Bibliothèque', icon: 'library' },
-  { view: 'appareil', label: 'Appareil', icon: 'device' },
-  { view: 'outils', label: 'Outils', icon: 'tools' },
-  { view: 'connexion', label: 'Connexion', icon: 'plug' },
+const nav = (): NavItem[] => [
+  { view: 'console', label: t('Console'), icon: 'console', mobile: true },
+  { view: 'canal', label: t('Canaux'), icon: 'eq', mobile: true },
+  { view: 'geq', label: t('EQ graphique'), icon: 'geq' },
+  { view: 'dynamique', label: t('Dynamique'), icon: 'dynamics' },
+  { view: 'delais', label: t('Délais'), icon: 'delay' },
+  { view: 'matrice', label: t('Matrice'), icon: 'matrix', mobile: true },
+  { view: 'presets', label: t('Presets'), icon: 'presets', mobile: true },
+  { view: 'bibliotheque', label: t('Bibliothèque'), icon: 'library' },
+  { view: 'appareil', label: t('Appareil'), icon: 'device' },
+  { view: 'outils', label: t('Outils'), icon: 'tools' },
+  { view: 'connexion', label: t('Connexion'), icon: 'plug' },
 ];
 const NEEDS_CONFIG: ViewId[] = ['console', 'canal', 'geq', 'dynamique', 'delais', 'matrice', 'fiche'];
 
@@ -133,8 +133,8 @@ export function App(): React.JSX.Element {
     <div className={`app view-${route.view}`}>
       <TopBar />
       <nav className="rail" aria-label={t('Navigation')}>
-        {NAV.map((n) => <NavLink key={n.view} item={n} active={route.view === n.view} />)}
-        <div className="rail-foot"><ThemeButton /></div>
+        {nav().map((n) => <NavLink key={n.view} item={n} active={route.view === n.view} />)}
+        <div className="rail-foot"><ThemeButton /><LangSelect /><LangSelect short /></div>
       </nav>
       <main className="main" id="main">
         <OfflineBanner />
@@ -160,8 +160,9 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
 
 function BottomNav({ current }: { current: ViewId }): React.JSX.Element {
   const [more, setMore] = useState(false);
-  const main = NAV.filter((n) => n.mobile);
-  const others = NAV.filter((n) => !n.mobile);
+  const items = nav();
+  const main = items.filter((n) => n.mobile);
+  const others = items.filter((n) => !n.mobile);
   const inOthers = others.some((n) => n.view === current);
   return (
     <>
@@ -177,11 +178,21 @@ function BottomNav({ current }: { current: ViewId }): React.JSX.Element {
             <div className="sheet-grid">
               {others.map((n) => <NavLink key={n.view} item={n} active={current === n.view} onClick={() => setMore(false)} />)}
             </div>
-            <div className="sheet-foot"><ThemeButton /><Button onClick={() => setMore(false)}>{t('Fermer')}</Button></div>
+            <div className="sheet-foot"><div className="row"><ThemeButton /><LangSelect /></div><Button onClick={() => setMore(false)}>{t('Fermer')}</Button></div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/** Language of the interface (the full choice, with "automatic", is in Tools > Preferences). */
+function LangSelect({ short = false }: { short?: boolean }): React.JSX.Element {
+  const lang = useApp((s) => s.lang);
+  return (
+    <select className={`select select-sm lang-select ${short ? 'lang-short' : 'lang-long'}`} aria-label={t('Langue')} title={t('Langue')} value={lang} onChange={(e) => setLanguage(e.target.value as Lang)}>
+      {LANGS.map((l) => <option key={l.id} value={l.id} lang={l.id}>{short ? l.id.toUpperCase() : `${l.id.toUpperCase()} · ${l.name}`}</option>)}
+    </select>
   );
 }
 
@@ -199,9 +210,9 @@ function TopBar(): React.JSX.Element {
   const mode = useApp((s) => s.mode);
   return (
     <header className="top">
-      <a className="brand" href={href('console')} aria-label={t('DSP Studio, accueil')}>
+      <a className="brand" href={href('console')} aria-label={t('t.racks Studio, accueil')}>
         <img src="./icon.svg" alt="" width={28} height={28} />
-        <span>DSP Studio</span>
+        <span>t.racks Studio</span>
       </a>
       <DevicePicker />
       {snap && config && (
@@ -236,7 +247,7 @@ function HistoryButtons(): React.JSX.Element {
   const u = mirror.undoStack.length, r = mirror.redoStack.length;
   return (
     <div className="btn-group">
-      <Button small icon="undo" title={t('Annuler (Ctrl+Z){0}', u ? '' : t(' : rien à annuler'))} disabled={!u || mirror.readOnly} onClick={() => mirror.undo()} />
+      <Button small icon="undo" title={u ? t('Annuler (Ctrl+Z)') : t('Annuler (Ctrl+Z) : rien à annuler')} disabled={!u || mirror.readOnly} onClick={() => mirror.undo()} />
       <Button small icon="redo" title={t('Rétablir (Ctrl+Maj+Z)')} disabled={!r || mirror.readOnly} onClick={() => mirror.redo()} />
     </div>
   );
@@ -328,8 +339,8 @@ function ProgressStrip(): React.JSX.Element | null {
   if (!p) return null;
   return (
     <div className="banner">
-      <span>{p.label}</span>
-      <Progress value={p.done} max={p.total} label={p.label} />
+      <span>{tm(p.label)}</span>
+      <Progress value={p.done} max={p.total} label={tm(p.label)} />
     </div>
   );
 }

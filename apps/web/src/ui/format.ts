@@ -1,4 +1,5 @@
-// French display of values, and parsing of what people type ("1,2k", "-3.5", "250 Hz"...), plus the
+// Display of values in the language of the interface (decimal comma in French and German, point in
+// English), and parsing of what people type ("1,2k", "-3.5", "250 Hz"...), plus the
 // parameter definitions used by every control (range, default, display, parsing). Raw values are
 // the device's own units (see @dsp-studio/protocol codecs), exactly like the Windows editor.
 
@@ -6,21 +7,23 @@ import {
   DELAY_RAW_MAX, delayRawToUnit, delayUnitToRaw, eqGainDbToRaw, eqGainRawToDb, freqHzToRaw, freqRawToHz, gainDbToRaw,
   gainRawToDb, qRawToValue, qValueToRaw, RATIOS, RATIO_MAX, thrDbToRaw, thrRawToDb, timeMsToRaw, timeRawToMs, type DelayUnit,
 } from '@dsp-studio/protocol';
-import { t } from '../i18n.tsx';
+import { getLang, t } from '../i18n.tsx';
 
 const MINUS = '−';
-const comma = (s: string): string => s.replace('.', ',');
+/** Decimal separator of the interface language. */
+export const decimalSep = (): string => (getLang() === 'en' ? '.' : ',');
+const comma = (s: string): string => (getLang() === 'en' ? s : s.replace('.', ','));
 
 export function fmtNumber(v: number, digits = 1): string {
-  const s = comma(Math.abs(v).toFixed(digits));
-  return (v < 0 && Number(s.replace(',', '.')) !== 0 ? MINUS : '') + s;
+  const a = Math.abs(v).toFixed(digits);
+  return (v < 0 && Number(a) !== 0 ? MINUS : '') + comma(a);
 }
 export function fmtSigned(v: number, digits = 1): string {
-  const s = comma(Math.abs(v).toFixed(digits));
-  if (Number(s.replace(',', '.')) === 0) return s;
-  return (v < 0 ? MINUS : '+') + s;
+  const a = Math.abs(v).toFixed(digits);
+  if (Number(a) === 0) return comma(a);
+  return (v < 0 ? MINUS : '+') + comma(a);
 }
-export const fmtDb = (db: number, digits = 1): string => (db <= -140 ? t('{0}∞ dB', MINUS) : `${fmtSigned(db, digits)} dB`);
+export const fmtDb = (db: number, digits = 1): string => (db <= -140 ? `${MINUS}∞ dB` : `${fmtSigned(db, digits)} dB`);
 export function fmtHz(hz: number): string {
   if (hz >= 1000) return `${comma((hz / 1000).toFixed(hz >= 10000 ? 1 : 2))} kHz`;
   return `${comma(hz.toFixed(hz < 100 ? 1 : 0))} Hz`;
@@ -31,10 +34,15 @@ export const fmtIso = (hz: number): string => (hz >= 1000 ? `${comma(String(hz /
 export const fmtIsoHz = (hz: number): string => (hz >= 1000 ? `${comma(String(hz / 1000))} kHz` : `${comma(String(hz))} Hz`);
 export const fmtMs = (ms: number, digits = 0): string => `${comma(ms.toFixed(digits))} ms`;
 
-/** Number in what people type: comma or point, unicode minus, optional k / m suffix. */
+/**
+ * Number in what people type: comma or point, unicode minus, optional k / m suffix. In English a
+ * comma followed by three digits separates thousands ("1,000"); otherwise it is a decimal comma.
+ */
 export function parseNumber(text: string): number | null {
-  const t = text.trim().toLowerCase().replace(/−/g, '-').replace(/,/g, '.').replace(/\s+/g, '');
-  const m = /^([+-]?\d*\.?\d+)(k|m)?/.exec(t);
+  let s = text.trim().toLowerCase().replace(/−/g, '-').replace(/\s+/g, '');
+  if (getLang() === 'en') s = s.replace(/,(\d{3})(?!\d)/g, '$1');
+  s = s.replace(/,/g, '.');
+  const m = /^([+-]?\d*\.?\d+)(k|m)?/.exec(s);
   if (!m) return null;
   let v = Number(m[1]);
   if (!Number.isFinite(v)) return null;

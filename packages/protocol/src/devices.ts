@@ -33,16 +33,20 @@ export interface DeviceInfo {
 
 export interface FoundModule { host: string; name: string; mac: string; via: 'udp' | 'tcp' }
 
+/** "Ethernet 192.168.1.101", "Démo DSP 408 · ID 3"... (French: the interfaces translate it). */
 export function describeSource(spec: SourceSpec): string {
   const id = spec.deviceId && spec.deviceId !== 1 ? ` · ID ${spec.deviceId}` : '';
-  switch (spec.kind) {
-    case 'tcp': return `Ethernet ${spec.host}${spec.port && spec.port !== DSP_TCP_PORT ? ':' + spec.port : ''}${id}`;
-    case 'usb': return `USB${spec.path ? ' ' + spec.path : ''}${id}`;
-    case 'serial': return `Série ${spec.path}${id}`;
-    case 'demo': return `Démo ${MODELS[spec.model].name}${id}`;
-    case 'webhid': return `USB${spec.name ? ' ' + spec.name : ''}${id}`;
-    case 'webserial': return `Série${spec.name ? ' ' + spec.name : ''}${id}`;
-  }
+  const what = (() => {
+    switch (spec.kind) {
+      case 'tcp': { const at = spec.port && spec.port !== DSP_TCP_PORT ? `${spec.host}:${spec.port}` : spec.host; return `Ethernet ${at}`; }
+      case 'usb': return spec.path ? `USB ${spec.path}` : 'USB';
+      case 'serial': return `Série ${spec.path}`;
+      case 'demo': return `Démo ${MODELS[spec.model].name}`;
+      case 'webhid': return spec.name ? `USB ${spec.name}` : 'USB';
+      case 'webserial': return spec.name ? `Série ${spec.name}` : 'Série';
+    }
+  })();
+  return what + id;
 }
 
 export function sourceKey(spec: SourceSpec): string {

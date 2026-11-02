@@ -6,37 +6,38 @@ import {
   channelResponse, CMD, DELAY_FS, ext, EXT_COMMANDS, extFrame, extHex, freqHzToRaw, freqRawToHz, logFreqs, MODELS, SPEED_OF_SOUND,
   type ExtKind, type Xover,
 } from '@dsp-studio/protocol';
-import { confirmDialog, setPrefs, setState, toast, useApp, useCanEdit, useDevice, useFrames } from '../state/store.ts';
+import { confirmDialog, setLanguage, setPrefs, setState, toast, useApp, useCanEdit, useDevice, useFrames } from '../state/store.ts';
 import { go, href, useRoute } from '../state/route.ts';
 import { Badge, Button, Card, Field, Note, ParamRow, Segmented, Select, Tabs, TextInput, Toggle } from '../ui/kit.tsx';
 import { Icon } from '../ui/icons.tsx';
 import { ResponseGraph, type GraphCurve } from '../ui/ResponseGraph.tsx';
 import { colorOf, labelOf } from '../ui/channels.tsx';
-import { fmtHzShort, fmtNumber, P } from '../ui/format.ts';
+import { decimalSep, fmtHzShort, fmtNumber, P } from '../ui/format.ts';
 import { SLOPE_OPTIONS } from '../editors/editors.tsx';
 import { APP_VERSION } from '../client/types.ts';
 import type { FrameLine } from '../client/mirror.ts';
 import { downloadFile, stamp } from '../app/files.ts';
-import { t, tx } from '../i18n.tsx';
+import { LANGS, locale, t, tm, tx } from '../i18n.tsx';
 
 type Tab = 'filtrage' | 'calculs' | 'rs232' | 'trames' | 'journal' | 'preferences' | 'apropos';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'filtrage', label: 'Assistant de filtrage' },
-  { id: 'calculs', label: 'Calculs' },
-  { id: 'rs232', label: 'Code RS-232' },
-  { id: 'trames', label: 'Trames' },
-  { id: 'journal', label: 'Journal' },
-  { id: 'preferences', label: 'Préférences' },
-  { id: 'apropos', label: 'À propos' },
+const TAB_IDS: Tab[] = ['filtrage', 'calculs', 'rs232', 'trames', 'journal', 'preferences', 'apropos'];
+const tabs = (): { id: Tab; label: string }[] => [
+  { id: 'filtrage', label: t('Assistant de filtrage') },
+  { id: 'calculs', label: t('Calculs') },
+  { id: 'rs232', label: t('Code RS-232') },
+  { id: 'trames', label: t('Trames') },
+  { id: 'journal', label: t('Journal') },
+  { id: 'preferences', label: t('Préférences') },
+  { id: 'apropos', label: t('À propos') },
 ];
 
 export function ToolsView(): React.JSX.Element {
   const route = useRoute();
-  const tab = (TABS.some((x) => x.id === route.arg) ? route.arg : 'filtrage') as Tab;
+  const tab = (TAB_IDS.includes(route.arg as Tab) ? route.arg : 'filtrage') as Tab;
   return (
     <div className="page">
       <div className="page-head"><h1>{t('Outils')}</h1></div>
-      <Tabs label={t('Outils')} value={tab} tabs={TABS} onChange={(t) => go('outils', t)} />
+      <Tabs label={t('Outils')} value={tab} tabs={tabs()} onChange={(v) => go('outils', v)} />
       {tab === 'filtrage' && <CrossoverAssistant />}
       {tab === 'calculs' && <div className="cards"><DelayCalculator /><WavelengthCalculator /></div>}
       {tab === 'rs232' && <Rs232Card />}
@@ -58,7 +59,7 @@ async function copyText(text: string): Promise<void> {
 }
 
 // --------------------------------------------------------------------------- crossover assistant
-const WAY_NAMES: Record<number, string[]> = { 2: ['Grave', 'Aigu'], 3: ['Grave', 'Médium', 'Aigu'] };
+const wayNames = (ways: number): string[] => (ways === 2 ? [t('Grave'), t('Aigu')] : [t('Grave'), t('Médium'), t('Aigu')]);
 const WAY_COLORS = ['#fb923c', '#34d399', '#38bdf8'];
 
 function CrossoverAssistant(): React.JSX.Element {
@@ -76,7 +77,7 @@ function CrossoverAssistant(): React.JSX.Element {
     return <Card title={t('Assistant de filtrage')}><p className="muted">{t('Choisissez d’abord un appareil.')}</p></Card>;
   }
   const m = MODELS[config.model];
-  const names = WAY_NAMES[ways];
+  const names = wayNames(ways);
   const points = ways === 2 ? [fs[0]] : [fs[1], fs[2]];
   const used = assign.slice(0, ways);
   const valid = used.every((a) => a.length > 0) && (ways === 2 || points[0] < points[1]);
@@ -107,7 +108,9 @@ function CrossoverAssistant(): React.JSX.Element {
     const lines = used.map((outs, w) => `${names[w]} : ${outs.map((o) => labelOf(config, m.inputs + o)).join(', ')}`).join('\n');
     const ok = await confirmDialog({
       title: t('Appliquer le filtrage'),
-      message: t('{0}\n\nLes filtres passe-haut / passe-bas{1} de ces sorties seront remplacés. Les égaliseurs, volumes et délais ne changent pas.', lines, invert.slice(0, ways).some(Boolean) ? t(' et la polarité') : ''),
+      message: invert.slice(0, ways).some(Boolean)
+        ? t('{0}\n\nLes filtres passe-haut / passe-bas et la polarité de ces sorties seront remplacés. Les égaliseurs, volumes et délais ne changent pas.', lines)
+        : t('{0}\n\nLes filtres passe-haut / passe-bas de ces sorties seront remplacés. Les égaliseurs, volumes et délais ne changent pas.', lines),
       ok: t('Appliquer'),
     });
     if (!ok) return;
@@ -264,9 +267,9 @@ function Rs232Card(): React.JSX.Element {
               {EXT_COMMANDS.map((c) => (
                 <tr key={c.cmd} className={c.cmd === cmd ? 'is-on' : ''} onClick={() => setCmd(c.cmd)}>
                   <td><code>{c.cmd.toString(16).toUpperCase()}</code></td>
-                  <td><strong>{c.name}</strong><br /><span className="small muted">{c.description}</span></td>
-                  <td className="small">{c.data}</td>
-                  <td className="small">{c.reply}</td>
+                  <td><strong>{tm(c.name)}</strong><br /><span className="small muted">{tm(c.description)}</span></td>
+                  <td className="small">{tm(c.data)}</td>
+                  <td className="small">{tm(c.reply)}</td>
                   <td>{c.verified ? <Badge tone="ok">{t('vérifié')}</Badge> : <Badge tone="warn">{t('sans réponse')}</Badge>}</td>
                 </tr>
               ))}
@@ -277,7 +280,7 @@ function Rs232Card(): React.JSX.Element {
       <Card title={t('Générateur de trame')} className="span2">
         <div className="form form-inline">
           <Field label={t('ID de l’appareil')}><TextInput value={id} onChange={(v) => setId(v.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" label="ID" /></Field>
-          <Field label={t('Commande')}><Select label={t('Commande')} value={cmd} onChange={setCmd} options={EXT_COMMANDS.map((c) => ({ value: c.cmd, label: `${c.cmd.toString(16).toUpperCase()} · ${c.name}` }))} /></Field>
+          <Field label={t('Commande')}><Select label={t('Commande')} value={cmd} onChange={setCmd} options={EXT_COMMANDS.map((c) => ({ value: c.cmd, label: `${c.cmd.toString(16).toUpperCase()} · ${tm(c.name)}` }))} /></Field>
           {cmd !== 0x43 && cmd !== 0x4a && (
             <>
               {!isVolume && <Field label={t('Type')}><Segmented label={t('Type')} value={kind} onChange={setKind} options={[{ value: 0 as ExtKind, label: t('Entrée') }, { value: 1 as ExtKind, label: t('Sortie') }]} /></Field>}
@@ -293,7 +296,7 @@ function Rs232Card(): React.JSX.Element {
           <code className="frame-hex">{hex}</code>
           <Button small icon="copy" onClick={() => copyText(hex)}>{t('Copier')}</Button>
         </div>
-        <p className="small muted">{tx('{0} Réponse : {1}.', def.description, def.reply)}</p>
+        <p className="small muted">{t('{0} Réponse : {1}.', tm(def.description), tm(def.reply))}</p>
         {!def.verified && <Note tone="warn">{t('Cette commande figure dans l’aide de Thomann mais le firmware 1.04 n’y répond pas.')}</Note>}
       </Card>
     </div>
@@ -308,7 +311,7 @@ function frameCmd(hex: string): number | null {
 }
 const fmtTime = (t: number): string => {
   const d = new Date(t);
-  return `${d.toLocaleTimeString('fr-FR')},${String(d.getMilliseconds()).padStart(3, '0')}`;
+  return `${d.toLocaleTimeString(locale())}${decimalSep()}${String(d.getMilliseconds()).padStart(3, '0')}`;
 };
 
 function FramesCard(): React.JSX.Element {
@@ -326,12 +329,12 @@ function FramesCard(): React.JSX.Element {
   const list = source.filter((f) => !hidePolls || frameCmd(f.hex) !== CMD.METERS).slice(-400);
   const text = (): string => list.map((f) => `${fmtTime(f.at)} ${f.dir === 'tx' ? '>' : '<'} ${f.hex}`).join('\n');
   return (
-    <Card title={t('Trames échangées')} subtitle={t('Ce que DSP Studio envoie au DSP et ce qu’il répond (menu Help > HidData du logiciel Windows).')} className="frames-card"
+    <Card title={t('Trames échangées')} subtitle={t('Ce que t.racks Studio envoie au DSP et ce qu’il répond (menu Help > HidData du logiciel Windows).')} className="frames-card"
       actions={<>
         <Button small icon={paused ? 'play' : 'stop'} onClick={() => setPaused(paused ? null : frames.slice())}>{paused ? t('Reprendre') : t('Pause')}</Button>
         <Button small icon="trash" onClick={() => { mirror.clearFrames(); setPaused(null); }}>{t('Effacer')}</Button>
         <Button small icon="copy" onClick={() => copyText(text())}>{t('Copier')}</Button>
-        <Button small icon="download" onClick={() => downloadFile(t('trames_{0}.txt', stamp()), text(), 'text/plain')}>{t('Télécharger')}</Button>
+        <Button small icon="download" onClick={() => downloadFile(`${t('trames')}_${stamp()}.txt`, text(), 'text/plain')}>{t('Télécharger')}</Button>
       </>}>
       <label className="check">
         <input type="checkbox" checked={hidePolls} onChange={(e) => setHidePolls(e.target.checked)} />
@@ -361,14 +364,14 @@ function JournalCard(): React.JSX.Element {
   return (
     <Card title={t('Journal')} subtitle={t('Les messages de la session : connexions, opérations, erreurs (menu Help > Memo du logiciel Windows).')}
       actions={<>
-        <Button small icon="copy" disabled={!journal.length} onClick={() => copyText(journal.map((l) => `${new Date(l.at).toLocaleTimeString('fr-FR')} ${l.text}`).join('\n'))}>{t('Copier')}</Button>
+        <Button small icon="copy" disabled={!journal.length} onClick={() => copyText(journal.map((l) => `${new Date(l.at).toLocaleTimeString(locale())} ${l.text}`).join('\n'))}>{t('Copier')}</Button>
         <Button small icon="trash" disabled={!journal.length} onClick={() => setState({ journal: [] })}>{t('Effacer')}</Button>
       </>}>
       <div className="journal">
         {journal.length === 0 && <p className="muted small">{t('Rien pour l’instant.')}</p>}
         {journal.slice().reverse().map((l, i) => (
           <div key={`${l.at}-${i}`} className={`journal-line jl-${l.kind}`}>
-            <span className="frame-t">{new Date(l.at).toLocaleTimeString('fr-FR')}</span>
+            <span className="frame-t">{new Date(l.at).toLocaleTimeString(locale())}</span>
             <Icon name={l.kind === 'ok' ? 'check' : l.kind === 'info' ? 'info' : 'warning'} size={16} />
             <span>{l.text}</span>
           </div>
@@ -387,6 +390,10 @@ function PrefsCard(): React.JSX.Element {
     <div className="cards">
       <Card title={t('Affichage')}>
         <div className="stack">
+          <div className="row between">
+            <div><span>{t('Langue')}</span><p className="small muted">{t('Automatique : la langue du navigateur, sinon l’anglais.')}</p></div>
+            <Select label={t('Langue')} value={prefs.lang} onChange={(l) => setLanguage(l)} options={[{ value: '' as const, label: t('Automatique') }, ...LANGS.map((l) => ({ value: l.id, label: l.name }))]} />
+          </div>
           <div className="row between">
             <span>{t('Thème')}</span>
             <Segmented label={t('Thème')} value={prefs.theme} onChange={(theme) => setPrefs({ theme })} options={[{ value: 'auto', label: t('Auto') }, { value: 'dark', label: t('Sombre') }, { value: 'light', label: t('Clair') }]} />
@@ -424,10 +431,10 @@ function AboutCard(): React.JSX.Element {
   const { snap } = useDevice();
   return (
     <div className="cards">
-      <Card title="DSP Studio">
+      <Card title="t.racks Studio" subtitle={t('Logiciel libre et non officiel (licence MIT)')}>
         <dl className="kv">
           <div><dt>{t('Application')}</dt><dd>{APP_VERSION}</dd></div>
-          <div><dt>{t('Mode')}</dt><dd>{mode === 'bridge' ? t('pont DSP Studio {0}', backend?.version ?? '') : t('navigateur (WebHID, Web Serial, démo)')}</dd></div>
+          <div><dt>{t('Mode')}</dt><dd>{mode === 'bridge' ? t('pont t.racks Studio {0}', backend?.version ?? '') : t('navigateur (WebHID, Web Serial, démo)')}</dd></div>
           <div><dt>{t('Firmware de l’appareil')}</dt><dd>{snap?.version || '—'}</dd></div>
         </dl>
         <p className="small">{t('Une interface moderne pour les processeurs t.racks DSP 206 et DSP 408, avec toutes les fonctions du logiciel « Processor Editor » pour Windows, sur ordinateur, tablette et téléphone.')}</p>
@@ -444,7 +451,7 @@ function AboutCard(): React.JSX.Element {
           <li>{t('Aeternitaas/dsp-408-ui : DSP 408 en Ethernet')}</li>
           <li>{t('DoctorRemoteControl/dsp408-protocol : trames du DSP 408')}</li>
         </ul>
-        <p className="small muted">{t('DSP Studio n’est ni développé ni soutenu par Thomann. t.racks est une marque de Thomann GmbH.')}</p>
+        <p className="small muted">{t('t.racks Studio n’est ni développé ni soutenu par Thomann. t.racks est une marque de Thomann GmbH.')}</p>
       </Card>
     </div>
   );

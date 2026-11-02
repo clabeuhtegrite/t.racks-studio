@@ -1,4 +1,4 @@
-// The web app talks to DSPs through a "backend": the DSP Studio bridge (WebSocket, shared by every
+// The web app talks to DSPs through a "backend": the t.racks Studio bridge (WebSocket, shared by every
 // phone / tablet / computer on the network) or the browser itself (WebHID, Web Serial, demo).
 // Both expose exactly the same operations and events.
 

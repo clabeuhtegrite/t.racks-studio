@@ -4,19 +4,25 @@
 
 import { useMemo, useState } from 'react';
 import {
-  bandResponse, eqGainDbToRaw, eqGainRawToDb, freqHzToRaw, freqRawToHz, logFreqs, PEQ_TYPES, peqTypeHasGain, peqTypeHasQ, qRawToValue,
+  bandResponse, eqGainDbToRaw, eqGainRawToDb, freqHzToRaw, freqRawToHz, logFreqs, peqTypeHasGain, peqTypeHasQ, qRawToValue,
   type DeviceConfig, type PeqBand,
 } from '@dsp-studio/protocol';
 import type { DeviceMirror } from '../client/mirror.ts';
 import { confirmDialog, useApp } from '../state/store.ts';
 import { Button, Card, ParamRow, Select, Segmented, Toggle, ValueField } from '../ui/kit.tsx';
-import { fmtDb, fmtHz, P } from '../ui/format.ts';
+import { fmtDb, fmtHz, fmtNumber, P } from '../ui/format.ts';
 import { allChannels, chan, colorOf, labelOf, responseOf } from '../ui/channels.tsx';
 import { ResponseGraph, type GraphCurve, type GraphHandle, type GraphMarker } from '../ui/ResponseGraph.tsx';
 import { t, tx } from '../i18n.tsx';
 
-export const PEQ_TYPE_SHORT = ['Cloche', 'Plateau grave', 'Plateau aigu', 'Passe-bas 6', 'Passe-bas 12', 'Passe-haut 6', 'Passe-haut 12', 'Passe-tout 1', 'Passe-tout 2'];
-export const PEQ_TYPE_LABELS = ['Cloche (Peak)', 'Plateau grave (Low Shelf)', 'Plateau aigu (High Shelf)', 'Passe-bas 6 dB', 'Passe-bas 12 dB', 'Passe-haut 6 dB', 'Passe-haut 12 dB', 'Passe-tout 1er ordre', 'Passe-tout 2e ordre'];
+/** Short names of the band types (table), then the full ones with the editor's names (band editor, sheet). */
+export const peqTypeShort = (): string[] => [
+  t('Cloche'), t('Plateau grave'), t('Plateau aigu'), t('Passe-bas 6'), t('Passe-bas 12'), t('Passe-haut 6'), t('Passe-haut 12'), t('Passe-tout 1'), t('Passe-tout 2'),
+];
+export const peqTypeLabels = (): string[] => [
+  t('Cloche (Peak)'), t('Plateau grave (Low Shelf)'), t('Plateau aigu (High Shelf)'), t('Passe-bas 6 dB'), t('Passe-bas 12 dB'),
+  t('Passe-haut 6 dB'), t('Passe-haut 12 dB'), t('Passe-tout 1er ordre'), t('Passe-tout 2e ordre'),
+];
 
 export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirror; disabled: boolean }): React.JSX.Element {
   const { cfg, ch, mirror, disabled } = p;
@@ -56,7 +62,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
   const handles: GraphHandle[] = c.peq.map((pb, k) => ({
     id: k, f: freqRawToHz(pb.freq), db: eqGainRawToDb(pb.gain), label: String(k + 1), color, bypass: pb.bypass || c.peqBypass,
     fixedY: !peqTypeHasGain(pb.type), selected: k === band,
-    info: `${fmtHz(freqRawToHz(pb.freq))}${peqTypeHasGain(pb.type) ? ' · ' + fmtDb(eqGainRawToDb(pb.gain)) : ''}${peqTypeHasQ(pb.type) ? t(' · Q ') + qRawToValue(pb.q).toFixed(2).replace('.', ',') : ''}`,
+    info: `${fmtHz(freqRawToHz(pb.freq))}${peqTypeHasGain(pb.type) ? ' · ' + fmtDb(eqGainRawToDb(pb.gain)) : ''}${peqTypeHasQ(pb.type) ? ' · Q ' + fmtNumber(qRawToValue(pb.q), 2) : ''}`,
   }));
   const markers: GraphMarker[] = [];
   if (c.hpf.slope) markers.push({ id: 'hp', f: freqRawToHz(c.hpf.freq), label: 'HP', color });
@@ -129,7 +135,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
         <div className="band-edit">
           <div className="band-edit-top">
             <Select label={t('Type de filtre')} value={b.type} disabled={disabled} onChange={(type) => setBand(band, { type })}
-              options={PEQ_TYPES.map((_, i) => ({ value: i, label: PEQ_TYPE_LABELS[i] }))} />
+              options={peqTypeLabels().map((label, i) => ({ value: i, label }))} />
             <Toggle small tone="amber" on={b.bypass} onChange={(bypass) => setBand(band, { bypass })} disabled={disabled}>{tx('Bypass bande {0}', band + 1)}</Toggle>
           </div>
           <ParamRow label={t('Fréquence')} param={P.freq} value={b.freq} onChange={(freq) => setBand(band, { freq })} disabled={disabled} color={color} />
@@ -147,7 +153,7 @@ export function PeqEditor(p: { cfg: DeviceConfig; ch: number; mirror: DeviceMirr
                 <td><strong>{k + 1}</strong></td>
                 <td>
                   <Select label={t('Type bande {0}', k + 1)} value={pb.type} disabled={disabled} onChange={(type) => setBand(k, { type })}
-                    options={PEQ_TYPES.map((t, i) => ({ value: i, label: PEQ_TYPE_SHORT[i] ?? t }))} className="select-sm" />
+                    options={peqTypeShort().map((label, i) => ({ value: i, label }))} className="select-sm" />
                 </td>
                 <td><ValueField value={pb.freq} param={P.freq} onChange={(freq) => setBand(k, { freq })} disabled={disabled} label={t('Fréquence bande {0}', k + 1)} /></td>
                 <td><ValueField value={pb.q} param={P.q} onChange={(q) => setBand(k, { q })} disabled={disabled || !peqTypeHasQ(pb.type)} label={t('Q bande {0}', k + 1)} /></td>

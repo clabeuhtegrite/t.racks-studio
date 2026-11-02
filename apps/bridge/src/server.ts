@@ -7,6 +7,7 @@ import https from 'node:https';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { t } from '@dsp-studio/i18n';
 import { callSession, canApply, canCall, validateAction, validateSource, type Action, type Role, type SessionSnapshot } from '@dsp-studio/protocol';
 import { discover, probeIds } from './discovery.ts';
 import { Hub } from './hub.ts';
@@ -217,7 +218,7 @@ export function startServer(o: ServerOptions): Promise<http.Server | https.Serve
       res.end(JSON.stringify({ ok: true, version: BRIDGE_VERSION, devices: o.hub.list() }));
       return;
     }
-    if (!webRoot) { res.writeHead(404); res.end('interface web non compilée (npm run build)'); return; }
+    if (!webRoot) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end(t('interface web non compilée (npm run build)')); return; }
     let p = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
     let file = join(webRoot, p);
     if (!file.startsWith(webRoot + sep) && file !== webRoot) { res.writeHead(403); res.end(); return; }

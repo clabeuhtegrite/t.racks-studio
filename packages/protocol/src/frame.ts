@@ -30,7 +30,7 @@ export function checksum(bytes: ArrayLike<number>, end = bytes.length): number {
 }
 
 export function encodeFrame(cmd: number, data: ArrayLike<number> = [], src = HOST, dst = DEVICE): Uint8Array {
-  if (data.length > MAX_DATA) throw new RangeError(`frame data too long (${data.length})`);
+  if (data.length > MAX_DATA) throw new RangeError(`données de trame trop longues (${data.length} octets)`);
   const out = new Uint8Array(data.length + 9);
   out[0] = STX0; out[1] = STX1; out[2] = src & 0xff; out[3] = dst & 0xff;
   out[4] = (1 + data.length) & 0xff; out[5] = cmd & 0xff;

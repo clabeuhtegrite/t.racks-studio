@@ -1,4 +1,4 @@
-// Backend over the DSP Studio bridge (WebSocket /ws). Reconnects by itself and restores the
+// Backend over the t.racks Studio bridge (WebSocket /ws). Reconnects by itself and restores the
 // subscriptions, so a phone that sleeps or changes Wi-Fi simply picks up where it was.
 
 import type { Action, DeviceInfo, FoundModule, Role, SessionSnapshot, SourceSpec } from '@dsp-studio/protocol';
@@ -15,7 +15,7 @@ export class BridgeError extends Error {
 export function defaultBridgeUrl(): string {
   const l = window.location;
   const path = l.pathname.replace(/[^/]*$/, '');
-  return t('{0}://{1}{2}ws', l.protocol === 'https:' ? 'wss' : 'ws', l.host, path);
+  return `${l.protocol === 'https:' ? 'wss' : 'ws'}://${l.host}${path}ws`;
 }
 
 export class BridgeBackend implements Backend {
@@ -123,7 +123,7 @@ export class BridgeBackend implements Backend {
         if (!p) return;
         this.pending.delete(Number(m.rid));
         clearTimeout(p.timer);
-        if (m.ok) p.res(m.value); else p.rej(new BridgeError(String(m.error ?? 'erreur')));
+        if (m.ok) p.res(m.value); else p.rej(new BridgeError(String(m.error ?? t('erreur'))));
         return;
       }
       case 'devices': this.devices = m.list as DeviceInfo[]; this.em.emit('devices', this.devices); return;

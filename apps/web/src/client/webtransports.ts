@@ -94,7 +94,10 @@ export async function webSerialTransport(port: SerialPort, baudRate = 115200): P
   };
 }
 
-export function serialPortName(port: SerialPort): string {
+/** Name stored with the device to find its port again, so it never depends on the language: the
+ *  USB vendor and product ids when the port has them. */
+export function serialPortName(port: SerialPort): string | undefined {
   const i = port.getInfo();
-  return i.usbVendorId ? t('USB {0}:{1}', i.usbVendorId.toString(16).padStart(4, '0'), (i.usbProductId ?? 0).toString(16).padStart(4, '0')) : t('port série');
+  const hex = (n: number): string => n.toString(16).padStart(4, '0');
+  return i.usbVendorId ? `USB ${hex(i.usbVendorId)}:${hex(i.usbProductId ?? 0)}` : undefined;
 }

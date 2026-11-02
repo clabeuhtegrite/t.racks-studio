@@ -12,9 +12,9 @@ import { Icon } from '../ui/icons.tsx';
 import { downloadFile, fileBytes, pickFile, safeName } from '../app/files.ts';
 import { OpenedDialog } from './PresetsView.tsx';
 import type { LibraryApi, LibraryEntry, LibraryKind, LibrarySummary } from '../client/types.ts';
-import { t } from '../i18n.tsx';
+import { locale, t } from '../i18n.tsx';
 
-const KIND_LABEL: Record<LibraryKind, string> = { scene: 'Scène', preset: 'Preset', unit: 'Sauvegarde' };
+const kindLabel = (k: LibraryKind): string => (k === 'scene' ? t('Scène') : k === 'preset' ? t('Preset') : t('Sauvegarde'));
 
 /** Library entry -> the same structure as an opened file. */
 function entryToFile(e: LibraryEntry): OpenedFile {
@@ -169,10 +169,10 @@ function LibraryItem(p: {
       <div className="grow lib-main">
         <div className="lib-title">
           <strong>{e.name}</strong>
-          <Badge tone={e.kind === 'scene' ? 'accent' : 'muted'}>{KIND_LABEL[e.kind]}</Badge>
+          <Badge tone={e.kind === 'scene' ? 'accent' : 'muted'}>{kindLabel(e.kind)}</Badge>
           <Badge>{MODELS[e.model]?.name ?? e.model}</Badge>
         </div>
-        <div className="small muted">{new Date(e.savedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}{e.notes ? ` · ${e.notes}` : ''}</div>
+        <div className="small muted">{new Date(e.savedAt).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' })}{e.notes ? ` · ${e.notes}` : ''}</div>
       </div>
       <div className="lib-actions">
         {e.kind !== 'unit' && <Button small kind="primary" icon="play" disabled={!usable || !p.canEdit} title={!p.sameModel ? t('Autre modèle') : undefined} onClick={recall}>{t('Rappeler')}</Button>}

@@ -39,7 +39,7 @@ export type Dialog =
 export interface AppState {
   backend: Backend | null;
   mode: 'bridge' | 'local' | null;
-  /** the page itself comes from a DSP Studio bridge */
+  /** the page itself comes from a t.racks Studio bridge */
   served: boolean;
   status: BackendStatus | 'starting';
   role: Role;
@@ -194,7 +194,7 @@ export async function startApp(): Promise<void> {
   setState({ served });
   const url = served ? defaultBridgeUrl() : p.bridgeUrl;
   if (url) {
-    const b = new BridgeBackend(url, { pin: p.pin, name: p.clientName || navigator.platform || 'navigateur' });
+    const b = new BridgeBackend(url, { pin: p.pin, name: p.clientName || navigator.platform || t('navigateur') });
     attach(b, 'bridge');
     try {
       await b.start();
@@ -233,7 +233,7 @@ export function toWsUrl(a: string): string {
   const http = /^https?:\/\//.test(a) ? a : `http://${a}`;
   const u = new URL(http);
   if (!u.port && u.protocol === 'http:') u.port = '8080';
-  return t('{0}://{1}/ws', u.protocol === 'https:' ? 'wss' : 'ws', u.host);
+  return `${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}/ws`;
 }
 
 /** Opens the connection to a remembered device (errors become messages). */
